@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kinbase-design"
+version = "0.1.0"
+description = "Local design language library and visual workbench"
+requires-python = ">=3.12"
+dependencies = ["jinja2", "rfc8785", "fonttools", "pillow"]
+
+[project.scripts]
+kinbase-design = "kinbase_design.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["kinbase_design*"]
+
+[tool.setuptools.package-data]
+kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css"]

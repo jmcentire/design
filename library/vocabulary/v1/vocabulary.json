@@ -1,0 +1,900 @@
+{
+  "version": "v1",
+  "roles": [
+    "title",
+    "subtitle",
+    "body",
+    "subtext",
+    "label",
+    "caption",
+    "media",
+    "action",
+    "control"
+  ],
+  "emphasis": [
+    "neutral",
+    "primary",
+    "attention",
+    "muted"
+  ],
+  "states": [
+    "default",
+    "hover",
+    "focus-visible",
+    "active",
+    "disabled",
+    "selected",
+    "expanded",
+    "loading",
+    "empty",
+    "error"
+  ],
+  "constructs": {
+    "page-shell": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "title",
+          "emphasis": "neutral",
+          "element": "h1",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "main",
+      "contract": {
+        "landmark": "main",
+        "accessible-name": null,
+        "reading-order": [
+          "title",
+          "body"
+        ],
+        "focus-order": [],
+        "heading-levels": {
+          "title": 1
+        }
+      }
+    },
+    "nav": {
+      "slots": [
+        {
+          "id": "logo",
+          "role": "media",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": true,
+          "interaction": "navigate",
+          "href": "index.html",
+          "asset_kind": "logo",
+          "kind": "media"
+        },
+        {
+          "id": "links",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "div",
+          "required": true,
+          "interaction": "navigate",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Main navigation",
+      "root": "nav",
+      "contract": {
+        "landmark": "nav",
+        "accessible-name": "Main navigation",
+        "reading-order": [
+          "logo",
+          "links"
+        ],
+        "focus-order": [
+          "logo",
+          "links"
+        ],
+        "heading-levels": {}
+      }
+    },
+    "search-bar": {
+      "slots": [
+        {
+          "id": "query",
+          "role": "control",
+          "emphasis": "neutral",
+          "element": "input",
+          "required": true,
+          "label": "Destination",
+          "field": "search",
+          "kind": "control"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "primary",
+          "element": "button",
+          "required": true,
+          "interaction": "submit-search",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Find a stay",
+      "action": "search.html",
+      "root": "form",
+      "contract": {
+        "landmark": "form",
+        "accessible-name": "Find a stay",
+        "reading-order": [
+          "query",
+          "action"
+        ],
+        "focus-order": [
+          "query",
+          "action"
+        ],
+        "heading-levels": {}
+      }
+    },
+    "filter-group": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "label",
+          "emphasis": "neutral",
+          "element": "legend",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "options",
+          "role": "control",
+          "emphasis": "neutral",
+          "element": "div",
+          "required": true,
+          "interaction": "toggle-filter",
+          "kind": "control"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "fieldset",
+      "contract": {
+        "landmark": null,
+        "accessible-name": null,
+        "reading-order": [
+          "title",
+          "options"
+        ],
+        "focus-order": [
+          "options"
+        ],
+        "heading-levels": {}
+      }
+    },
+    "listing-card": {
+      "slots": [
+        {
+          "id": "media",
+          "role": "media",
+          "emphasis": "neutral",
+          "element": "img",
+          "required": true,
+          "asset_kind": "image",
+          "kind": "media"
+        },
+        {
+          "id": "title",
+          "role": "title",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "location",
+          "role": "subtext",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "rating",
+          "role": "caption",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "price",
+          "role": "label",
+          "emphasis": "primary",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "interaction": "navigate",
+          "href": "listing.html",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "article",
+      "contract": {
+        "landmark": null,
+        "accessible-name": null,
+        "reading-order": [
+          "media",
+          "title",
+          "location",
+          "rating",
+          "price",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    },
+    "gallery": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "subtitle",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "media",
+          "role": "media",
+          "emphasis": "neutral",
+          "element": "img",
+          "required": true,
+          "asset_kind": "image",
+          "kind": "media"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "interaction": "navigate",
+          "href": "listing.html",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Photo gallery",
+      "root": "section",
+      "contract": {
+        "landmark": null,
+        "accessible-name": "Photo gallery",
+        "reading-order": [
+          "title",
+          "media",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    },
+    "detail-header": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "title",
+          "emphasis": "neutral",
+          "element": "h1",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "location",
+          "role": "subtext",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "description",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "interaction": "navigate",
+          "href": "form.html",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "header",
+      "contract": {
+        "landmark": null,
+        "accessible-name": null,
+        "reading-order": [
+          "title",
+          "location",
+          "description",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 1
+        }
+      }
+    },
+    "form": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "subtitle",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "name",
+          "role": "control",
+          "emphasis": "neutral",
+          "element": "input",
+          "required": true,
+          "label": "Name",
+          "field": "text",
+          "kind": "control"
+        },
+        {
+          "id": "email",
+          "role": "control",
+          "emphasis": "neutral",
+          "element": "input",
+          "required": true,
+          "label": "Email address",
+          "field": "email",
+          "kind": "control"
+        },
+        {
+          "id": "message",
+          "role": "control",
+          "emphasis": "neutral",
+          "element": "textarea",
+          "required": true,
+          "label": "Message",
+          "kind": "control"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "primary",
+          "element": "button",
+          "required": true,
+          "interaction": "submit",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Enquiry",
+      "action": "form.html",
+      "root": "form",
+      "contract": {
+        "landmark": "form",
+        "accessible-name": "Enquiry",
+        "reading-order": [
+          "title",
+          "name",
+          "email",
+          "message",
+          "action"
+        ],
+        "focus-order": [
+          "name",
+          "email",
+          "message",
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    },
+    "empty-state": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "subtitle",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "interaction": "navigate",
+          "href": "search.html",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "No results",
+      "root": "section",
+      "contract": {
+        "landmark": null,
+        "accessible-name": "No results",
+        "reading-order": [
+          "title",
+          "body",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    },
+    "error-state": {
+      "slots": [
+        {
+          "id": "title",
+          "role": "subtitle",
+          "emphasis": "attention",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "interaction": "navigate",
+          "href": "form.html",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Error",
+      "root": "section",
+      "contract": {
+        "landmark": null,
+        "accessible-name": "Error",
+        "reading-order": [
+          "title",
+          "body",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    },
+    "footer": {
+      "slots": [
+        {
+          "id": "body",
+          "role": "caption",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "links",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "div",
+          "required": true,
+          "interaction": "navigate",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "footer",
+      "contract": {
+        "landmark": "footer",
+        "accessible-name": null,
+        "reading-order": [
+          "body",
+          "links"
+        ],
+        "focus-order": [
+          "links"
+        ],
+        "heading-levels": {}
+      }
+    },
+    "hero": {
+      "slots": [
+        {
+          "id": "eyebrow",
+          "role": "caption",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "title",
+          "role": "title",
+          "emphasis": "neutral",
+          "element": "h1",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "href": "search.html",
+          "interaction": "navigate",
+          "kind": "action"
+        },
+        {
+          "id": "secondary-action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "href": "form.html",
+          "interaction": "navigate",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "Introduction",
+      "root": "section",
+      "contract": {
+        "landmark": null,
+        "accessible-name": "Introduction",
+        "reading-order": [
+          "eyebrow",
+          "title",
+          "body",
+          "action",
+          "secondary-action"
+        ],
+        "focus-order": [
+          "action",
+          "secondary-action"
+        ],
+        "heading-levels": {
+          "title": 1
+        }
+      }
+    },
+    "content-section": {
+      "slots": [
+        {
+          "id": "eyebrow",
+          "role": "caption",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "title",
+          "role": "subtitle",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "href": "listing.html",
+          "interaction": "navigate",
+          "kind": "action"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "accessible-name": "About the collection",
+      "root": "section",
+      "contract": {
+        "landmark": null,
+        "accessible-name": "About the collection",
+        "reading-order": [
+          "eyebrow",
+          "title",
+          "body",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
+    }
+  },
+  "context": {
+    "pages": {
+      "index.html": "Home",
+      "search.html": "Search",
+      "listing.html": "Listing",
+      "form.html": "Enquiry",
+      "states.html": "States"
+    },
+    "copy": {
+      "title": "Lorem ipsum, a place to pause",
+      "subtitle": "Dolor sit amet",
+      "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+      "subtext": "Lorem coast \u00b7 Ipsum valley",
+      "label": "$240 per night",
+      "caption": "4.9 \u00b7 28 reviews",
+      "action": "Explore the collection",
+      "control": "Lorem ipsum",
+      "media": "A quiet place by the coast"
+    },
+    "image-missing": "Image unavailable",
+    "long-word": "Pneumonoultramicroscopicsilicovolcanoconiosis",
+    "long-title": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua \u2014 a long title for a small screen",
+    "filter-options": [
+      "Coast",
+      "Mountains",
+      "City"
+    ],
+    "field-placeholder": "Lorem ipsum",
+    "search-submit": "Search stays",
+    "form-submit": "Send enquiry",
+    "state-gallery-title": "States and stress content",
+    "construct-copy": {
+      "empty-state": {
+        "title": "No stays found",
+        "body": "Lorem ipsum dolor sit amet. Try another destination.",
+        "action": "Browse all stays"
+      },
+      "error-state": {
+        "title": "Something needs attention",
+        "body": "Lorem ipsum dolor sit amet. Please try again.",
+        "action": "Return to the enquiry"
+      },
+      "listing-card": {
+        "title": "Lorem ipsum retreat",
+        "action": "View listing"
+      },
+      "hero": {
+        "title": "A little room to wander.",
+        "action": "Explore stays",
+        "secondary-action": "Get in touch"
+      },
+      "detail-header": {
+        "title": "Lorem ipsum retreat",
+        "action": "Enquire about this stay"
+      },
+      "footer": {
+        "body": "Lorem ipsum \u00b7 A sample collection"
+      },
+      "filter-group": {
+        "title": "Find your setting"
+      }
+    }
+  }
+}

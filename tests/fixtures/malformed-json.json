@@ -1,0 +1,10 @@
+[
+  "{\"id\":\"tidal\",",
+  "",
+  "\u0000",
+  "{\"id\":\"tidal\"}\u0000",
+  "{\"id\":\"tidal\",\"name\":NaN}",
+  "{\"id\":\"tidal\",\"name\":Infinity}",
+  "{\"id\":\"tidal\",\"name\":\"\\uZZZZ\"}",
+  "{\"id\":\"tidal\",\"name\":\"unterminated}"
+]

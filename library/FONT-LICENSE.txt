@@ -1,0 +1,8 @@
+Instrument Sans — license notice
+
+Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://scripts.sil.org/OFL
+https://scripts.sil.org/OFL
+
+Unmodified font bytes from wandercom/design-system@373cb5e, packages/fonts/instrument-sans/instrument-sans-normal.woff2. The same variable font is bound at weights 400 and 600.

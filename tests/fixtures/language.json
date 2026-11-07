@@ -1,0 +1,42 @@
+{
+  "id": "tidal",
+  "name": "Tidal Test Language",
+  "vocabulary": "v1",
+  "style": {
+    "color": {
+      "$type": "color",
+      "ink": {"$value": "#123456"},
+      "paper": {"$value": "#ffffff"},
+      "component": {"$value": "#654321"},
+      "override": {"$value": "#226644"},
+      "hover": {"$value": "#662244"},
+      "wide": {"$value": "#442266"},
+      "widest": {"$value": "#223366"},
+      "combined": {"$value": "#663322"},
+      "alias": {"$value": "{color.ink}"},
+      "chain": {"$value": "{color.alias}"}
+    },
+    "size": {
+      "$type": "dimension",
+      "body": {"$value": {"value": 16, "unit": "px"}},
+      "large": {"$value": "1.5rem"}
+    },
+    "space": {"$type": "dimension", "small": {"$value": "8px"}},
+    "breakpoint": {
+      "$type": "dimension",
+      "md": {"$value": "768px"},
+      "lg": {"$value": "1280px"}
+    },
+    "type": {
+      "family": {"$type": "fontFamily", "$value": ["sans-serif"]},
+      "weight": {"$type": "fontWeight", "$value": 400},
+      "leading": {"$type": "number", "$value": 1.5}
+    }
+  },
+  "roles": {},
+  "layout": {"variants": {}},
+  "components": {},
+  "overrides": [],
+  "behaviors": [],
+  "assets": {}
+}
