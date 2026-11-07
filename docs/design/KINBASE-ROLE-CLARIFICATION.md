@@ -1,0 +1,8 @@
+# Jeremy's authoritative clarification of Kinbase role
+User: “Kinbase would serve the same purpose as it does for software. Monitoring docs and figma and slack and linear and git to establish shifting standards and behaviors. To allow this system to learn as it receives feedback from users (with authority ladder so Lauren's feedback matters more than a CS team member's).”
+
+Update SPEC.md and PLAN.md (and REVIEW provenance) to reflect this actual purpose, not merely publication of selected language. Use actual existing Kinbase model/sources. Kinbase ingests/evaluates changing standards and feedback under scoped authority; design system learns with source provenance and authority ordering. Lauren Dorman's design feedback outranks generic CS feedback within design authority scope. Do not invent monitoring permissions, available connectors, particular ingestion implementations, universal authority across domains, or automatic promotion of unreviewed feedback into mandatory rules. Clarify actual capabilities versus required adapters/gaps without losing user's intent. Existing fewer-constraints/inspiration posture and all independent review corrections stay.
+Planning only. No new review-tool passes, implementation, subscriptions, credentials, or external communications.
+Independent review has otherwise approved M0; keep change focused. Minor caution: don't require separate on-dark logo asset if existing asset renders suitably; test usability, not filename presence.
+
+User's additional clarification: “Asset and element library can be a subfolder in a GitHub project.” Incorporate as simple supported storage option, not a separate mandatory repository or service. Do not invent remote publishing permissions.
