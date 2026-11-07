@@ -22,6 +22,9 @@ Tests create fresh temporary libraries under an unrelated project directory,
 copying only the candidate's public `library/vocabulary/` data. Product and
 vocabulary absence is an error, never a passing skip.
 
+The table records the initial authoring evidence; subsequent Validator results
+are retained below.
+
 | Invariant | Oracle / boundary | Falsifier | Evidence status |
 | --- | --- | --- | --- |
 | B2: R1–R4 and other composition errors identify invalid input | Direct rules; real CLI and JSON findings | Accept invalid refs/types, conceal failure behind accepted=true, report wrong field | Gap: no candidate |
@@ -98,3 +101,30 @@ output is `/tmp/kinbase-tester-m0-amendment03.log`. Product evidence remains gap
 One contract question remains: malformed JSON has no JSON document into which an
 RFC 6901 pointer can resolve. Its existing schema-failure assertions are retained,
 but its pointer/observed convention awaits clarification rather than being guessed.
+
+Validator browser review after amendment 03: the Validator reports 103 of 104
+cases passed on the integrated candidate, and accepts the assertions as M0
+evidence. The remaining failure is a product defect: a selected 768 CSS px
+preview actually has a 766 px viewport. That exact-width assertion is retained
+unchanged. The candidate commit was not supplied with this source-free result;
+the Tester has not independently rerun that integrated tree.
+
+Two additional regression checks follow the Validator's observed coverage gaps:
+
+- A hand-authored SVG with only a `viewBox` is bound to listing-card media. It
+  must decode, be visible, and have non-zero rendered width and height. Intrinsic
+  `naturalWidth` is not used as a layout oracle for this shape.
+- With window/preview widths 1280/1280, 320/320 and 320/1280, the preview retains
+  its exact viewport width and its right edge must become visible. The test moves
+  actual scroll positions only on user-scrollable ancestors, then hit-tests a
+  point inside the iframe's right content edge. It never changes layout styles
+  or scrolls overflow-hidden/clip containers to manufacture reachability.
+
+These new regressions require a Validator browser run; no red/green result is
+claimed for them yet. The previously reported exact-width failure remains
+**falsified** until a subsequent integrated run demonstrates the repair.
+
+Local checks after these additions: 108 cases collect, including 13 browser
+cases. The 95 non-browser cases still stop at the absent candidate-vocabulary
+prerequisite. Compilation, diff checks and the TTF diagnostic pass. Browser
+execution remains delegated to the Validator because of sandbox restrictions.

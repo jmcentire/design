@@ -33,6 +33,66 @@ def link_at(page, path):
     return matches[0]
 
 
+def reveal_preview_right_edge(frame):
+    """Move real scroll positions only where scrolling is available to the user.
+
+    Never scroll overflow:hidden/clip ancestors: doing so can conceal the product
+    defect, since hidden content can be programmatically scrollable. No styles or
+    layout are changed. Hit testing checks the final visible edge, not scrollWidth.
+    """
+    return frame.evaluate("""async frame => {
+      const root = document.scrollingElement;
+      const rootStyle = getComputedStyle(document.documentElement);
+      const bodyStyle = getComputedStyle(document.body);
+      const scrollable = value => ['auto', 'scroll', 'overlay'].includes(value);
+      const contentBox = node => {
+        const r = node.getBoundingClientRect();
+        const sx = node.offsetWidth ? r.width / node.offsetWidth : 1;
+        const sy = node.offsetHeight ? r.height / node.offsetHeight : 1;
+        return {left: r.left + node.clientLeft * sx, top: r.top + node.clientTop * sy,
+          right: r.left + (node.clientLeft + node.clientWidth) * sx,
+          bottom: r.top + (node.clientTop + node.clientHeight) * sy, sx, sy};
+      };
+      const viewport = node => {
+        if (node === root) return {left: 0, top: 0,
+          right: document.documentElement.clientWidth,
+          bottom: document.documentElement.clientHeight, sx: 1, sy: 1};
+        return contentBox(node);
+      };
+      for (let node = frame.parentElement; node; node = node.parentElement) {
+        const style = getComputedStyle(node), v = viewport(node);
+        const rootX = rootStyle.overflowX === 'visible' ? bodyStyle.overflowX : rootStyle.overflowX;
+        const rootY = rootStyle.overflowY === 'visible' ? bodyStyle.overflowY : rootStyle.overflowY;
+        const canX = node === root ? !['hidden', 'clip'].includes(rootX) : scrollable(style.overflowX);
+        const canY = node === root ? !['hidden', 'clip'].includes(rootY) : scrollable(style.overflowY);
+        const r = contentBox(frame);
+        const right = r.right;
+        const y = r.top + Math.min(20, (r.bottom - r.top) / 2);
+        const dx = right > v.right ? right - v.right : right < v.left ? right - v.left - 1 : 0;
+        const dy = y >= v.bottom ? y - v.bottom + 1 : y < v.top ? y - v.top : 0;
+        node.scrollTo({left: node.scrollLeft + (canX && v.sx > 0 ? dx / v.sx : 0),
+          top: node.scrollTop + (canY && v.sy > 0 ? dy / v.sy : 0), behavior: 'instant'});
+      }
+      // Await the browser's next rendering opportunity, not an elapsed-time delay.
+      await new Promise(requestAnimationFrame);
+      const r = contentBox(frame);
+      const x = r.right - Math.min(0.5, (r.right - r.left) / 2);
+      let top = Math.max(0, r.top);
+      let bottom = Math.min(document.documentElement.clientHeight, r.bottom);
+      for (let node = frame.parentElement; node && node !== root; node = node.parentElement) {
+        if (getComputedStyle(node).overflowY !== 'visible') {
+          const v = viewport(node);
+          top = Math.max(top, v.top);
+          bottom = Math.min(bottom, v.bottom);
+        }
+      }
+      const y = (top + bottom) / 2;
+      return {clientWidth: frame.clientWidth, edgeX: x, edgeY: y,
+        visibleHeight: bottom - top, windowWidth: document.documentElement.clientWidth,
+        edgeHitsFrame: bottom > top && document.elementFromPoint(x, y) === frame};
+    }""")
+
+
 def semantic_view(page):
     """Relational semantic observation: no baseline captured from an implementation."""
     return {

@@ -12,8 +12,8 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 from playwright.sync_api import expect
 
-from tests.browser_support import assert_color, assert_visible_focus, focus_style, frame_at, form_at, link_at, semantic_view
-from tests.support import FIXTURES, PAGES
+from tests.browser_support import assert_color, assert_visible_focus, focus_style, frame_at, form_at, link_at, reveal_preview_right_edge, semantic_view
+from tests.support import FIXTURES, PAGES, package_asset
 from tests.test_validation import VALID_VARIANT, set_variant
 from tests.test_versions_assets import bind_font
 
@@ -181,6 +181,43 @@ def test_packaged_font_is_loaded_used_and_bound_images_decode(library, language,
             image.evaluate("e => e.decode()")
             assert image.evaluate("e => e.naturalWidth > 0 && e.naturalHeight > 0")
             expect(image).to_be_visible()
+
+
+def test_viewbox_only_bound_image_has_visible_layout(library, language, tmp_path, page):
+    """B16 regression from Validator: an SVG may decode yet occupy a zero-size media box."""
+    package_asset(library, language, "viewbox-image", "image",
+                  (FIXTURES / "viewbox-image.svg").read_bytes())
+    language["components"]["listing-card"]["assets"]["media"] = "viewbox-image:primary"
+    library.write(language)
+    out = library.build(tmp_path / "viewbox-media")
+    page.goto((out / "search.html").as_uri())
+    images = page.locator('[data-kd-construct="listing-card"] img[src="assets/viewbox-image-primary.svg"]')
+    assert images.count() > 0, "The bound listing-card image was not rendered"
+    for index in range(images.count()):
+        image = images.nth(index)
+        image.evaluate("e => e.decode()")
+        expect(image).to_be_visible()
+        box = image.bounding_box()
+        assert box is not None and box["width"] > 0 and box["height"] > 0, box
+
+
+@pytest.mark.parametrize("window_width,preview_width", [(1280, 1280), (320, 320), (320, 1280)])
+def test_viewer_preview_right_edge_is_reachable_at_selected_width(server, page, window_width, preview_width):
+    """B15 regression: a fixed-width preview must not be permanently clipped by the viewer.
+
+    Shrinking the iframe to fit is also wrong: the selected preview viewport is
+    held exact while real, user-scrollable ancestors reveal its rightmost pixel.
+    """
+    page.set_viewport_size({"width": window_width, "height": 900})
+    page.goto(server + f"/languages/tidal?page=search.html&width={preview_width}")
+    frame = frame_at(page, "/preview/tidal/search.html")
+    expect(frame).to_be_visible()
+    preview = frame.element_handle().content_frame()
+    expect(preview.locator("[data-kd-construct]").first).to_be_visible()
+    assert preview.evaluate("window.innerWidth") == preview_width
+    edge = reveal_preview_right_edge(frame)
+    assert edge["clientWidth"] == preview_width, edge
+    assert edge["edgeHitsFrame"], ("Selected preview's right edge is not reachable", edge)
 
 
 def test_keyboard_focus_has_visible_treatment(library, language, tmp_path, page):
