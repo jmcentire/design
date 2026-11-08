@@ -15,7 +15,12 @@ with (root / "calls.jsonl").open("a") as output:
     output.write(json.dumps({"executable": name, "argv": args}) + "\n")
 responses = json.loads((root / "responses.json").read_text())
 
-if name == "kinbase" and args and args[0] == "explain":
+if name == "kinbase" and args and args[0] == "fsck":
+    if len(args) != 4 or args.count("--repo") != 1 or args.count("--json") != 1:
+        raise SystemExit(2)
+    print(json.dumps(responses["fsck"]["stdout"]))
+    raise SystemExit(responses["fsck"]["exit_code"])
+elif name == "kinbase" and args and args[0] == "explain":
     # Flag ordering is not contractual. Require exactly the existing options,
     # without swallowing unknown positional values or additional switches.
     if len(args) != 7 or args.count("--repo") != 1 or args.count("--decision") != 1 or args.count("--json") != 1:
@@ -27,10 +32,12 @@ if name == "kinbase" and args and args[0] == "explain":
 elif name == "kinbase" and len(args) == 3 and args[:2] == ["questions", "ask"]:
     print(json.dumps(responses["questions"][args[2]]))
 elif name == "kin" and args[:2] == ["kinbase", "submit"]:
-    if len(args) != 8 or args.count("--repo") != 1 or args.count("--type") != 1 or args.count("--json") != 1:
+    if args.count("--type") != 1 or args.count("--json") != 1:
         raise SystemExit(2)
     kind = args[args.index("--type") + 1]
-    if kind not in {"concept", "question", "decision"}:
+    with_repo = args.count("--repo") == 1 and len(args) == 8
+    decision_without_repo = kind == "decision" and "--repo" not in args and len(args) == 6
+    if not (with_repo or decision_without_repo) or kind not in {"concept", "question", "decision"}:
         raise SystemExit(2)
     print(json.dumps(responses["submit"][kind]))
 else:

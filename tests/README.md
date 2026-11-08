@@ -891,3 +891,114 @@ cases deselected). Logs: `/tmp/kinbase-tester-perceptual-repair-collection.log` 
 `/tmp/kinbase-tester-perceptual-repair.log`. The Validator must rerun the browser
 case. M4's pending initialization/provenance and asset-exception questions remain
 open; this checkpoint completes only the requested perceptual-test repair.
+
+M4 amendment 21 closes the asset-exception scope gap. Two independent cases use
+`overview/asset/logo:on-dark` and bare `overview/asset/logo` scopes with rule
+`missing`. Exact variants cover only themselves; bare kinds cover bare and variant
+requests on that page. Neither leaks across kinds or pages. All seeded missing
+findings remain reported with their original file/pointer/rule/observed values,
+and each covered finding identifies the exception by its inventory JSON pointer
+(e.g. `/exceptions/0`). Acceptance remains false until all required gaps are
+covered. A separate absent-font case verifies that a variant exception cannot
+cover a bare-kind request and an empty justification cannot establish acceptance.
+
+216 cases collect; compilation and whitespace checks pass. Non-browser execution
+remains blocked by absent candidate vocabulary (123 prerequisite errors, 93 browser
+cases deselected). Logs: `/tmp/kinbase-tester-m4-exceptions-collection.log` and
+`/tmp/kinbase-tester-m4-exceptions.log`. Available-Kinbase seam coverage still awaits
+the public initialization evidence and exact source-provenance representation.
+
+M4 amendment 20 closes the availability/fixed-input fixture gap. The executable
+seam now implements `kinbase fsck --repo ... --json`; exit status, not an invented
+filesystem marker, decides initialization. The unavailable-repository cases
+explicitly return fsck failure and verify its reason and command arguments.
+
+`test_m4_kinbase_facts.py` uses two configured standard keys. Authoritative in-scope
+hue=200 and density=10 facts must be settled before choices and excluded from every
+offered pair. Controls cover lower standing, wrong scope, conflict, unknown,
+authoritative free text and unrelated JSON. Real derive/check/save cases verify
+rendered hue, Kinbase provenance on chromatic primary/attention token leaves and
+base-hue colors, the same provenance in shared storage, and privacy. Pointer
+facts target an existing public candidate token rather than guessing generated
+token names; their exact value and RFC-6901-escaped source location survive repair
+and save. A combined dimensions+values fact exercises both members. Suggestions
+and manual standards produce no Kinbase source provenance. Every read command
+uses the configured repo, logical key, decision string and JSON flag.
+
+The convention remains a G2 proposal awaiting the Kinbase owner's confirmation.
+These are executable-seam composition tests, not evidence that real Kinbase has
+ratified, resolved or persisted any fixture fact. Direct diagnostics exercised
+fsck success/failure, explain, all three submit types, receipts and argv recording.
+The full working suite collects 231 cases; compilation/whitespace checks pass.
+Local execution still stops at missing candidate vocabulary (130 prerequisite
+errors, 101 browser cases deselected); the no-JS receipt tests are the next
+checkpoint. Logs: `/tmp/kinbase-tester-m4-facts-collection.log` and
+`/tmp/kinbase-tester-m4-facts.log`.
+
+`test_m4_kinbase_workbench.py` completes the M4 no-JS seam coverage. Comment and
+flag forms submit as concept/question, append local feedback, display the
+stand-in's receipt, and leave the fixed hue, working language bytes and validation
+report unchanged. The direction form submits a decision naming language@hash and
+scope. A receipt leaves the direction unknown; only a later explain response makes
+it current, and a conflict response is displayed as conflict. Workbench restarts
+between externally changed facts avoid assuming an undocumented cache TTL.
+Authoritative free text is shown verbatim for manual application, while lower
+standing is presented as a suggestion and remains unsettled. Form selectors use
+visible operations/native controls, not private routes or implementation classes.
+
+M4 test authorship is complete against amendments 15–21. All browser operations,
+server readiness/teardown and subprocess calls have finite bounds. 231 cases
+collect; compilation and whitespace checks pass. Local non-browser execution is
+still blocked at the candidate-vocabulary prerequisite (130 setup errors, 101
+browser cases deselected). The Validator must execute the suite against the
+integrated candidate; no local product pass is claimed. Final logs:
+`/tmp/kinbase-tester-m4-complete-collection.log`, `/tmp/kinbase-tester-m4-complete.log`.
+The explicit evidence gaps remain real Kinbase behavior behind the stand-ins and
+Tailwind compiler integration in the target design-system repo; BFF inventory
+inference remains out of scope pending D3.
+
+Validator repair a4c13859 (candidate 3cad39c, M4 withheld) reported 190/191: a
+text-free texture band legitimately changed paint with whimsy. Amendment 11d now
+allows background-color/background-image/border-color changes on purely decorative
+rows. The snapshot explicitly includes native links and ARIA widget/link roles,
+and records content-slot ancestry and child content/controls. Text, slots,
+controls, links and wrappers containing them cannot gain the exemption. Shape
+radii already belong to shape; unrelated font, spacing and paint changes still fail.
+
+The requested broader isolation audit also removes incidental constraints on the
+same dimension: formality tracking may affect typography beyond the title while
+the required title relation remains; labels/captions can demonstrate formality's
+visible effect; cards and controls can demonstrate shape. Density/shape must still
+produce an increasing specimen but need not uniformly increase every individual
+space/radius. Primary lightness may change during value-contrast; otherwise it
+stays fixed, as do unrelated hue/saturation coordinates. The explicit 11c ban on
+transforming title/subtitle/body and the positive modular-scale, attention-hue,
+contrast and visible-paint requirements remain intact.
+
+A local diagnostic matrix accepts the three decorative paint properties and shape
+radii, rejects the exemption for text/slots/native controls/links/ARIA widgets and
+content wrappers, rejects unrelated font/padding changes, and checks label/caption
+formality and card/control shape eligibility. Snapshot JavaScript syntax, Python
+compilation and whitespace checks pass. All 231 tests collect. Non-browser
+execution remains blocked by absent candidate vocabulary (130 prerequisite errors,
+101 browser cases deselected). Logs:
+`/tmp/kinbase-tester-decoration-11d-collection.log`, `/tmp/kinbase-tester-decoration-11d.log`.
+A Validator browser rerun is required; no local product pass is claimed.
+
+Amendment 11e corrects the earlier example: the recoloured element was an
+error-state content root with a light attention wash, not a decorative band.
+Whimsy isolation now recognizes attention-family paint on any element by circular
+hue distance <=2 degrees on each side of the pair. Tints/washes may differ from
+the attention foreground in lightness and saturation; exact RGB equality is no
+longer required. Gradient checks permit unchanged neutral stops while requiring
+each changed stop to follow its corresponding attention hue. The independent
+11d decorative allowance and unrelated-property checks remain intact.
+
+Local diagnostics cover content roots, slots, controls and links, pale washes,
+359-to-1 degree wraparound, acceptance at 2 degrees and rejection beyond it,
+unchanged neutral gradient stops, unrelated hue/angle rejection, and the prior
+decorative/font/spacing controls. Compilation and whitespace checks pass; 231
+tests collect. Non-browser execution remains blocked by absent candidate
+vocabulary (130 prerequisite errors, 101 browser cases deselected). Logs:
+`/tmp/kinbase-tester-attention-11e-collection.log`, `/tmp/kinbase-tester-attention-11e.log`.
+Browser verification awaits the Validator.

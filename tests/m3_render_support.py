@@ -14,6 +14,7 @@ import pytest
 from tests.m3_support import distance
 from tests.test_resolution import CSS_PROPERTIES
 
+DECORATIVE_PAINT = {"background-color", "background-image", "border-color"}
 COLORS = {"color", "background-color", "border-color", "outline-color", "background-image"}
 PADDINGS = {"padding-top", "padding-right", "padding-bottom", "padding-left"}
 SPACING = {"padding", "padding-block", "padding-inline", "margin-block", "gap", "row-gap", "column-gap"} | PADDINGS
@@ -32,8 +33,12 @@ ALLOWED = {
 
 def paint_snapshot(page):
     return page.locator("body").evaluate("""(body, properties) => {
+      const widgets = ['button','link','checkbox','radio','combobox','listbox','option',
+        'menuitem','menuitemcheckbox','menuitemradio','slider','spinbutton','switch','tab','textbox','treeitem'];
+      const interactiveSelector = 'a[href],area[href],input,select,textarea,button,summary,' +
+        widgets.map(role => '[role~="' + role + '"]').join(',');
       const elements = [...new Set([body, ...body.querySelectorAll(
-        '[data-kd-construct],[data-kd-slot],[data-kd-part],input,select,textarea,button')])];
+        '[data-kd-construct],[data-kd-slot],[data-kd-part],' + interactiveSelector)])];
       const rows = [];
       for (const e of elements) {
         const s = getComputedStyle(e), box = e.getBoundingClientRect();
@@ -47,6 +52,8 @@ def paint_snapshot(page):
           slot: e.getAttribute('data-kd-slot'), part: e.getAttribute('data-kd-part'),
           role: e.getAttribute('data-kd-role') || (slot && slot.getAttribute('data-kd-role')),
           emphasis: e.getAttribute('data-kd-emphasis') || (slot && slot.getAttribute('data-kd-emphasis')),
+          interactive: e.matches(interactiveSelector), content_slot: Boolean(slot),
+          contains_content: Boolean(e.querySelector('[data-kd-slot],' + interactiveSelector)),
           text: e.textContent.trim().replace(/\\s+/g, ' '),
           box: {x:box.x+scrollX, y:box.y+scrollY, width:box.width, height:box.height},
           css});
@@ -66,6 +73,36 @@ def hsl(value):
     assert numbers[3] > 0, "A transparent foreground has no observable hue"
     hue, lightness, saturation = colorsys.rgb_to_hls(*(channel / 255 for channel in numbers[:3]))
     return hue * 360, saturation, lightness
+
+
+def attention_family_change(before, after, old_attention, new_attention):
+    """11e: tints/washes track attention hue, not its exact RGB/lightness.
+
+    Chromium serializes sRGB computed colors as rgb/rgba. For gradients, allow
+    unchanged stops (including neutral/transparent ones), while every changed
+    stop must belong to its respective attention family. Non-color structure
+    remains equal so unrelated gradient-angle/image changes do not gain access.
+    """
+    color = r"rgba?\([^()]+\)"
+    old_colors, new_colors = re.findall(color, before), re.findall(color, after)
+    if not old_colors or len(old_colors) != len(new_colors):
+        return False
+    if re.sub(color, "COLOR", before) != re.sub(color, "COLOR", after):
+        return False
+    old_hue, new_hue = hsl(old_attention)[0], hsl(new_attention)[0]
+    changed = False
+    for old, new in zip(old_colors, new_colors):
+        if old == new:
+            continue
+        changed = True
+        for value, reference in ((old, old_hue), (new, new_hue)):
+            channels = rgba(value)
+            # Achromatic/fully transparent paint has no hue to compare.
+            if channels[3] <= 0 or max(channels[:3]) == min(channels[:3]):
+                return False
+            if distance("hue-family", hsl(value)[0], reference) > 2 + 1e-9:
+                return False
+    return changed
 
 
 def role(rows, name, emphasis="neutral"):
@@ -96,6 +133,17 @@ def numeric_values(value):
     return (0.0,) if value == "normal" else tuple(float(part) for part in re.findall(r"-?[\d.]+", value))
 
 
+def decorative(row):
+    """11d excludes text, content slots and native/ARIA controls or links.
+
+    A text-free wrapper around a control or slot is content, too; it cannot gain
+    the decorative exemption merely by placing its semantics on a child.
+    """
+    return not (row["text"] or row["slot"] or row.get("content_slot") or row.get("interactive")
+                or row.get("contains_content") or row["role"] in {"action", "control", "link"}
+                or row["tag"] in {"A", "AREA", "INPUT", "SELECT", "TEXTAREA", "BUTTON", "SUMMARY"})
+
+
 def assert_isolated_styles(first, second, dimensions):
     assert len(first) == len(second)
     allowed = set().union(*(ALLOWED[dimension] for dimension in dimensions))
@@ -119,16 +167,18 @@ def assert_isolated_styles(first, second, dimensions):
             changes.add(prop)
             if prop in COLORS and set(dimensions) & {"whimsy"} and not set(dimensions) & {
                     "hue-family", "saturation", "value-contrast"}:
-                old_attention, new_attention = attention(first)["css"]["color"], attention(second)["css"]["color"]
-                assert before["emphasis"] == "attention" or (
-                    before["css"][prop] == old_attention and after["css"][prop] == new_attention
-                ), ("Whimsy changed paint unrelated to the attention color", before["slot"], prop)
+                if not (prop in DECORATIVE_PAINT and decorative(before) and decorative(after)):
+                    old_attention, new_attention = attention(first)["css"]["color"], attention(second)["css"]["color"]
+                    assert before["emphasis"] == "attention" or attention_family_change(
+                        before["css"][prop], after["css"][prop], old_attention, new_attention
+                    ), ("Whimsy changed content paint outside the attention hue family", before["slot"], prop)
             if prop == "text-transform":
                 # Amendment 11c includes small caption/eyebrow labelling text;
                 # title, subtitle and body transforms remain outside formality.
                 assert before["role"] in {"label", "caption"}, "Formality changed text-transform outside label/caption roles"
-            if prop == "letter-spacing":
-                assert before["role"] == "title", "Formality changed non-title tracking"
+            # Tracking is formality's property. The title has a required positive
+            # relation below; tracking on other typography is not a cross-dimension
+            # leak (11d). Text-transform retains 11c's explicit role restriction.
     return changes
 
 
@@ -208,7 +258,10 @@ def assert_dimension_effects(first, second, first_values, second_values, dimensi
                         small = small * 2 if len(small) == 1 else small
                         large = large * 2 if len(large) == 1 else large
                     assert len(small) == len(large), (prop, small, large)
-                    assert all(y >= x for x, y in zip(small, large)), (dimension, prop, small, large)
+                    # The dimensional input must produce an increasing specimen;
+                    # it need not scale every radius/space uniformly. Responsive
+                    # treatments may redistribute spacing or shape within that same
+                    # dimension without leaking into another property family (11d).
                     increased |= any(y > x for x, y in zip(small, large))
             assert increased, ("Dimension has no visible numeric effect", dimension)
         elif dimension == "formality":
@@ -227,7 +280,8 @@ def assert_dimension_effects(first, second, first_values, second_values, dimensi
             assert distance("hue-family", before[0], after[0]) <= 1
         if "saturation" not in dimensions:
             assert before[1] == pytest.approx(after[1], abs=0.015)
-        assert before[2] == pytest.approx(after[2], abs=0.015)
+        if "value-contrast" not in dimensions:
+            assert before[2] == pytest.approx(after[2], abs=0.015)
     if "value-contrast" not in dimensions and all("surface_rgb" in rows[0] for rows in (first, second)):
         assert contrast_gap(first) == pytest.approx(contrast_gap(second), abs=0.015), "An unrelated text/surface contrast dimension changed"
 

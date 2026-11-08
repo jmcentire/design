@@ -58,13 +58,17 @@ def prominent(row, viewport_area, dimension):
     # inheriting a font on a large otherwise empty wrapper is insufficient.
     paint = rgba(row["css"]["background-color"])[3] > 0 or row["css"]["background-image"] != "none"
     surface = area >= viewport_area * 0.1 and (paint or dimension == "density")
-    return (heading and bool(row["text"])) or action or (surface and dimension not in {"type-pairing", "type-scale", "formality"})
+    labelling = dimension == "formality" and row["role"] in {"label", "caption"} and bool(row["text"])
+    shaped_item = dimension == "shape" and row["box"]["width"] >= 24 and row["box"]["height"] >= 24 and (
+        row.get("interactive") or row["construct"] == "card" or (row["construct"] or "").endswith("-card"))
+    return (heading and bool(row["text"])) or action or labelling or shaped_item or (
+        surface and dimension not in {"type-pairing", "type-scale", "formality"})
 
 
 def assert_prominent_dimension_effects(first, second, dimensions, viewport_area, first_image, second_image):
     for dimension in dimensions:
-        # For whimsy, the effect belongs to attention paint; for formality, title
-        # tracking supplies prominence even when only small labels change case.
+        # Whimsy can use attention paint or a decorative surface (11d).
+        # Formality can use title tracking or label/caption case (11c/11d).
         candidates = [(a, b) for a, b in zip(first, second)
                       if prominent(a, viewport_area, dimension) or prominent(b, viewport_area, dimension)]
         visible_effect = False
