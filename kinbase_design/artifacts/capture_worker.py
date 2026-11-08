@@ -14,6 +14,7 @@ from . import import_bytes
 from .capture import public_url, media_widths, anonymous_headers
 from .capture_output import publish_capture
 from .media_ready import prepare_media
+from .media import selected_responses
 from .runtime import async_chromium, watch_parent, read_job
 
 
@@ -120,8 +121,7 @@ async def collect(job):
                         problems.append({'page':page_id,'width':width,'message':'DOM exceeds artifact size bound'});dom=dom[:MAX_UPLOAD_BYTES]
                     files[prefix+'.html']=dom
                     files[prefix+'.png']=await page.screenshot(full_page=True,animations='disabled',timeout=timeout_ms)
-                    for response in responses:
-                        if len(assets)>=CAPTURE_MAX_ASSETS:break
+                    for response in selected_responses(responses,data['candidates']):
                         try:
                             if not response.ok:continue
                             body=await response.body()
@@ -136,6 +136,7 @@ async def collect(job):
                                         'src':' '.join(urljoin(response.url,u) for u in re.findall(r'url\([\"\']?([^\"\')]+)',declarations.get('src','')))})
                                 continue
                             if response.url in assets:continue
+                            if len(assets)>=CAPTURE_MAX_ASSETS:continue
                             if asset_bytes+len(body)>ARTIFACT_MAX_BYTES:
                                 problems.append({'page':page_id,'width':width,'message':'Asset byte limit reached'})
                                 break
@@ -154,7 +155,7 @@ async def collect(job):
                                 name='inline-'+str(len(assets)+1)+'.svg';asset_bytes+=len(raw)
                                 artifact=import_bytes(job['workspace'],raw,name,'asset')
                                 assets[candidate['url']]={'artifact':artifact,'kind':candidate['kind'],'url':candidate['url'],'filename':name}
-                    if len(assets)>=CAPTURE_MAX_ASSETS:problems.append({'page':page_id,'width':width,'message':'Asset candidate limit reached; uncaptured assets remain in the DOM snapshot'})
+                    if len(assets)>=CAPTURE_MAX_ASSETS and any(c['url'] not in assets for c in data['candidates']):problems.append({'page':page_id,'width':width,'message':'Asset candidate limit reached; uncaptured assets remain in the DOM snapshot'})
                     data['media_queries']=sorted(set(data['media_queries']))
                     for candidate in media_widths(data['media_queries']):
                         if candidate not in done and candidate not in pending:

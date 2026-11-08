@@ -1,6 +1,6 @@
 """Immutable capture publication and the public capture.json projection."""
 import json
-from ..assets import inspect_format
+from .media import image_format
 from . import read_artifact
 from .bundle import import_bundle
 from .capture import group_problems
@@ -32,7 +32,7 @@ def publish_capture(workspace,files,pages,problems,assets):
     for asset in assets:
         if asset['kind']=='font':continue
         data,meta=read_artifact(workspace,asset['artifact'])
-        try:extension=inspect_format(data,asset['kind'])
+        try:extension=image_format(data)
         except ValueError:
             problems.append({'url':asset.get('url',''),'width':None,'widths':[],'pages':[],
                              'message':'Candidate format is not supported; original retained in its source artifact'})

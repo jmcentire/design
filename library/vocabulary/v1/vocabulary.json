@@ -134,7 +134,7 @@
           "emphasis": "neutral",
           "element": "input",
           "required": true,
-          "label": "Destination",
+          "label": "Search terms",
           "field": "search",
           "kind": "control"
         },
@@ -160,12 +160,12 @@
         "empty",
         "error"
       ],
-      "accessible-name": "Find a stay",
+      "accessible-name": "Search the collection",
       "action": "search.html",
       "root": "form",
       "contract": {
         "landmark": "form",
-        "accessible-name": "Find a stay",
+        "accessible-name": "Search the collection",
         "reading-order": [
           "query",
           "action"
@@ -498,12 +498,12 @@
         "empty",
         "error"
       ],
-      "accessible-name": "Enquiry",
+      "accessible-name": "Contact form",
       "action": "form.html",
       "root": "form",
       "contract": {
         "landmark": "form",
-        "accessible-name": "Enquiry",
+        "accessible-name": "Contact form",
         "reading-order": [
           "title",
           "name",
@@ -934,62 +934,63 @@
     "pages": {
       "index.html": "Home",
       "search.html": "Search",
-      "listing.html": "Listing",
-      "form.html": "Enquiry",
+      "listing.html": "Detail",
+      "form.html": "Contact",
       "states.html": "States"
     },
     "copy": {
-      "title": "Lorem ipsum, a place to pause",
+      "title": "Lorem ipsum, a new perspective",
       "subtitle": "Dolor sit amet",
       "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-      "subtext": "Lorem coast \u00b7 Ipsum valley",
-      "label": "$240 per night",
-      "caption": "4.9 \u00b7 28 reviews",
+      "subtext": "Additional information",
+      "label": "Featured",
+      "caption": "Notes from the collection",
       "action": "Explore the collection",
       "control": "Lorem ipsum",
-      "media": "A quiet place by the coast"
+      "media": "Abstract shapes in a sample illustration"
     },
     "image-missing": "Image unavailable",
     "long-word": "Pneumonoultramicroscopicsilicovolcanoconiosis",
-    "long-title": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua \u2014 a long title for a small screen",
+    "long-title": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua — a long title for a small screen",
     "filter-options": [
-      "Coast",
-      "Mountains",
-      "City"
+      "Recent",
+      "Popular",
+      "Featured"
     ],
     "field-placeholder": "Lorem ipsum",
-    "search-submit": "Search stays",
-    "form-submit": "Send enquiry",
+    "search-submit": "Search collection",
+    "form-submit": "Send message",
     "state-gallery-title": "States and stress content",
     "construct-copy": {
       "empty-state": {
-        "title": "No stays found",
-        "body": "Lorem ipsum dolor sit amet. Try another destination.",
-        "action": "Browse all stays"
+        "title": "No results found",
+        "body": "Lorem ipsum dolor sit amet. Try another search.",
+        "action": "Browse the collection"
       },
       "error-state": {
         "title": "Something needs attention",
         "body": "Lorem ipsum dolor sit amet. Please try again.",
-        "action": "Return to the enquiry"
+        "action": "Return to the form"
       },
       "listing-card": {
-        "title": "Lorem ipsum retreat",
-        "action": "View listing"
+        "title": "Lorem ipsum collection",
+        "action": "View details"
       },
       "hero": {
-        "title": "A little room to wander.",
-        "action": "Explore stays",
+        "eyebrow": "A fresh perspective",
+        "title": "Make room for something new.",
+        "action": "Explore the collection",
         "secondary-action": "Get in touch"
       },
       "detail-header": {
-        "title": "Lorem ipsum retreat",
-        "action": "Enquire about this stay"
+        "title": "Lorem ipsum collection",
+        "action": "Learn more"
       },
       "footer": {
-        "body": "Lorem ipsum \u00b7 A sample collection"
+        "body": "Lorem ipsum · A sample collection"
       },
       "filter-group": {
-        "title": "Find your setting"
+        "title": "Refine the collection"
       },
       "card": {
         "eyebrow": "From the collection",
@@ -1001,6 +1002,6 @@
       }
     },
     "gallery-images": 3,
-    "full-content-label": "Full listing titles"
+    "full-content-label": "Full item titles"
   }
 }

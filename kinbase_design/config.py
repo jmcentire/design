@@ -63,8 +63,8 @@ WORKER_CLEANUP_SECONDS = 5
 CAPTURE_MAX_WIDTHS = 12
 CAPTURE_MAX_NODES = 600
 CAPTURE_MAX_TEXT = 4000
-CAPTURE_MAX_ASSETS = 80
-ARTIFACT_MAX_FILES = 256
+CAPTURE_MAX_ASSETS = 512
+ARTIFACT_MAX_FILES = 1024
 ARTIFACT_MAX_BYTES = 100 * 1024 * 1024
 # Generated evidence, jobs and reports share this read/write budget. Keep it
 # independent of upload and adapter policies: capture styles can exceed 4 MiB.

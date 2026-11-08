@@ -47,6 +47,7 @@ def paint_snapshot(page):
           role: e.getAttribute('data-kd-role') || (slot && slot.getAttribute('data-kd-role')),
           emphasis: e.getAttribute('data-kd-emphasis') || (slot && slot.getAttribute('data-kd-emphasis')),
           text: e.textContent.trim().replace(/\\s+/g, ' '),
+          box: {x:box.x+scrollX, y:box.y+scrollY, width:box.width, height:box.height},
           css});
       }
       return rows;
@@ -75,7 +76,7 @@ def role(rows, name, emphasis="neutral"):
 def primary(rows):
     candidates = [row for row in rows if row["slot"] and row["emphasis"] == "primary"]
     assert candidates, "No primary-emphasis specimen on the sample screen"
-    # Price is a text foreground in the public vocabulary. Prefer it over an
+    # A primary label supplies a text foreground in the vocabulary. Prefer it over an
     # action button whose foreground may intentionally contrast with its fill.
     return next((row for row in candidates if row["role"] == "label"), candidates[0])
 
@@ -99,7 +100,7 @@ def assert_isolated_styles(first, second, dimensions):
     allowed = set().union(*(ALLOWED[dimension] for dimension in dimensions))
     changes = set()
     for before, after in zip(first, second):
-        metadata = {"css", "surface_lightness", "surface_rgb"}
+        metadata = {"css", "surface_lightness", "surface_rgb", "box"}
         assert {key: value for key, value in before.items() if key not in metadata} == {
             key: value for key, value in after.items() if key not in metadata}, "Candidate content/semantics changed"
         for prop in PROPERTIES:

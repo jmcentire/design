@@ -13,6 +13,7 @@ from playwright.sync_api import expect
 
 from tests.browser_support import link_at
 from tests.m2_support import assert_provenance, assert_valid_draft, read_json, scalar_leaves
+from tests.m3_perceptual_support import assert_moodboard_variety
 from tests.m3_support import BEACH, candidate_directory, candidate_library, log_bytes, log_records
 from tests.test_m2_workbench import activate, submit, visible
 from tests.test_versions_assets import expected_hash
@@ -105,21 +106,24 @@ def answer_interview(page):
 
 
 def choose_visible(page, choice, comment):
-    comments = visible(page.get_by_role("textbox", name=re.compile(r"comment|reason|why", re.I)))
-    assert comments, "A/B choices must accept the user's comment"
-    comments[0].fill(comment)
     # Both a direct submit button and a native choice field + submit are valid.
     pattern = re.compile(r"^(?:(?:choose|pick|prefer|option)\s+)?" + choice + r"(?:\b|$)", re.I)
     buttons = visible(page.get_by_role("button", name=pattern))
+    controls = buttons or visible(page.get_by_role("radio", name=pattern))
+    assert controls, ("Missing no-JS A/B choice", choice)
+    control = controls[0]
+    form = control.locator("xpath=ancestor::form[1]")
+    assert form.count() == 1, "A/B choice must belong to a no-JS form"
+    # The comment label's wording is not contract. Its form ownership ties the
+    # labelled textbox to this choice instead of an unrelated field on the page.
+    comments = visible(form.get_by_role("textbox", name=re.compile(r"\S")))
+    assert comments, "A/B choice form must offer a labelled comment textbox"
+    comments[0].fill(comment)
     if buttons:
-        button = buttons[0]
-        submit(page, button.locator("xpath=ancestor::form[1]"), button)
-        return bool(comments)
-    choices = visible(page.get_by_role("radio", name=pattern))
-    assert choices, ("Missing no-JS A/B choice", choice)
-    choices[0].check()
-    submit(page, choices[0].locator("xpath=ancestor::form[1]"))
-    return bool(comments)
+        submit(page, form, control)
+    else:
+        control.check()
+        submit(page, form)
 
 
 def name_draft(page):
@@ -175,6 +179,7 @@ def test_no_js_generate_interview_moodboard_revise_derive_preview_and_save(serve
     visual_samples(page)
     inspect_materialized_swatches(library, root, inspected)
     assert pins, "Mood board needs a no-JS pin operation"
+    assert_moodboard_variety(page)
     previous = read_json(session_file)
     submit(page, pins[0].locator("xpath=ancestor::form[1]"), pins[0])
     pinned = read_json(session_file)
@@ -190,13 +195,12 @@ def test_no_js_generate_interview_moodboard_revise_derive_preview_and_save(serve
     visual_samples(page)
     inspect_materialized_swatches(library, root, inspected)
     before_choice = log_bytes(root)
-    commented = choose_visible(page, "A", "Prefer the calmer sample")
+    choose_visible(page, "A", "Prefer the calmer sample")
     assert log_bytes(root).startswith(before_choice)
     history = log_records(root)
     assert len(history) == 1 and history[0]["choice"] == "A"
     first = history[0]
-    if commented:
-        assert first["comment"] == "Prefer the calmer sample"
+    assert first["comment"] == "Prefer the calmer sample"
     # Revision is reached through visible controls, never by constructing a route.
     if not visible(page.get_by_role("button", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))) and not visible(
             page.get_by_role("link", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))):
@@ -211,6 +215,7 @@ def test_no_js_generate_interview_moodboard_revise_derive_preview_and_save(serve
     assert len(history) == 2
     assert history[1]["choice"] == "B" and history[1]["supersedes"] == first["id"]
     assert history[1]["pair"] == first["pair"]
+    assert history[1]["comment"] == "The alternate works better"
     name_draft(page)
     activate(page, r"derive|stop|finish")
     created = set((library.workspace / "drafts").glob("*/working.json")) - before_drafts

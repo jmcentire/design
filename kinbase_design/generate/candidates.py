@@ -8,8 +8,9 @@ from ..storage import inside,save_language,save_working,read_json,write_json
 from ..vocabulary import load
 from .sessions import folder
 from .theory import language
+from .specimens import compositions
 
-SPECIMEN_REVISION = 2
+SPECIMEN_REVISION = 3
 
 
 def materialize(library,workspace,state,values):
@@ -32,8 +33,9 @@ def materialize(library,workspace,state,values):
             specimens=[{'construct':c} for c in ('hero','error-state','listing-card','form')]
             files=preview_files(stage,'candidate',{
                 'sample.html':{'title':'Direction sample','instances':[{'construct':'nav'},*specimens,{'construct':'footer'}]},
-                'swatch.html':{'title':'Direction specimen','instances':specimens}})
-            for name in ('sample.html','swatch.html'):(target/name).write_bytes(files[name])
+                'swatch.html':{'title':'Direction specimen','instances':specimens},**compositions(document)})
+            for name,data in files.items():
+                if name.endswith('.html'):(target/name).write_bytes(data)
         save_working(target/'working.json','candidate',document)
         write_json(marker,{'revision':SPECIMEN_REVISION})
         write_json(target/'values.json',values)

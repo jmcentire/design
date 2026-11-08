@@ -5,13 +5,11 @@ copy or semantics, hidden third dimensions, wrong type hierarchy, or ineffective
 color/spacing/shape choices. No candidate implementation or resolver is the oracle.
 """
 
-import hashlib
-from io import BytesIO
 import shutil
 
 import pytest
-from PIL import Image
-
+from tests.m3_perceptual_support import (PAIR_CHANGED_SHARE, assert_beach_paint, assert_neutral_default_copy,
+                                         assert_prominent_dimension_effects, changed_share, screenshot_image)
 from tests.m3_render_support import (assert_dimension_effects, assert_formality, assert_known_font_genres, hsl,
                                      paint_snapshot, primary)
 from tests.m3_support import BEACH, candidate_directory, candidate_library, choose, pair, settled, start
@@ -36,7 +34,7 @@ def same_default_bindings(first, second):
     return True
 
 
-def observe_candidate(library, server, page, session, candidate, tmp_path):
+def observe_candidate(library, server, page, session, candidate, tmp_path, beach_seed=False):
     root = candidate_directory(library, session, candidate)
     isolated, document = candidate_library(library, root)
     isolated.validate(document["id"], accepted=True)
@@ -44,12 +42,12 @@ def observe_candidate(library, server, page, session, candidate, tmp_path):
     response = page.goto(url)
     assert response and response.ok and response.body() == (root / "sample.html").read_bytes()
     assert page.locator("[data-kd-construct]").count() and page.locator("[data-kd-slot]").count()
+    assert_neutral_default_copy(page)
     # Screenshots serve an explicit oracle: the candidate pair must visibly
     # differ. Compare decoded pixels, not PNG encoding/timestamps or OCR text.
     screenshot = page.screenshot(path=tmp_path / (candidate["hash"] + ".png"),
                                  full_page=True, timeout=5000, animations="disabled", caret="hide")
-    with Image.open(BytesIO(screenshot)) as picture:
-        pixels = (picture.size, hashlib.sha256(picture.convert("RGBA").tobytes()).hexdigest())
+    pixels = screenshot_image(screenshot)
     rows = paint_snapshot(page)
     body = page.locator('[data-kd-slot][data-kd-role="body"][data-kd-emphasis="neutral"]')
     visible_body = next((body.nth(i) for i in range(body.count()) if body.nth(i).is_visible()), None)
@@ -60,6 +58,9 @@ def observe_candidate(library, server, page, session, candidate, tmp_path):
     labels = [row for row in rows if row["slot"] and row["role"] == "label"]
     if labels:
         assert_formality(rows, candidate["values"]["formality"])
+    if beach_seed:
+        viewport = page.viewport_size
+        assert_beach_paint(rows, pixels, viewport["width"] * viewport["height"])
     return root, document, rows, pixels
 
 
@@ -78,8 +79,8 @@ def test_all_offered_pairs_render_same_screen_with_only_advertised_dimension_eff
             break
         offered += 1
         assert set(current["dimensions"]) <= set(before["unsettled"])
-        a_root, a_doc, a, a_pixels = observe_candidate(library, server, page, session, current["a"], tmp_path)
-        b_root, b_doc, b, b_pixels = observe_candidate(library, server, page, session, current["b"], tmp_path)
+        a_root, a_doc, a, a_pixels = observe_candidate(library, server, page, session, current["a"], tmp_path, beach_seed=offered == 1)
+        b_root, b_doc, b, b_pixels = observe_candidate(library, server, page, session, current["b"], tmp_path, beach_seed=offered == 1)
         for rows in (a, b):
             hue, saturation, _ = hsl(primary(rows)["css"]["color"])
             assert saturation > 0.01 and 90 <= hue <= 255, (
@@ -90,7 +91,11 @@ def test_all_offered_pairs_render_same_screen_with_only_advertised_dimension_eff
         if "type-pairing" in current["dimensions"]:
             for rows, side in ((a, "a"), (b, "b")):
                 unclassified_families.update(assert_known_font_genres(rows, current[side]["values"]["type-pairing"]))
-        assert a_pixels != b_pixels, "A/B options have identical visible paint"
+        difference = changed_share(a_pixels, b_pixels)
+        record_property("pair_" + str(current["round"]) + "_changed_share", difference)
+        assert difference >= PAIR_CHANGED_SHARE, ("A/B screens are perceptually too similar", current["dimensions"], difference)
+        viewport = page.viewport_size
+        assert_prominent_dimension_effects(a, b, current["dimensions"], viewport["width"] * viewport["height"], a_pixels, b_pixels)
         observed_dimensions.update(current["dimensions"])
         choose(library, session, root, current, "A", comment="Keep this direction and compare the next dimensions")
     assert offered > 0

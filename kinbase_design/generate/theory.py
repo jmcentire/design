@@ -9,7 +9,7 @@ from ..ingest.provenance import complete,source
 PAIRINGS = {
     'geometric-sans': (['Arial','sans-serif'], ['Arial','sans-serif']),
     'humanist-sans': (['system-ui','sans-serif'], ['system-ui','sans-serif']),
-    'rounded': (['ui-rounded','Trebuchet MS','sans-serif'], ['ui-rounded','Trebuchet MS','sans-serif']),
+    'rounded': (['Trebuchet MS','ui-rounded','sans-serif'], ['Trebuchet MS','ui-rounded','sans-serif']),
     'serif': (['Georgia','serif'], ['Georgia','serif']),
     'slab': (['Rockwell','Courier New','serif'], ['Rockwell','Courier New','serif']),
 }
@@ -39,10 +39,12 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     hue=values['hue-family'];sat=.25+.7*values['saturation']
     primary=put('color','primary','color',hsl(hue,sat,.22),('hue-family','saturation'))
     attention=put('color','attention','color',hsl(hue+140*values['whimsy'],sat,.22),('hue-family','saturation','whimsy'))
-    wash=put('color','wash','color',hsl(hue,sat*.25,.97),('hue-family','saturation'))
-    ink=round(80-64*values['value-contrast'])
+    wash=put('color','wash','color',hsl(hue,sat,.88),('hue-family','saturation'))
+    accent_wash=put('color','attention-wash','color',hsl(hue+140*values['whimsy'],sat,.88),('hue-family','saturation','whimsy'))
+    texture=put('color','texture','gradient',[{'color':wash,'position':0},{'color':wash,'position':.25},{'color':accent_wash,'position':.25},{'color':accent_wash,'position':.5},{'color':wash,'position':.5},{'color':wash,'position':.75},{'color':accent_wash,'position':.75},{'color':accent_wash,'position':1}],('hue-family','saturation','whimsy'))
+    ink=round(80-72*values['value-contrast'])
     foreground=put('color','ink','color','#'+f'{ink:02x}'*3,'value-contrast')
-    paper=put('color','paper','color','#ffffff')
+    paper=put('color','paper','color',hsl(0,0,.90+.10*values['value-contrast']),'value-contrast')
     muted=put('color','muted','color','#545454')
     border=put('color','boundary','color','#666666')
     # A palette is fixed evidence, including aliases/composite DTCG values.
@@ -81,6 +83,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     ratio=values['type-scale'];sizes={}
     for role,power in [('title',2),('subtitle',1),('body',0),('subtext',-.5),('label',0),('caption',-1),('action',0),('control',0),('media',0)]:
         sizes[role]=put('type',role,'dimension',f'{16*ratio**power:.5f}px','type-scale')
+    display_size=put('type','display','dimension',f'{16*ratio**3:.5f}px','type-scale')
     line=put('line','body','number',1.6);heading_line=put('line','heading','number',1.25)
     tracking=put('type','tracking','dimension',f'{values["formality"]*.6:g}px','formality')
     spacing={}
@@ -104,16 +107,18 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             doc['roles'][role][emphasis]=props
     for construct,spec in vocabulary['constructs'].items():
         treatment={'variant':'default','properties':{'padding':spacing['double'],'gap':spacing['base']},'slots':{}}
-        if construct in {'page-shell','listing-card','nav'}:treatment['properties']['background-color']=paper
-        if construct=='hero':treatment['properties'].update({'padding-block':spacing['quad'],'background-color':wash})
+        if construct in {'page-shell','listing-card','card','nav'}:treatment['properties']['background-color']=paper
+        if construct=='hero':treatment['properties'].update({'padding-block':spacing['quad'],'background-color':wash,'border-radius':radius})
+        if construct=='error-state':treatment['properties'].update({'background-color':accent_wash,'border-radius':radius})
+        if construct=='content-section':treatment['properties'].update({'background-image':texture,'border-radius':radius})
         if construct=='nav':treatment['properties'].update({'display':'flex','flex-wrap':'wrap','align-items':'center','justify-content':'space-between'})
         if construct in {'form','search-bar'}:treatment['properties']['display']='grid'
-        if construct=='listing-card':treatment['properties'].update({'border-radius':radius,'border-color':border,'border-width':line_width,'border-style':'solid'})
+        if construct in {'listing-card','card'}:treatment['properties'].update({'border-radius':radius,'border-color':border,'border-width':line_width,'border-style':'solid'})
         for slot in spec['slots']:
             props={}
             if slot['kind']=='action' and slot['element']!='div':
                 props={'padding':spacing['base'],'border-radius':radius}
-                if slot['element']=='button':props.update({'background-color':primary,'color':paper,'border-style':'solid','border-color':primary,'border-width':line_width})
+                if slot['element']=='button' or slot['id']=='action':props.update({'background-color':primary,'color':paper,'border-style':'solid','border-color':primary,'border-width':line_width})
             if slot['kind']=='control' and slot['element'] in {'label','input','select','textarea','button'}:
                 props={'border-radius':radius,'border-style':'solid','border-color':border,'border-width':line_width,
                        'background-color':paper,'padding':spacing['base']}
@@ -124,17 +129,21 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             if props:treatment['slots'][slot['id']]={'properties':props}
         doc['components'][construct]=treatment
     # Make the attention and formality decisions visible on the common A/B screen.
-    doc['components']['hero']['slots']['eyebrow']={'role':'label','emphasis':'attention'}
+    doc['components']['hero']['slots']['eyebrow']={'role':'label','emphasis':'attention','properties':{'display':'inline-block','padding':spacing['base'],'border-radius':radius,'background-color':accent_wash}}
+    doc['components']['hero']['slots']['title']={'properties':{'font-size':display_size,'color':primary,'margin-block':spacing['base']}}
+    doc['components']['hero']['slots']['body']={'properties':{'margin-block':spacing['double']}}
     doc['components']['hero']['slots'].setdefault('action',{})['emphasis']='primary'
     doc['components']['listing-card']['slots'].setdefault('rating',{})['emphasis']='attention'
     if palette_refs:
         # Visible fixed source swatches on existing constructs; no invented structural variant.
         for i,construct in enumerate(('hero','content-section','footer')):
-            ref=palette_refs[i%len(palette_refs)];bg=Tokens(doc['style']).reference(ref)[1]
-            fg='#000000' if contrast(color('#000000'),color(bg))>=contrast(color('#ffffff'),color(bg)) else '#ffffff'
-            foreground_ref=put('color','source-text-'+str(i),'color',fg)
+            ref=palette_refs[i%len(palette_refs)]
             comp=doc['components'][construct];comp['properties']['background-color']=ref
+            comp['properties'].pop('background-image',None)
             for slot in vocabulary['constructs'][construct]['slots']:
-                comp['slots'].setdefault(slot['id'],{}).setdefault('properties',{}).update(color=foreground_ref)
+                props=comp['slots'].setdefault(slot['id'],{}).setdefault('properties',{})
+                bg=Tokens(doc['style']).reference(props.get('background-color',ref))[1]
+                fg=max(('#000000','#ffffff'),key=lambda value:contrast(color(value),color(bg)))
+                props['color']=put('color','source-text-'+str(i)+'-'+slot['id'],'color',fg)
     for asset,artifact in resources.get('origins',{}).items():provenance[pointer('assets',asset)]=source(artifact,'page:original')
     return doc,complete(doc,provenance,[]),owners

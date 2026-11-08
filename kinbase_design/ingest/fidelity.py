@@ -10,6 +10,7 @@ from ..artifacts import read_artifact
 from ..artifacts.bundle import read_member
 from ..artifacts.runtime import run_job
 from ..assets import inspect_format
+from ..artifacts.media import image_format
 from ..config import IngestConfig, ingest_config, INGEST_FULL_RADIUS_PX, INGEST_ROW_TOLERANCE_PX
 from ..findings import Finding,report,pointer,location
 from ..language.versions import digest
@@ -106,7 +107,7 @@ def reconstruct(library,workspace,draft_id,settings=None):
         if not candidate:
             notes.append('Captured media was not downloaded; retained as a fidelity gap');return None
         data,meta=read_artifact(workspace,candidate['artifact'])
-        try:fmt=inspect_format(data,'image')
+        try:fmt=image_format(data)
         except Exception as exc:
             notes.append('Captured image unavailable for reconstruction: '+str(exc)[:150]);return None
         name='assets/reference-'+meta['sha256']+'.'+fmt;private_files[name]=data

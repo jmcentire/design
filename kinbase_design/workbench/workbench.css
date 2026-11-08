@@ -6,3 +6,6 @@
 .provenance code{overflow-wrap:anywhere}
 
 .generate-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr));gap:1rem}.visual-choice{min-width:0}.specimen{width:100%;height:22rem;min-height:0;box-sizing:border-box}.mood-asset{display:block;width:100%;height:12rem;object-fit:contain}.generate-options fieldset{min-width:0}.kd-bar{flex-wrap:wrap}.panel{margin-block:1rem}.visual-choice:has(input:checked){outline:3px solid #175f59;outline-offset:4px}fieldset.panel{min-width:0}
+
+/* Candidate frames fit their equal comparison columns; each remains scrollable. */
+.candidate-canvas{width:100%}.candidate-canvas iframe{box-sizing:border-box}.specimen{height:22rem}

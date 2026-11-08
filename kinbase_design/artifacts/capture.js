@@ -37,7 +37,8 @@
     styles:Object.fromEntries(args.properties.map(p=>[p,s.getPropertyValue(p)])),backgrounds,
     normalized_colors:Object.fromEntries(['color','background-color','border-color','border-top-color'].map(p=>[p,srgb(s.getPropertyValue(p))]))};});
   return {title:document.title,nodes,media_queries:[...new Set(queries)],font_faces:faces,
-    candidates:[...[...document.images].map(e=>({url:e.currentSrc,alt:e.alt,selector:selector(e),kind:/logo|brand/i.test(e.alt+' '+e.className+' '+e.src)?'logo':'image'})),
+    candidates:[...[...document.images].filter(visible).map(e=>({url:e.currentSrc,alt:e.alt,selector:selector(e),kind:/logo|brand/i.test(e.alt+' '+e.className+' '+e.src)?'logo':'image'})),
+      ...all.flatMap(e=>[...styles.get(e).backgroundImage.matchAll(/url\(["']?([^"')]+)["']?\)/g)].map(m=>({url:new URL(m[1],document.baseURI).href,selector:selector(e),kind:'image'}))),
       ...[...document.querySelectorAll('svg')].filter(visible).map(e=>({url:'inline:'+location.href+'#'+selector(e),inline:e.outerHTML,selector:selector(e),kind:e.closest('nav')?'logo':'image'}))],
     problems,notes:[...notes,...(all.length>args.maxNodes?['Element sampling limit reached; '+(all.length-sampled.length)+' elements unsampled']:[])],
     stats:{elements_visible:all.length,elements_sampled:sampled.length,elements_unsampled:all.length-sampled.length}};

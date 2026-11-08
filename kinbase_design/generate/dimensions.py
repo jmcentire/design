@@ -30,8 +30,8 @@ def seeds(brief):
     hues=[v for names,v in [(('blue','blues','ocean'),215),(('green','greens'),145),(('turquoise','teal'),175),
                            (('red','reds'),5),(('orange','sunset'),25),(('purple','violet'),275),(('pink',),325)] if words.intersection(names)]
     if hues:values['hue-family']=round(math.degrees(math.atan2(sum(math.sin(math.radians(h)) for h in hues),sum(math.cos(math.radians(h)) for h in hues)))%360)
-    if words.intersection({'beach','relaxing','calm'}):values.update(density=10,saturation=.55,formality=.2)
-    if words.intersection({'family','families','young','casual'}):values.update(shape=16,formality=.2,**{'type-pairing':'rounded'})
+    if words.intersection({'beach','relaxing','calm'}):values.update(density=10,saturation=.75,formality=.2)
+    if words.intersection({'family','families','young','casual'}):values.update(shape=24,formality=.2,**{'type-pairing':'rounded','type-scale':1.5})
     if words.intersection({'whimsical','playful','whimsy','engaging'}):values['whimsy']=.75
     if words.intersection({'formal','corporate'}):values.update(formality=.85,shape=2)
     return values
@@ -57,9 +57,12 @@ def alternatives(d,center,rejected=()):
         return available[:2]
     lo,hi=DOMAINS[d];maximum=180 if d=='hue-family' else hi-lo
     prior=max((distance(d,*pair) for pair in rejected),default=0)
-    spread=min(maximum,max(maximum*.3,prior*1.8))
+    initial=50 if d=='hue-family' else maximum*(.3 if d=='saturation' else .6)
+    spread=min(maximum,max(initial,prior*1.8))
     if maximum-spread<1e-8:spread=maximum
-    if d=='hue-family':return [(center-spread/2)%360,(center+spread/2)%360]
+    if d=='hue-family':
+        if not rejected:return [center%360,(center+spread)%360]
+        return [(center-spread/2)%360,(center+spread/2)%360]
     a=max(lo,min(hi-spread,center-spread/2))
     return [round(a,8),round(a+spread,8)]
 

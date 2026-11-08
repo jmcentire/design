@@ -149,7 +149,10 @@ cookies/auth headers and Set-Cookie responses, and blocks non-read requests and 
 Capture scrolls through the page to activate lazy media, waits within configured time/step bounds,
 and restores the starting position before sampling. Unloaded images remain explicit capture problems.
 Discovered media-query widths are added within configured bounds. It stores DOM originals, sampled computed styles, screenshots, font faces
-and candidate asset originals. Later operations read those immutable artifacts and never visit
+and candidate asset originals. Visible image/background references take priority over unrelated
+network images; capture retains up to 512 assets within the byte budget. AVIF and GIF originals
+can be displayed privately in fidelity review without changing the approved package formats.
+Later operations read those immutable artifacts and never visit
 the live site. A missing Chromium installation or launch failure returns exit 2 clearly.
 
 Capture artifacts expose `capture.json`, with screenshots, DOM and style samples under `pages/`
@@ -246,7 +249,8 @@ Add `--artifact ID` repeatedly to `generate start` for existing imports. Brief p
 keyword heuristics; generate does not invoke a model or fetch fonts. Supplied palette literals
 stay exact source tokens; imported aliases are rebased into a source namespace. Supplied font,
 logo and image bytes go through the existing content-hash promotion operation unchanged.
-Generated illustrations are clearly sample assets, not photographs of a real property.
+Generated illustrations are clearly sample assets. Default context copy is domain-neutral;
+the long-word, long-title, missing-image and collection-size stress cases remain available.
 
 Sessions live in the private workspace under `sessions/<id>/`. `choices.jsonl` is append-only;
 settled dimensions are calculated from effective choices. `neither` reoffers those dimensions
@@ -256,7 +260,12 @@ ends with an explicitly marked widest comparison before moving on; pair JSON exp
 mood-board directions provide priors; A/B choices take precedence. Candidate directories hold
 `working.json`, `sample.html`, `swatch.html`, the normal sample pages, CSS and packaged assets.
 The common sample includes attention-emphasis status text, labels, typography, cards and form
-controls so each dimension has a visible specimen. Both directions retain identical sample HTML.
+controls so each dimension has a visible specimen. Colour fills hero and accent surfaces and
+primary actions; type scale, spacing and shape affect prominent parts of the same screen. Both
+directions retain identical sample HTML. Interview selections initially preserve the brief’s seeds.
+Mood-board and interview tiles use focused palette strips, type specimens, shape/rhythm and
+accent/texture compositions (`palette.html`, `type.html`, `shape.html`, `formality.html`,
+`texture.html`), built by the same preview renderer from each candidate’s language.
 The workbench serves these at `/generate/<session>/candidates/<hash>/<file>`.
 Candidates include the manifest’s `assets/sha256/` package files as well as preview URLs, so
 the directory can be copied to `languages/<working.json id>/` in another library. The round
@@ -276,7 +285,7 @@ the CLI exits 2 and retains the draft for review. The workbench displays checks 
 never passed. A static preview alone does not establish rendered acceptance.
 
 Generate's five type pairings use system families: geometric-sans uses Arial; humanist-sans
-uses system-ui; rounded requests ui-rounded then Trebuchet MS; serif uses Georgia; slab requests
+uses system-ui; rounded requests Trebuchet MS then ui-rounded; serif uses Georgia; slab requests
 Rockwell then Courier New. Serif and sans normally render distinct faces. Rounded and slab
 depend on installed system faces and may fall back; five distinct downloaded faces are not
 claimed. Harbor and Lantern use the packaged, licensed Instrument Sans. A supplied font is

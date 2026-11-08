@@ -4,7 +4,7 @@ from urllib.parse import parse_qs
 from ..artifacts import import_bytes,read_artifact
 from ..artifacts.bundle import metadata,read_member
 from ..artifacts.capture import capture
-from ..assets import inspect_format
+from ..artifacts.media import image_format
 from ..config import MAX_UPLOAD_BYTES,ingest_config
 from ..ingest import draft,summary,save_draft,promote_draft,questions,answer
 from ..ingest.fidelity import fidelity
@@ -35,7 +35,7 @@ def handle(library,workspace,environ,segments,query,html):
         kind=mimetypes.guess_type(name)[0] or 'application/octet-stream'
         return 200,data,kind,[('Content-Security-Policy',"sandbox allow-same-origin; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'")]
     def draft_file(root,name):
-        if not name.endswith(('.html','.css','.png','.jpg','.webp','.svg','.woff2','.woff','.ttf','.otf')):
+        if not name.endswith(('.html','.css','.png','.jpg','.webp','.avif','.gif','.svg','.woff2','.woff','.ttf','.otf')):
             raise RequestError('Unknown draft artifact',404)
         return static(inside(root,name).read_bytes(),name)
     if not tail and method=='GET':
@@ -65,9 +65,9 @@ def handle(library,workspace,environ,segments,query,html):
             name='/'.join(tail[3:])
             if name=='original':
                 body,meta=read_artifact(workspace,artifact_id)
-                fmt=inspect_format(body,'image')
+                fmt=image_format(body)
                 return static(body,'image.'+fmt)
-            if not name.endswith(('.png','.jpg','.webp')):raise RequestError('Only captured images are served',404)
+            if not name.endswith(('.png','.jpg','.webp','.avif','.gif')):raise RequestError('Only captured images are served',404)
             return static(read_member(workspace,artifact_id,name),name)
     if tail==['draft'] and method=='POST':
         data=fields(environ);result=draft(library,workspace,data.get('artifact',[]),data.get('language',[''])[0])

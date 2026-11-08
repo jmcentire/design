@@ -8,6 +8,7 @@ from .dimensions import DOMAINS,seeds,alternatives
 from .resources import prepare
 from .candidates import materialize
 from .planning import pair,baseline
+from .specimens import filename
 
 
 def start(library,workspace,brief,artifacts=(),settings=None):
@@ -30,7 +31,7 @@ def start(library,workspace,brief,artifacts=(),settings=None):
     for d in DOMAINS:
         av,bv=alternatives(d,values[d])
         for n,v in enumerate((av,bv)):
-            state['moodboard'].append({'id':d+'-'+str(n+1),'kind':'type pairing' if d=='type-pairing' else 'palette' if d in {'hue-family','saturation','value-contrast'} else 'shape / rhythm / mood',
+            state['moodboard'].append({'id':d+'-'+str(n+1),'kind':'type pairing' if d=='type-pairing' else 'palette' if d in {'hue-family','saturation','value-contrast'} else 'texture / accent' if d=='whimsy' else 'shape / rhythm' if d in {'shape','density'} else 'typography / tone',
                                       'values':{d:v},'pinned':False,'removed':False})
     for asset,entry in state['resources']['assets'].items():
         state['moodboard'].append({'id':asset,'kind':entry['kind'],'asset':asset,'pinned':False,'removed':False})
@@ -47,11 +48,13 @@ def moodboard(library,workspace,session,pin=None,remove=None):
             if item is None:raise ValueError('Unknown mood board item')
             item[action]=True
             if action=='pinned':item['removed']=False
+    sessions.write(workspace,state)
     base=baseline(workspace,session)
     for item in state['moodboard']:
-        if 'values' in item and not item.get('preview'):
+        if 'values' in item:
             candidate=materialize(library,workspace,state,{**base,**item['values']})
             item['preview']=candidate['preview'];item['hash']=candidate['hash']
+            item['specimen']=filename(next(iter(item['values'])))
         elif 'asset' in item:
             detail=state['resources']['assets'][item['asset']]['variants']['primary']
             item['file']=detail['file'];item['format']=detail['format']
@@ -64,9 +67,11 @@ def interview_samples(library,workspace,session):
     count=state['settings']['candidates_per_question']
     for d in DOMAINS:
         a,b=alternatives(d,base[d]);domain=DOMAINS[d]
-        values=list(domain[:count]) if d=='type-pairing' else [a+(b-a)*i/(count-1) for i in range(count)]
-        if d=='hue-family':values=[v%360 for v in values]
-        result.append({'dimension':d,'candidates':[materialize(library,workspace,state,{**base,d:v}) for v in values]})
+        extras=domain if d=='type-pairing' else [a+(b-a)*fraction for fraction in (1/3,2/3,.5)]
+        options=[base[d],a,b,*extras]
+        values=list(dict.fromkeys(options))[:count]
+        candidates=[{**materialize(library,workspace,state,{**base,d:v}),'selected':v==base[d]} for v in values]
+        result.append({'dimension':d,'specimen':filename(d),'candidates':candidates})
     return result
 
 

@@ -647,3 +647,56 @@ still matches A/B labels. Non-browser execution remains blocked by the absent
 candidate vocabulary (109 setup errors, 80 browser cases deselected). Browser
 rerun is pending the Validator. Logs: `/tmp/kinbase-tester-review-repair-collection.log`
 and `/tmp/kinbase-tester-review-repair.log`.
+
+Validator run 7b0057b3 (tester 97d97a8, candidate c02f854) reported 188/189.
+The remaining test-side failure assumed particular words in the comment label.
+The A/B helper now finds the selected choice control first, then a visible,
+accessibly named textbox in that control's form. Any label wording is valid;
+unrelated textboxes elsewhere on the page are excluded. Both the initial choice
+and its revision must retain the exact submitted comment in the append-only log.
+The original comment assertion is unconditional, and revision retention is now
+asserted explicitly too.
+
+189 cases collect; compilation and whitespace checks pass. Non-browser execution
+still stops at the missing candidate vocabulary (109 setup errors, 80 browser
+cases deselected). Browser rerun awaits the Validator. Logs:
+`/tmp/kinbase-tester-comment-form-collection.log`, `/tmp/kinbase-tester-comment-form.log`.
+
+The Validator's real beach-session review adds independent perceptual oracles in
+`m3_perceptual_support.py` and `test_m3_perception.py`. These numerical cutoffs are
+tester-chosen operational criteria requested by the review, not WCAG thresholds:
+
+- Each offered A/B pair must change at least 1% of its common full-page pixel
+  extent by >=16/255 in at least one RGB channel, after a 0.5px blur suppresses
+  raster noise. Equal viewport widths are required; added blank height cannot
+  count. This is materially stronger than unequal screenshot hashes while
+  allowing typography/shape choices to change less paint than page recoloring.
+- Every advertised dimension must change its own computed properties on a heading
+  of at least 24px, a primary action of at least 24x24px, or a surface/layout region
+  occupying >=10% of a viewport. That element's rendered crop must also change
+  by >=0.5%; invisible radius/border changes cannot supply the prominent effect.
+  Inherited text color on an otherwise unchanged large wrapper is insufficient.
+- Both initial beach candidates and a language derived before any choices must
+  paint hues 90–255 degrees on a primary action and predominantly on at least one
+  large surface. Saturation >=0.2 and a channel spread >=20/255 exclude grey or
+  imperceptibly tinted near-white. Labels must avoid uppercase, and the existing
+  amendment-11 >=60-degree attention/primary relation verifies whimsical seeds.
+  Supplied palettes and later user choices are not overridden by these checks.
+- The no-JS mood board must have three mutually distinct pin-associated visual
+  specimens, each pair differing by >=3% on an aspect-preserving normalized
+  canvas. Image/frame/SVG specimens are compared directly, avoiding surrounding
+  caption differences where possible; CSS specimens remain supported.
+- Every default preview page and observed candidate sample is checked for the
+  review's prohibited domain copy (listing/booking/rating/destination terms and
+  common booking/occupancy phrases) in visible text and accessible labels. This
+  bounded lexical oracle deliberately excludes vocabulary hooks, routes and
+  captured/user-authored copy; it does not claim general semantic classification.
+
+The existing computed-style isolation and dimension relationships remain in place.
+191 cases collect; compilation and whitespace checks pass. Diagnostic images
+confirm rejection of tiny/noisy changes, blank added height, grey, near-white and
+off-brief hues, while recognizing a substantial blue region. Those diagnostics
+are not product/browser results. Non-browser execution remains blocked by absent
+candidate vocabulary (109 setup errors, 82 browser cases deselected). The real
+rendered checks require the Validator. Logs:
+`/tmp/kinbase-tester-perceptual-collection.log`, `/tmp/kinbase-tester-perceptual.log`.

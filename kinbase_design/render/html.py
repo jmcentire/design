@@ -123,11 +123,11 @@ class SampleRenderer:
         if not fragments and tag!='a' and hrefs is not None and (href:=captured_href(hrefs.get(name))):content=element('a',{'href':href},content)
         return element(tag, attrs, content)
 
-    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False,heading_levels=None):
+    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False,heading_levels=None,provided_only=False):
         self.sequence += 1
         contract = self.vocabulary['constructs'][construct]
-        copy = dict(values or {}) if captured else {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
-        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name) if captured else None) if not captured or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
+        copy = dict(values or {}) if captured or provided_only else {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
+        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name) if captured else None) if not (captured or provided_only) or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
                  for name, definition in slot_map(contract).items()}
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
@@ -170,7 +170,7 @@ class SampleRenderer:
             if children:
                 columns=max(1,min(INGEST_MAX_COLUMNS,int(item.get('columns',1))))
                 children=element('div',{'class':'kd-captured-children','style':f'--kd-columns:{columns}'},children)
-            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'))
+            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'),provided_only=page.get('provided_only',False))
         content=''.join(render(item) for item in page['instances'])
         env=Environment(autoescape=select_autoescape(default_for_string=True))
         body_style=f'--kd-captured-space:{max(0,float(page["spacing_base"])):g}px' if page.get('captured') and 'spacing_base' in page else ''
