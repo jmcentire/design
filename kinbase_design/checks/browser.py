@@ -8,6 +8,7 @@ from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
 from .evaluate import Evaluation
 from .math import color, contrast, effective_background
 from .grouping import group_rendered, observation_context
+from .native import unmodified_native
 from ..config import CHECK_NON_TEXT_CONTRAST
 
 log = logging.getLogger(__name__)
@@ -49,18 +50,23 @@ def decode_backgrounds(page):
 def observe(page):
     source = Path(__file__).with_name('observe.js').read_text().replace(
         '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
-    return page.evaluate(source,{
+    snapshot = page.evaluate(source,{
         'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys())-{'surface'}),
         'tolerance':CHECK_PIXEL_TOLERANCE,'targetSize':CHECK_TARGET_SIZE})
+    for node in snapshot['nodes']:
+        node['nativeControl'] = unmodified_native(node.pop('nativeAppearance'))
+    return snapshot
 
 
 def focus_style(locator):
-    return locator.evaluate('''e=>{const nativeControl=__NATIVE_CONTROL__;const s=getComputedStyle(e);return {
-      nativeControl:nativeControl(e),
+    result = locator.evaluate('''e=>{const nativeControl=__NATIVE_CONTROL__;const s=getComputedStyle(e);return {
+      nativeAppearance:nativeControl(e),
       outline:s.outline,outlineWidth:parseFloat(s.outlineWidth),outlineStyle:s.outlineStyle,
       outlineColor:s.outlineColor,shadow:s.boxShadow,border:s.border,borderColor:s.borderTopColor,background:s.backgroundColor,
       backgrounds:(()=>{const layers=[];for(let p=e.parentElement;p;p=p.parentElement){const c=getComputedStyle(p);layers.push({color:c.backgroundColor,image:c.backgroundImage,uncertain:parseFloat(c.opacity)<1});}return layers;})()
     }}'''.replace('__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text()))
+    result['nativeControl'] = unmodified_native(result.pop('nativeAppearance'))
+    return result
 
 
 def keyboard(page, snapshot, evaluation, filename, width, output):

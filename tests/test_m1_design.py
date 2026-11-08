@@ -45,8 +45,12 @@ def title_lines(locator):
       while ((node = walker.nextNode())) {
         if (!node.textContent.trim()) continue;
         const range = document.createRange(); range.selectNodeContents(node);
-        for (const r of range.getClientRects())
-          if (r.width > 0 && r.height > 0 && r.top < box.bottom && r.bottom > box.top) tops.add(r.top);
+        // Font ascent can overlap the clip edge without painting another line.
+        // Require the rect's midpoint to be inside the visible title box.
+        for (const r of range.getClientRects()) {
+          const middle = (r.top + r.bottom) / 2;
+          if (r.width > 0 && r.height > 0 && middle < box.bottom && middle >= box.top) tops.add(r.top);
+        }
       }
       return {visibleLines: tops.size, clipped: element.scrollHeight > element.clientHeight ||
         element.scrollWidth > element.clientWidth};

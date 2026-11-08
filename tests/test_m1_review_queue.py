@@ -5,7 +5,10 @@ surfaces/targets, or non-text review noise for unchanged native control appearan
 Inputs use only public language properties; rendered hooks locate observations.
 """
 
+from io import BytesIO
+
 import pytest
+from PIL import Image
 
 from tests.m1_support import findings, run_check, slot_properties, token
 from tests.support import PAGES
@@ -76,6 +79,55 @@ def test_different_unresolved_surfaces_and_targets_remain_separate(library, lang
     assert {(o["page"], o["width"]) for o in title[0]["occurrences"]} == expected_title
 
 
+def control_pixels(control, native):
+    """Compare painted pixels with a real UA input at the same size/state.
+
+    Only the separate reference document is styled to match size and backdrop.
+    Subpixel placement is preserved to avoid changing rasterization alignment.
+    Ancestor colors set the reference backdrop; input appearance is still native.
+    """
+    control.scroll_into_view_if_needed(timeout=5000)
+    state = control.evaluate("""e => {
+      const r = e.getBoundingClientRect();
+      // Paint ancestor backgrounds over the default white canvas. Exclude the
+      // input's own background: copying it would hide authored paint changes.
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#ffffff'; context.fillRect(0, 0, 1, 1);
+      const ancestors = [];
+      for (let parent = e.parentElement; parent; parent = parent.parentElement) ancestors.push(parent);
+      for (const parent of ancestors.reverse()) {
+        const style = getComputedStyle(parent);
+        if (style.backgroundImage !== 'none') throw new Error('Fixture requires a solid control backdrop');
+        context.fillStyle = style.backgroundColor; context.fillRect(0, 0, 1, 1);
+      }
+      const pixel = context.getImageData(0, 0, 1, 1).data;
+      return {type: e.type, checked: e.checked, disabled: e.disabled,
+        indeterminate: e.indeterminate, readOnly: e.readOnly,
+        value: e.value, placeholder: e.placeholder,
+        backdrop: `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`,
+        width: r.width, height: r.height, x: r.x, y: r.y};
+    }""")
+    native.set_content('<!doctype html><input>')
+    reference = native.locator("input")
+    reference.evaluate("""(e, state) => {
+      document.documentElement.style.backgroundColor = state.backdrop;
+      for (const key of ['type','checked','disabled','indeterminate','readOnly','value','placeholder'])
+        e[key] = state[key];
+      Object.assign(e.style, {position: 'absolute', margin: '0', boxSizing: 'border-box',
+        width: `${state.width}px`, height: `${state.height}px`,
+        left: `${16 + ((state.x % 1 + 1) % 1)}px`, top: `${16 + ((state.y % 1 + 1) % 1)}px`});
+    }""", state)
+
+    def pixels(locator):
+        data = locator.screenshot(timeout=5000, animations="disabled", caret="hide", scale="css")
+        with Image.open(BytesIO(data)) as picture:
+            rgba = picture.convert("RGBA")
+            return rgba.size, rgba.tobytes()
+
+    return pixels(control), pixels(reference)
+
+
 def test_native_control_appearance_does_not_create_non_text_contrast_findings(
         library, language, tmp_path, page, browser_context):
     # Leave native boundary/appearance properties unauthored. Required role text
@@ -87,36 +139,62 @@ def test_native_control_appearance_does_not_create_non_text_contrast_findings(
             properties.update({"color": black, "surface": "{color.paper}"})
     library.write(language)
     site = library.build(tmp_path / "native-controls")
-    page.goto((site / "form.html").as_uri())
-    controls = page.locator('input[type="checkbox"],input[type="radio"]')
-    # Compare to real Chromium UA defaults in a separate document, without
-    # changing the preview or injecting CSS into the checker under test.
+    page.set_viewport_size({"width": 320, "height": 900})
     native = browser_context.new_page()
     native.set_default_timeout(5000)
     native.set_default_navigation_timeout(5000)
-    appearance = """e => {
-      const s = getComputedStyle(e);
-      return ['appearance','accent-color','background-color','background-image',
-        'border-color','border-style','border-width','border-radius','box-shadow']
-        .map(p => s.getPropertyValue(p));
-    }"""
-    scopes = set()
+    observed = set()
+    modified = set()
     try:
-        for i in range(controls.count()):
-            control = controls.nth(i)
-            if not control.is_visible() or not control.is_enabled():
-                continue
-            kind = control.get_attribute("type")
-            native.set_content(f'<input type="{kind}">')
-            assert control.evaluate(appearance) == native.locator("input").evaluate(appearance), (
-                "Fixture control appearance is author-modified", kind)
-            scope = control.evaluate("e => e.closest('[data-kd-slot]')?.dataset.kdSlot")
-            assert scope, "Native control needs its public slot annotation"
-            scopes.add(scope)
+        for name in ("search.html", "states.html"):
+            page.goto((site / name).as_uri())
+            controls = page.locator('input[type="checkbox"],input[type="radio"]')
+            for i in range(controls.count()):
+                control = controls.nth(i)
+                if not control.is_visible() or not control.is_enabled():
+                    continue
+                scope = control.evaluate("e => e.closest('[data-kd-slot]')?.dataset.kdSlot")
+                assert scope, "Native control needs its public slot annotation"
+                actual, reference = control_pixels(control, native)
+                if actual == reference:
+                    observed.add((scope, name))
+                else:
+                    modified.add((scope, name))
+        # Reports identify a slot/page, not an individual repeated control. Do
+        # not exclude a scope containing both native and author-painted examples.
+        observed -= modified
+        assert observed, "Fixture must render a pixel-identical native control"
+        report = run_check(library, tmp_path / "native-report")
+        for scope, name in observed:
+            assert not [f for f in findings(report, "non-text-contrast", scope)
+                        if any(o["page"] == name for o in f["occurrences"])], report
+
+        # Positive control: a visibly authored low-contrast text input must still
+        # receive a non-text-contrast finding; excluding all controls is wrong.
+        page.goto((site / "form.html").as_uri())
+        selector = 'input:not([type]),input[type="text"],input[type="email"],input[type="search"]'
+        inputs = page.locator(selector)
+        eligible = [i for i in range(inputs.count())
+                    if inputs.nth(i).is_visible() and inputs.nth(i).is_enabled()]
+        assert eligible, "Fixture requires a text input for the authored positive control"
+        index = eligible[0]
+        scope = inputs.nth(index).evaluate("e => e.closest('[data-kd-slot]')?.dataset.kdSlot")
+        assert scope
+        construct, slot = scope.split(".")
+        treatment = {"background-color": token(language, "probe", "faint", "color", "#eeeeee"),
+                     "border-color": "{probe.faint}",
+                     "border-width": token(language, "probe", "edge", "dimension", "2px")}
+        slot_properties(language, construct, slot).update(treatment)
+        for properties in language["roles"]["control"].values():
+            properties.update(treatment)
+        library.write(language)
+        styled_site = library.build(tmp_path / "authored-controls")
+        page.goto((styled_site / "form.html").as_uri())
+        styled = page.locator(selector).nth(index)
+        assert styled.evaluate("e => e.closest('[data-kd-slot]')?.dataset.kdSlot") == scope
+        actual, reference = control_pixels(styled, native)
+        assert actual != reference, "Positive control must change painted appearance"
+        styled_report = run_check(library, tmp_path / "authored-report", accepted=False)
+        assert findings(styled_report, "non-text-contrast", scope, "violation"), styled_report
     finally:
         native.close()
-    assert scopes, "Fixture must render an unmodified native control"
-    report = run_check(library, tmp_path / "native-report")
-    for scope in scopes:
-        assert not [f for f in findings(report, "non-text-contrast", scope)
-                    if any(o["page"] == "form.html" for o in f["occurrences"])], report

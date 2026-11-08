@@ -270,3 +270,38 @@ The non-browser attempt still has 102 missing-vocabulary prerequisite errors,
 with 43 browser cases deselected. New rendered assertions await integrated
 execution. Logs: `/tmp/kinbase-tester-amendment05-collection.log` and
 `/tmp/kinbase-tester-amendment05.log`.
+
+Paint-evidence repair: the Validator ran tester `0002773` against integrated
+candidate `21723bb` (endgame `cb919298`): 143 passed and two test-side failures.
+The title line counter now requires the text rect's vertical midpoint inside
+the title box, avoiding an empty ascent sliver counted as a third visible line.
+This preserves the two-line limit and full-content checks.
+
+Native checkbox/radio evidence now visits search.html and states.html and compares
+decoded element screenshot pixels with the same native input type, state and
+dimensions in a blank Chromium document. Subpixel placement is matched; computed
+CSS equality is no longer the oracle. The test requires a pixel-identical example
+and excludes mixed native/author-painted slot-page groups from its exclusion
+assertion. A second input is styled through working.json with a low-contrast
+background/border; it must paint differently and receive a non-text-contrast
+violation, guarding against suppressing all control checks. Screenshot calls have
+five-second timeouts and the existing host phase deadline remains in force.
+
+All 145 cases still collect; syntax and whitespace checks pass. The local
+non-browser run has 102 missing-vocabulary prerequisite errors, with 43 browser
+cases deselected. The 143 integrated passes are prior evidence; these repairs
+still await the Validator's browser rerun. Logs:
+`/tmp/kinbase-tester-paint-repair-collection.log`, `/tmp/kinbase-tester-paint-repair.log`.
+
+Native-backdrop correction: the reference document now uses the preview input's
+effective ancestor background color. Chromium canvas composition combines ancestor
+color layers, including alpha, over the default white canvas. The input's own
+background is excluded so authored control paint remains detectable. The fixture
+requires a solid backdrop rather than silently approximating image backgrounds.
+This removes background-only differences at anti-aliased native-control edges.
+The styled-control positive assertion remains unchanged.
+
+After this correction, 145 tests collect and syntax/whitespace checks pass; the
+non-browser attempt still has 102 missing-vocabulary setup errors and 43 browser
+cases deselected. Browser verification remains pending. Logs:
+`/tmp/kinbase-tester-backdrop-collection.log`, `/tmp/kinbase-tester-backdrop.log`.

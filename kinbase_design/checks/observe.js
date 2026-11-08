@@ -56,7 +56,7 @@
       backgrounds:background(e),overImage,disabled,clipped,lineClamp:parseInt(s.webkitLineClamp)||0,
       backgroundAsset,backgroundDecoded,image,asset:image?e.closest('[data-kd-asset]').dataset.kdAsset:null,
       imageURL:image?e.getAttribute('src'):null,decoded:image?e.complete&&e.naturalWidth>0&&e.naturalHeight>0:null,
-      meaningfulImage:image&&!!e.alt,control,nativeControl:control&&nativeControl(e),boundary,interactive:interactive(e),inline,userAgent,equivalent,
+      meaningfulImage:image&&!!e.alt,control,nativeAppearance:control?nativeControl(e):null,boundary,interactive:interactive(e),inline,userAgent,equivalent,
       scrollContainer:['auto','scroll'].includes(s.overflowX),
       fontReady:document.fonts.check(`${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`,text.trim()||'A')};
   });
