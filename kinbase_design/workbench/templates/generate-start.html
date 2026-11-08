@@ -1,0 +1,9 @@
+{% extends 'base.html' %}{% block content %}
+<h1>Find your language</h1><p class="lede">Start with a feeling, an audience or a place. Compare rendered directions, keep what you like, and derive a reusable design language.</p>
+<p>Current standards: unknown. Kinbase is not connected. Suggestions use local heuristics; no model or network service is required.</p>
+<form class="panel" method="post" action="/generate/start" enctype="multipart/form-data">
+<label>Your brief<textarea name="brief" rows="4" maxlength="16000" required placeholder="A casual site for young families; relaxing but engaging beach vacation; blues, greens and turquoise; whimsical flair"></textarea></label>
+<label>Optional logo, font, palette, image or brief<input type="file" name="file"></label>
+<label>Artifact type<select name="kind"><option value="">Detect from filename</option><option value="dtcg">DTCG palette</option><option value="asset">Logo / font / image</option><option value="image">Image</option><option value="brief">Brief</option><option value="figma-export">Figma export ZIP</option></select></label>
+<label>Existing artifact ids (optional)<input name="artifacts"></label><p>Supplied colours and asset bytes stay fixed throughout the journey.</p><button>Start visual interview</button></form>
+<h2>Your sessions</h2><div class="grid">{% for session in sessions %}<article class="card"><h3><a href="/generate/{{ session.id }}/pair">{{ session.brief }}</a></h3><a href="/generate/{{ session.id }}/interview">Interview</a> · <a href="/generate/{{ session.id }}/moodboard">Mood board</a>{% if session.draft %} · <a href="/generate/{{ session.id }}/review">Review {{ session.draft }}</a>{% endif %}</article>{% else %}<p>No sessions yet.</p>{% endfor %}</div>{% endblock %}

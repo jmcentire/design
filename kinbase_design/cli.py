@@ -57,6 +57,21 @@ def parser():
         if name == 'serve':
             sub.add_argument('--host', choices=['127.0.0.1'], default='127.0.0.1')
             sub.add_argument('--port', type=int, default=8765)
+    generate = commands.add_parser('generate', parents=[common])
+    actions = generate.add_subparsers(dest='generate_action', required=True)
+    for name in ('start','interview','moodboard','pair','choose','settled','derive'):
+        sub = actions.add_parser(name, parents=[common])
+        if name == 'start':
+            sub.add_argument('--brief', required=True)
+            sub.add_argument('--artifact', action='append', default=[])
+        else:sub.add_argument('session')
+        if name == 'interview':sub.add_argument('--answers', required=True)
+        if name == 'moodboard':
+            sub.add_argument('--pin');sub.add_argument('--remove')
+        if name == 'choose':
+            sub.add_argument('pair');sub.add_argument('choice', choices=['A','B','neither'])
+            sub.add_argument('--comment', default='');sub.add_argument('--supersedes')
+        if name == 'derive':sub.add_argument('--language', required=True)
     return p
 
 
@@ -69,7 +84,19 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'vocabulary':
+        if args.command == 'generate':
+            from . import generate
+            action=args.generate_action
+            if action=='start':result=generate.start(library,workspace,args.brief,args.artifact)
+            elif action=='interview':result=generate.interview(workspace,args.session,json.loads(args.answers))
+            elif action=='moodboard':result=generate.moodboard(library,workspace,args.session,args.pin,args.remove)
+            elif action=='pair':result=generate.pair(library,workspace,args.session)
+            elif action=='choose':result=generate.choose(workspace,args.session,args.pair,args.choice,args.comment,args.supersedes)
+            elif action=='settled':result=generate.settled(workspace,args.session)
+            else:result=generate.derive(library,workspace,args.session,args.language)
+            output(result)
+            if isinstance(result,dict) and result.get('accepted') is False:return 1
+        elif args.command == 'vocabulary':
             output(vocabulary.load(library))
         elif args.command == 'validate':
             result = validate(library, args.language_id)

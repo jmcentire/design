@@ -1,6 +1,6 @@
 # Kinbase Design
 
-A local visual workbench for reusable design languages. Includes the M2 ingest journey and two hand-authored languages: coastal **Harbor** and warm editorial **Lantern**, with an SVG wordmark, a landscape illustration, and Instrument Sans.
+A local visual workbench for reusable design languages. Includes ingest and guided generate journeys and two hand-authored languages: coastal **Harbor** and warm editorial **Lantern**, with an SVG wordmark, a landscape illustration, and Instrument Sans.
 The shared `library/` directory demonstrates a library living inside another Git project.
 
 Requires Python 3.12 with `jinja2`, `rfc8785`, `fonttools`, `pillow`, and `playwright`, plus an installed Chromium browser. No database or build
@@ -120,7 +120,7 @@ Lantern packages Instrument Sans, an authored wordmark and an evening illustrati
 page. The gallery deliberately scrolls horizontally. Media reserves a 3:2 box before images load,
 using `object-fit: contain` to preserve each image’s proportions.
 
-Kinbase standards and direction are **unknown**. M3–M4 remain unimplemented: guided generation,
+Kinbase standards and direction are **unknown**. M4 remains unimplemented:
 export/apply adapters, site inventory acceptance, feedback/proposals, and Kinbase standards integration. No deployment, remote
 publishing, or telemetry is included.
 
@@ -178,7 +178,13 @@ its value and descendants, and the nearest ancestor record wins. Token values an
 leaves require coverage; descriptive metadata, token metadata and reason text do not. Palette clustering uses CIEDE2000; type and spacing tolerances
 live in `config.py`. Source DTCG values remain unchanged. Semantic mapping is deterministic and
 reported as **heuristic**. Missing and ambiguous treatments get rendered alternatives; choosing
-again supersedes the value and its chosen provenance. Candidate preview paths are relative to
+an alternative records its provenance. Repeated source groups map to the generic `card`
+construct using sibling structure, media, headings and typographic hierarchy. Text is data:
+currency, ratings and domain words do not select constructs or slots. Small text becomes
+metadata or an eyebrow by position; short accent text becomes a highlight. Specialised
+constructs such as `listing-card` remain available for explicit mappings and authored languages.
+
+Choosing again supersedes the value and its chosen provenance. Candidate preview paths are relative to
 the draft directory. The value-provenance panel marks erased originals as “source removed”.
 Unsupported layout details, unmapped
 content, capture limits and fidelity divergences remain explicit coverage findings.
@@ -189,6 +195,8 @@ reconstruction screenshots at the captured widths and reports measured colour di
 matches, type ratios and spacing. This is an approximation constrained by the vocabulary and
 closed property set; the comparison exposes its gaps. Draft previews and fidelity rendering
 use the existing validator, and promoted draft assets use the existing promotion operation.
+Long-form pages retain heading-led sections, ordered prose and media, and inline link/accent
+fragments. These use structure and presentation signals, including for blogs and travel guides.
 Captured compositions recover content and repeated groups from the saved DOM, leave unobserved
 slots empty, and retain measured context as references to draft tokens. These contexts pass
 through the same validator and resolver. Responsive source-image substitutions are reported;
@@ -209,6 +217,61 @@ This is separate from the 20 MiB upload limit and the 4 MiB working-language and
 adapter input/output limits. An oversized adapter prompt keeps heuristic mapping
 and reports the reason; it does not discard captured evidence.
 
+## Generate a language (M3)
+
+Open `/generate`. Enter a brief and optionally upload a logo, font, DTCG palette or image.
+The visual interview renders specimens, the mood board supports pin/remove, and A/B rounds
+compare the same sample screen. Choose A, B or neither with an optional comment. Earlier choices
+can be revised without deleting history. Stop at any time to derive, review the multi-page site
+and findings, and save through the same draft path as ingest. Every step works without JavaScript.
+Supplied assets remain constraints even when their mood-board tile is removed.
+
+```sh
+python -m kinbase_design generate start --brief "A casual site for young families; relaxing but engaging beach vacation; blues, greens and turquoise; whimsical flair"
+python -m kinbase_design generate interview SESSION --answers '{"shape":16,"density":10,"type-pairing":"rounded"}'
+python -m kinbase_design generate moodboard SESSION
+python -m kinbase_design generate moodboard SESSION --pin shape-2
+python -m kinbase_design generate pair SESSION
+python -m kinbase_design generate choose SESSION PAIR A --comment "The calmer direction"
+python -m kinbase_design generate settled SESSION
+python -m kinbase_design generate choose SESSION PAIR B --supersedes CHOICE
+python -m kinbase_design generate derive SESSION --language beach-family
+python -m kinbase_design save-draft beach-family
+```
+
+Add `--artifact ID` repeatedly to `generate start` for existing imports. Brief parsing is local
+keyword heuristics; generate does not invoke a model or fetch fonts. Supplied palette literals
+stay exact source tokens; imported aliases are rebased into a source namespace. Supplied font,
+logo and image bytes go through the existing content-hash promotion operation unchanged.
+Generated illustrations are clearly sample assets, not photographs of a real property.
+
+Sessions live in the private workspace under `sessions/<id>/`. `choices.jsonl` is append-only;
+settled dimensions are calculated from effective choices. `neither` reoffers those dimensions
+at greater distances until their domain is exhausted, then moves on. Interview and pinned
+mood-board directions provide priors; A/B choices take precedence. Candidate directories hold
+`working.json`, `sample.html`, `swatch.html`, the normal sample pages, CSS and packaged assets.
+The workbench serves these at `/generate/<session>/candidates/<hash>/<file>`.
+
+```toml
+[generate]
+round_cap = 8
+candidates_per_question = 3 # 2–4 rendered interview alternatives
+repair_iterations = 5
+```
+
+Derivation uses colour harmony, a modular title/subtitle/body scale, spacing multiples and
+hierarchy. It reuses R1–R5 validation and the Chromium `check` operation. Repairs are bounded
+and change only unsupplied values; remaining findings stay visible. If Chromium cannot start,
+the CLI exits 2 and retains the draft for review. The workbench displays checks as unavailable,
+never passed. A static preview alone does not establish rendered acceptance.
+
+Generate's five type pairings use system families: geometric-sans uses Arial; humanist-sans
+uses system-ui; rounded requests ui-rounded then Trebuchet MS; serif uses Georgia; slab requests
+Rockwell then Courier New. Serif and sans normally render distinct faces. Rounded and slab
+depend on installed system faces and may fall back; five distinct downloaded faces are not
+claimed. Harbor and Lantern use the packaged, licensed Instrument Sans. A supplied font is
+bound to body text as its original bytes, while title pairing remains selectable.
+
 ## Local verification without sockets
 
 `kinbase_design.workbench.create_app(library, workspace)` returns a WSGI application. Call it
@@ -217,3 +280,5 @@ with a WSGI environment and `start_response` to exercise routes in-process. The 
 This lane performed throwaway CLI/WSGI checks; the independent Factory Tester owns the test
 suite. The M0 browser repairs were confirmed by the Validator. M1 grouping and behavior handling were confirmed by the Validator. M2 capture and fidelity
 require a Validator Chromium run; rendered fidelity is not claimed from local Python-only checks.
+M3 session planning, candidate validity, provenance, CLI and no-JavaScript WSGI flow are exercised
+offline; its actual rendered checks and beach-brief appearance require the Validator's browser.

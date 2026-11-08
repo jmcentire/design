@@ -106,3 +106,26 @@ def ingest_config(path=None):
     unknown=set(values)-set(IngestConfig.__dataclass_fields__)
     if unknown:raise ValueError('Unknown ingest settings: '+', '.join(sorted(unknown)))
     return IngestConfig(**values)
+
+
+@dataclass(frozen=True)
+class GenerateConfig:
+    round_cap: int = 8
+    candidates_per_question: int = 3
+    repair_iterations: int = 5
+
+    def __post_init__(self):
+        for name in ('round_cap','repair_iterations'):
+            if type(getattr(self,name)) is not int or not 1<=getattr(self,name)<=100:
+                raise ValueError('generate.'+name+' must be an integer from 1 to 100')
+        if type(self.candidates_per_question) is not int or not 2<=self.candidates_per_question<=4:
+            raise ValueError('generate.candidates_per_question must be from 2 to 4')
+
+
+def generate_config(path=None):
+    path=Path(path) if path is not None else Path.cwd()/'kinbase-design.toml'
+    values=tomllib.loads(path.read_text()).get('generate',{}) if path.exists() else {}
+    if not isinstance(values,dict):raise ValueError('generate configuration must be a table')
+    unknown=set(values)-set(GenerateConfig.__dataclass_fields__)
+    if unknown:raise ValueError('Unknown generate settings: '+', '.join(sorted(unknown)))
+    return GenerateConfig(**values)

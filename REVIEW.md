@@ -14,6 +14,9 @@ Use `docs/design/SPEC.md` and the ratified public-contract amendments as the beh
   findings remain unresolved. Group rendered occurrences without hiding evidence or exceptions.
 - Control box properties target native controls; text treatment stays on the slot and inherits.
   Checks compare the same elements the renderer styles. Unused variant parts are advisory.
+- Ingest infers generic cards from repeated structure and presentation, never currency, ratings
+  or domain words. Preserve each source group's own copy, media, hierarchy and accent colours.
+  Long-form prose must keep heading order, inline links and media without subject-specific branches.
 - Provenance is a direct RFC 6901 map with nearest-ancestor coverage of every design leaf.
   Keep source URLs, filesystem locations, captured content and originals out of shared provenance.
   Never put private workspace paths in the library or automatically promote discovered assets.

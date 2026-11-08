@@ -74,7 +74,7 @@ def shared(provenance):
         elif location.startswith(('selector:','page:')):
             value=location.split(':',1)[1]
             if not any(s in value for s in ('://','\\','/')):item['location']=value
-        if entry['kind']=='inferred':item['method']='Derived from captured measurements and Vocabulary defaults'
+        if entry['kind']=='inferred':item['method']='Derived from design evidence and Vocabulary defaults'
         if entry['kind']=='chosen':item['method']='Visual choice '+re.sub('[^a-zA-Z0-9_-]','',entry.get('choice',''))
         result[path]=item
     return result

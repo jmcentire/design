@@ -1,8 +1,8 @@
-"""M2 B5 / amendment 12: inspect the reconstruction, not just its palette report.
+"""M2 B5 / amendments 12–13: domain-neutral reconstruction content and appearance.
 
-Oracle: our own two-page source, six distinct cards and authored accent colors.
+Oracle: our own source pages, repeated groups and authored accent colors.
 Falsifiers: generic vocabulary copy substituted for captured content, one page
-reused for all pairs, cards flattened/reordered, or green prices rendered grey.
+reused for all pairs, groups flattened/reordered, lost hierarchy or grey accents.
 """
 
 import re
@@ -11,6 +11,7 @@ from urllib.parse import quote
 import pytest
 
 from tests.m2_support import capture, color_distance, confined, draft, png, read_json
+from tests.m1_support import contrast_ratio
 from tests.test_m1_design import solid_background
 from tests.test_m2_capture import tree_hashes
 
@@ -33,6 +34,55 @@ PAGES = {
                   ("Bracken Marsh hut", "Reed marsh, two guests", "$195 per night"),
                   ("Otter Reach lodge", "River bend, five guests", "$364 per night")],
     },
+    "editorial.html": {
+        "heading": "Fieldwork dispatches", "section": "Stories from the field",
+        "intro": "Essays for noticing the places around us.",
+        "cards": [("Sketching the tidal orchard", "Mira Chen, field notes", "New essay"),
+                  ("Letters from the moss garden", "Ivo Reed, correspondence", "Editor’s pick"),
+                  ("An atlas of quiet footpaths", "Sol Park, walking notes", "Read slowly")],
+    },
+    "events.html": {
+        "heading": "Community observatory", "section": "Gatherings under open skies",
+        "intro": "Shared afternoons for making, listening and learning.",
+        "cards": [("Lantern-making workshop", "Saturday, studio north", "Materials included"),
+                  ("River sound walk", "Sunday, riverside gate", "Outdoor gathering"),
+                  ("Seeds and stories circle", "Wednesday, garden room", "Bring a notebook")],
+    },
+    "team.html": {
+        "heading": "People behind the notebook", "section": "Meet the field team",
+        "intro": "A small team bringing different ways of noticing.",
+        "cards": [("Yara Bell", "Illustration and field research", "Makes space for questions"),
+                  ("Eli Santos", "Program coordination", "Connects people and ideas"),
+                  ("Noor Patel", "Community facilitation", "Listens before drawing")],
+    },
+    "blog.html": {
+        "heading": "A notebook beside the estuary", "section": "Observations along the path",
+        "intro": "The morning tide left small stories on the shore.",
+        "cards": [("Tracks in the wet sand", "Field journal, early morning", "Look closely"),
+                  ("Reeds bending into the wind", "Field journal, midday", "Pause and listen"),
+                  ("Shadows across the boardwalk", "Field journal, late afternoon", "Watch the light")],
+    },
+    "guide.html": {
+        "heading": "A slow day around Saltmarsh Bay", "section": "Three places to explore on foot",
+        "intro": "Follow the water from the quiet inlet to the open headland.",
+        "cards": [("The inlet boardwalk", "Sheltered water, level path", "Start gently"),
+                  ("The reed-bed lookout", "Marsh edge, shaded trail", "Bring binoculars"),
+                  ("The headland loop", "Open coast, uneven ground", "Allow extra daylight")],
+    },
+    "words-neutral.html": {
+        "heading": "Orchard notebook", "section": "Stories around",
+        "intro": "Gentle notes from quiet spaces.",
+        "cards": [("Juniper field notes", "Blue atlas", "Read soon"),
+                  ("Willows ridge tales", "Gold atlas", "Open note"),
+                  ("Meadows brook notes", "Rose atlas", "More here")],
+    },
+    "words-commerce.html": {
+        "heading": "Booking discount", "section": "Booking nights",
+        "intro": "Nights stars beds rooms guests.",
+        "cards": [("Booking stars rooms", "Beds stars", "$240 /day"),
+                  ("Booking stars rates", "Beds rates", "$180 /day"),
+                  ("Booking rooms stars", "Beds rooms", "4.90 star")],
+    },
 }
 
 
@@ -50,6 +100,11 @@ def visible_fragments(locator):
         if (!text) continue;
         const style = getComputedStyle(node.parentElement);
         if (style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0) continue;
+        let transparent = false;
+        for (let e=node.parentElement; e; e=e.parentElement) {
+          if (Number(getComputedStyle(e).opacity) === 0) { transparent=true; break; }
+        }
+        if (transparent) continue;
         const range = document.createRange(); range.selectNodeContents(node);
         if ([...range.getClientRects()].some(r => r.width > 0 && r.height > 0 && r.right > 0 && r.bottom > 0))
           result.push({text, color: style.color});
@@ -71,33 +126,135 @@ def assert_accent(locator, expected, tolerance):
         assert color_distance(expected, observed) <= tolerance, (fragment["text"], expected, observed)
 
 
-def assert_media_visible(card):
-    media = card.locator('[data-kd-slot="listing-card.media"]')
-    assert media.count() == 1 and media.is_visible()
-    box = media.bounding_box()
-    assert box and box["width"] > 0 and box["height"] > 0
-    images = card.locator('[data-kd-slot="listing-card.media"] img, img[data-kd-slot="listing-card.media"]')
+def decoded_samples(image):
+    """Sample decoded source media, independent of output encoding or CSS scaling.
+
+    The selected normalized points lie inside broad colored regions of our SVG;
+    the same color tolerance used for the captured design applies here. This
+    rejects a default placeholder even if it is visible and has a copied alt.
+    """
+    surface = solid_background(image)
+    return image.evaluate("""(e, background) => {
+      if (!e.complete || !e.naturalWidth || !e.naturalHeight) throw Error('Image did not decode');
+      const canvas = document.createElement('canvas'); canvas.width = 120; canvas.height = 60;
+      const ctx = canvas.getContext('2d'); ctx.fillStyle = `rgb(${background.join(',')})`;
+      ctx.fillRect(0, 0, 120, 60); ctx.drawImage(e, 0, 0, 120, 60);
+      return [[6,6],[6,54],[60,24],[60,45],[108,12]].map(([x,y]) =>
+        [...ctx.getImageData(x,y,1,1).data].slice(0,3));
+    }""", surface)
+
+
+def assert_media_visible(group, original, tolerance):
+    media = group.locator('[data-kd-slot][data-kd-role="media"]')
+    assert media.count() == 1
+    assert media.evaluate("""e => {
+      for (let node=e; node; node=node.parentElement)
+        if (Number(getComputedStyle(node).opacity) === 0) return false;
+      return true;
+    }""")
+    images = group.locator("img")
     if images.count():
-        for image in images.all():
-            assert image.is_visible()
-            assert image.evaluate("e => e.complete && e.naturalWidth > 0 && e.naturalHeight > 0")
+        assert images.count() == 1
+        image = images.first
+        assert image.is_visible()
+        observed = decoded_samples(image)
+        for expected_rgb, actual_rgb in zip(original, observed):
+            expected = "#" + "".join(f"{v:02x}" for v in expected_rgb)
+            actual = "#" + "".join(f"{v:02x}" for v in actual_rgb)
+            assert color_distance(expected, actual) <= tolerance, ("Reconstruction substituted media", expected, actual)
     else:
-        assert media.locator("svg").count() or media.evaluate(
-            "e => e.tagName.toLowerCase() === 'svg' || getComputedStyle(e).backgroundImage !== 'none'"), (
-                "A media wrapper with no rendered image is not a reconstructed card image")
+        # Inline SVG/background-image are also valid media renderings. Geometry
+        # still must show actual media, not an empty wrapper; decoded pixel
+        # sampling above applies to this fixture's ordinary img rendering path.
+        assert media.evaluate("""e => [e, ...e.querySelectorAll('svg')].some(node => {
+          const r=node.getBoundingClientRect(), s=getComputedStyle(node);
+          return r.width>0 && r.height>0 && s.visibility!=='hidden' &&
+            (node.tagName.toLowerCase()==='svg' || s.backgroundImage!=='none');
+        })""")
 
 
-def test_fidelity_rebuilds_each_pages_text_cards_and_accent_paint(
-        library, server, fixture_site, ingest_config, page):
+def repeated_groups(page, items, vocabulary):
+    """Locate groups by their captured contents, without naming a domain construct."""
+    constructs = page.locator("[data-kd-construct]")
+    matches = constructs.evaluate_all("""(els, items) => {
+      const norm = text => text.trim().replace(/\\s+/g, ' ').toLowerCase();
+      return items.map(item => {
+        const candidates = els.map((e,i) => ({e,i})).filter(({e}) => {
+          const text=norm(e.innerText);
+          // A semantic wrapper may use display:contents. Its children, rather
+          // than a particular wrapper box, must actually render.
+          const visible=[e,...e.querySelectorAll('*')].some(node => {
+            const r=node.getBoundingClientRect();
+            return r.width>0 && r.height>0 && getComputedStyle(node).visibility!=='hidden';
+          });
+          return visible
+            && item.every(value => text.includes(norm(value)))
+            && !items.some(other => other!==item && text.includes(norm(other[0])));
+        });
+        // A page-shell/section wrapper is not evidence of a repeated instance.
+        return candidates.filter(({e}) => !candidates.some(other => other.e!==e && e.contains(other.e)))
+          .map(({e,i}) => ({index:i, construct:e.dataset.kdConstruct}));
+      });
+    }""", items)
+    assert all(len(match) == 1 for match in matches), ("Each source group needs exactly one reconstructed instance", matches)
+    identities = [match[0]["construct"] for match in matches]
+    assert len(set(identities)) == 1 and identities[0] in vocabulary["constructs"]
+    indexes = [match[0]["index"] for match in matches]
+    assert indexes == sorted(indexes) and len(set(indexes)) == len(items), "Repeated source order changed"
+    return [constructs.nth(index) for index in indexes]
+
+
+def assert_title_prominence(title, meta):
+    def cues(locator):
+        style = locator.evaluate("e => { const s=getComputedStyle(e); return [parseFloat(s.fontSize), Number(s.fontWeight), s.color]; }")
+        channels = [float(v) for v in re.findall(r"[\d.]+", style[2])]
+        surface = solid_background(locator)
+        alpha = channels[3] if len(channels) == 4 else 1
+        foreground = [round(channels[i]*alpha+surface[i]*(1-alpha)) for i in range(3)]
+        to_hex = lambda rgb: "#" + "".join(f"{v:02x}" for v in rgb)
+        return style[:2] + [contrast_ratio(to_hex(foreground), to_hex(surface))]
+    a, b = cues(title), cues(meta)
+    # Size, weight and contrast are independent observable prominence cues.
+    # Do not require a specific role name, point size or font from the mapper.
+    assert any(title_value > meta_value + 0.05 for title_value, meta_value in zip(a, b)), ("Title lost prominence over meta", a, b)
+
+
+def heading_outline(page):
+    # Native headings and equivalent ARIA headings are both valid. Preserve the
+    # hierarchy relation, not a particular template's absolute heading levels.
+    return page.get_by_role("heading").evaluate_all("""els => els.map(e => ({
+      text: e.textContent.trim().replace(/\\s+/g, ' '),
+      level: Number(e.getAttribute('aria-level') || (/^H[1-6]$/.test(e.tagName) ? e.tagName.slice(1) : 2))
+    }))""")
+
+
+def assert_heading_hierarchy(page, source):
+    observed = heading_outline(page)
+    assert [h["text"] for h in observed] == [h["text"] for h in source], (
+        "Captured headings must remain headings in source order", source, observed)
+    assert all(1 <= h["level"] for h in observed), observed
+    def relation(a, b):
+        return (a > b) - (a < b)
+    for i, before in enumerate(source):
+        for j, after in enumerate(source):
+            assert relation(before["level"], after["level"]) == relation(observed[i]["level"], observed[j]["level"]), (
+                "Heading hierarchy changed", source, observed)
+
+
+def reconstruct(library, fixture_site, ingest_config, page, filenames, identity):
     sources = {}
-    for filename, expected in PAGES.items():
+    for filename in filenames:
+        expected = PAGES[filename]
         url = fixture_site.url + "/cards/" + filename
         page.goto(url)
         assert normalized(page.locator("h1").inner_text()) == expected["heading"]
-        assert page.locator("article h3").all_text_contents() == [card[0] for card in expected["cards"]]
-        for price in page.locator(".price").all():
-            assert_accent(price, "#0b6e4f", 0.01)
-        sources[url] = {**expected, "text": normalized(page.locator("body").inner_text())}
+        assert page.locator(".item h3").all_text_contents() == [card[0] for card in expected["cards"]]
+        for accent in page.locator(".highlight").all():
+            assert_accent(accent, "#0b6e4f", 0.01)
+        sources[url] = {**expected, "fragments": visible_fragments(page.locator("body")),
+                        "headings": heading_outline(page),
+                        "media": [decoded_samples(image) for image in page.locator(".item img").all()]}
+        sources[url]["text"] = normalized(" ".join(fragment["text"] for fragment in sources[url]["fragments"]))
     artifact, artifact_root, captured = capture(library, list(sources))
     assert not captured["problems"], captured
     for entry in captured["pages"]:
@@ -105,46 +262,91 @@ def test_fidelity_rebuilds_each_pages_text_cards_and_accent_paint(
     immutable = tree_hashes(artifact_root)
     fixture_site.available = False
     source_request_count = len(fixture_site.requests)
-    root, _, _ = draft(library, [artifact], "seagrass-reconstruction")
-    library.cli("fidelity", "seagrass-reconstruction", cwd=library.project, timeout=90)
+    root, _, _ = draft(library, [artifact], identity)
+    library.cli("fidelity", identity, cwd=library.project, timeout=90)
     report_root = root / "fidelity"
     report = read_json(report_root / "report.json")
     expected_pairs = {(entry["name"], int(width)) for entry in captured["pages"] for width in entry["widths"]}
     assert {(pair["page"], pair["width"]) for pair in report["pairs"]} == expected_pairs
     assert len(report["pairs"]) == len(expected_pairs)
     by_page = {entry["name"]: sources[entry["url"]] for entry in captured["pages"]}
+    return report_root, report, by_page, artifact_root, immutable, source_request_count
+
+
+def inspect_reconstruction(page, server, identity, report_root, pair, expected, vocabulary, tolerance):
+    html = confined(report_root, pair["html"])
+    png(report_root / pair["reconstruction"])
+    page.set_viewport_size({"width": pair["width"], "height": 900})
+    response = page.goto(server + f"/ingest/drafts/{identity}/fidelity/" + quote(pair["html"], safe="/"))
+    assert response and response.ok and response.body() == html.read_bytes()
+    assert page.evaluate("innerWidth") == pair["width"]
+    assert_heading_hierarchy(page, expected["headings"])
+    for text in (expected["heading"], expected["section"], expected["intro"]):
+        assert page.get_by_text(text, exact=True).first.is_visible(), (pair["page"], pair["width"], text)
+    fragments = visible_fragments(page.locator("body"))
+    assert fragments
+    text = normalized(" ".join(fragment["text"] for fragment in fragments))
+    assert all(normalized(fragment["text"]) in expected["text"] for fragment in fragments), (
+        "Reconstruction introduced copy absent from its source", pair["page"],
+        [fragment["text"] for fragment in fragments if normalized(fragment["text"]) not in expected["text"]])
+    assert all(normalized(fragment["text"]) in text for fragment in expected["fragments"]), (
+        "Reconstruction dropped captured copy", pair["page"],
+        [fragment["text"] for fragment in expected["fragments"] if normalized(fragment["text"]) not in text])
+    groups = repeated_groups(page, expected["cards"], vocabulary)
+    signatures = []
+    for index, (title_text, meta_text, highlight_text) in enumerate(expected["cards"]):
+        group = groups[index]
+        title, meta, accent = (group.get_by_text(value, exact=True).first for value in (title_text, meta_text, highlight_text))
+        assert title.is_visible() and meta.is_visible() and accent.is_visible()
+        assert_title_prominence(title, meta)
+        assert_media_visible(group, expected["media"][index], tolerance)
+        assert_accent(accent, "#0b6e4f", tolerance)
+        signatures.append({"construct": group.get_attribute("data-kd-construct"), "slots": group.locator("[data-kd-slot]").evaluate_all(
+            "els => els.map(e => [e.dataset.kdSlot,e.dataset.kdRole,e.dataset.kdEmphasis])")})
+    assert_accent(page.get_by_text(expected["section"], exact=True).first, "#a14524", tolerance)
+    return signatures
+
+
+@pytest.mark.parametrize("filenames", [("coast.html", "estuary.html"), ("editorial.html", "events.html", "team.html"),
+                                        ("blog.html", "guide.html")],
+                         ids=["original-content", "non-commerce", "blog-and-travel-guide"])
+def test_fidelity_preserves_generic_groups_content_hierarchy_media_and_accents(
+        library, server, fixture_site, ingest_config, page, vocabulary, filenames):
+    identity = "generic-reconstruction"
+    report_root, report, sources, artifact_root, immutable, count = reconstruct(
+        library, fixture_site, ingest_config, page, filenames, identity)
     for pair in report["pairs"]:
-        expected = by_page[pair["page"]]
-        html = confined(report_root, pair["html"])
-        png(report_root / pair["reconstruction"])
-        page.set_viewport_size({"width": pair["width"], "height": 900})
-        response = page.goto(server + "/ingest/drafts/seagrass-reconstruction/fidelity/" + quote(pair["html"], safe="/"))
-        assert response and response.ok and response.body() == html.read_bytes()
-        assert page.evaluate("innerWidth") == pair["width"]
-        for text in (expected["heading"], expected["section"], expected["intro"]):
-            assert page.get_by_text(text, exact=True).first.is_visible(), (pair["page"], pair["width"], text)
-        # This catches lorem and vocabulary example copy without hard-coding
-        # implementation sample names. Every visible fragment must come from
-        # this authored page; text captured on the other page is not sufficient.
-        fragments = visible_fragments(page.locator("body"))
-        assert fragments
-        assert all(normalized(fragment["text"]) in expected["text"] for fragment in fragments), (
-            "Reconstruction introduced copy absent from its source", pair["page"],
-            [fragment["text"] for fragment in fragments if normalized(fragment["text"]) not in expected["text"]])
-        cards = page.locator('[data-kd-construct="listing-card"]')
-        assert cards.count() == len(expected["cards"]), (pair, cards.count())
-        titles = cards.locator('[data-kd-slot="listing-card.title"]')
-        assert [normalized(title) for title in titles.all_text_contents()] == [card[0] for card in expected["cards"]]
-        for index, (title, meta, price_text) in enumerate(expected["cards"]):
-            card = cards.nth(index)
-            assert card.evaluate("e => e.tagName") == "ARTICLE"
-            assert card.is_visible() and card.get_by_text(title, exact=True).first.is_visible()
-            assert card.get_by_text(meta, exact=True).first.is_visible()
-            assert_media_visible(card)
-            price = card.locator('[data-kd-slot="listing-card.price"]')
-            assert price.count() == 1 and normalized(price.inner_text()) == price_text
-            assert_accent(price, "#0b6e4f", ingest_config["color_delta_e"])
-        section = page.get_by_text(expected["section"], exact=True).first
-        assert_accent(section, "#a14524", ingest_config["color_delta_e"])
-    assert len(fixture_site.requests) == source_request_count, "Fidelity HTML fetched the unavailable live source"
+        inspect_reconstruction(page, server, identity, report_root, pair, sources[pair["page"]], vocabulary, ingest_config["color_delta_e"])
+    assert len(fixture_site.requests) == count, "Fidelity HTML fetched the unavailable live source"
     assert tree_hashes(artifact_root) == immutable
+
+
+def test_same_structure_and_presentation_map_identically_when_domain_words_change(
+        library, server, fixture_site, ingest_config, page, vocabulary):
+    geometries, mappings = [], []
+    for filename in ("words-neutral.html", "words-commerce.html"):
+        fixture_site.available = True
+        geometry = {}
+        for width in (320, 768, 960):
+            page.set_viewport_size({"width": width, "height": 900})
+            page.goto(fixture_site.url + "/cards/" + filename)
+            geometry[width] = page.locator(".item,.item > *").evaluate_all("""els => els.map(e => {
+              const r=e.getBoundingClientRect(), s=getComputedStyle(e);
+              return [e.tagName,r.x,r.y,r.width,r.height,s.fontFamily,s.fontSize,s.fontWeight,s.color];
+            })""")
+        geometries.append(geometry)
+        # The input metric precondition is checked before comparing mappings;
+        # matching character counts alone do not prove matching rendered geometry.
+        if len(geometries) == 2:
+            assert geometries[0] == geometries[1], "Text substitution changed presentation; the mapping relation would be confounded"
+        identity = filename.removesuffix(".html")
+        report_root, report, sources, artifact_root, immutable, count = reconstruct(
+            library, fixture_site, ingest_config, page, [filename], identity)
+        observed = {}
+        for pair in report["pairs"]:
+            observed[pair["width"]] = inspect_reconstruction(
+                page, server, identity, report_root, pair, sources[pair["page"]], vocabulary, ingest_config["color_delta_e"])
+        mappings.append(observed)
+        assert len(fixture_site.requests) == count
+        assert tree_hashes(artifact_root) == immutable
+    assert mappings[0] == mappings[1], "Domain words changed construct/slot/role mapping despite identical structure and presentation"

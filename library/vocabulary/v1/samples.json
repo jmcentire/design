@@ -35,7 +35,8 @@
       "error-state",
       "footer",
       "hero",
-      "content-section"
+      "content-section",
+      "card"
     ]
   },
   "stress": [

@@ -10,7 +10,7 @@ from ..language.resolver import resolve
 from .styles import declaration
 
 PAGE = '''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }} · Sample collection</title><link rel="stylesheet" href="language.css"></head><body><span id="annotations" class="kd-annotation-target" aria-hidden="true"></span>{{ navigation }}{{ content }}{{ footer }}</body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ title }} · Sample collection</title><link rel="stylesheet" href="language.css"></head><body{% if body_style %} style="{{ body_style }}"{% endif %}><span id="annotations" class="kd-annotation-target" aria-hidden="true"></span>{{ navigation }}{{ content }}{{ footer }}</body></html>
 '''
 
 
@@ -40,15 +40,17 @@ class SampleRenderer:
     def links(self):
         return ''.join(element('a', {'href':file}, escape(label)) for file, label in self.context['pages'].items())
 
-    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None):
+    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None):
         name, role, emphasis = definition['id'], definition['role'], definition['emphasis']
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
         if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
+        if accessible_name:attrs['aria-label']=accessible_name
         binding = self.document.get('components', {}).get(construct, {}).get('assets', {}).get(name)
         if binding:
             attrs['data-kd-asset'] = binding
-        copy = str(values.get(name, self.context['copy'][role]))
+        copy = str(values.get(name, '' if icon else self.context['copy'][role]))
         tag = definition['element']
+        if icon and icon.get('element') in {'a','button'}:tag=icon['element']
         if definition['kind'] == 'media':
             image = None
             if media and name in media:
@@ -89,26 +91,41 @@ class SampleRenderer:
         if tag == 'a':
             attrs['href'] = captured_href(hrefs.get(name)) if hrefs is not None else definition['href']
         if tag == 'button':
-            attrs['type'] = 'submit'
+            attrs['type'] = 'button' if icon else 'submit'
             if state == 'disabled':
                 attrs['disabled'] = ''
-            if name not in values:
+            if name not in values and not icon:
                 copy = self.context['search-submit'] if construct == 'search-bar' else self.context['form-submit']
         if state == 'selected' and definition['kind'] == 'control':
             attrs['aria-selected'] = 'true'
         content=escape(copy)
-        if tag!='a' and hrefs is not None and (href:=captured_href(hrefs.get(name))):content=element('a',{'href':href},content)
+        if fragments:
+            chunks=[];previous=None
+            for fragment in fragments:
+                if previous is not None and previous!=fragment.get('block'):chunks.append('<br><br>')
+                previous=fragment.get('block')
+                href=captured_href(fragment.get('href')) if tag!='a' else None
+                chunks.append(element('a' if href else 'span',{'href':href,'style':declaration(fragment.get('resolved_properties',{})) or None},escape(fragment['text'])))
+            content=''.join(chunks)
+        if icon:
+            attrs['class']='kd-captured-icon-action'
+            placement=';'.join(f'{key}:{max(0,float(icon[key])):g}px' for key in ('top','right') if key in icon)
+            attrs['style']=attrs.get('style','')+';'+placement
+            size=';'.join(f'{key}:{max(0,float(icon[key])):g}px' for key in ('width','height') if key in icon)
+            content=element('img',{'src':icon['src'],'alt':'','style':size})+content
+        if not fragments and tag!='a' and hrefs is not None and (href:=captured_href(hrefs.get(name))):content=element('a',{'href':href},content)
         return element(tag, attrs, content)
 
-    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None):
+    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False):
         self.sequence += 1
         contract = self.vocabulary['constructs'][construct]
         copy = dict(values or {}) if captured else {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
-        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None) if not captured or name in copy or name in (media or {}) else ''
+        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name)) if not captured or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
                  for name, definition in slot_map(contract).items()}
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
         if captured:attrs['data-kd-captured']='true'
+        if flow:attrs['data-kd-flow']='true'
         if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct)['properties'])
         if geometry:
             if geometry.get('overlay'):layout='position:absolute;inset:0 0 auto;z-index:2'
@@ -144,10 +161,11 @@ class SampleRenderer:
             if children:
                 columns=max(1,min(12,int(item.get('columns',1))))
                 children=element('div',{'class':'kd-captured-children','style':f'--kd-columns:{columns}'},children)
-            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'))
+            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False))
         content=''.join(render(item) for item in page['instances'])
         env=Environment(autoescape=select_autoescape(default_for_string=True))
-        return env.from_string(PAGE).render(title=page.get('title','Captured page'),navigation='',content=Markup(content),footer='').encode('utf-8')
+        body_style=f'--kd-captured-space:{max(0,float(page["spacing_base"])):g}px' if page.get('captured') and 'spacing_base' in page else ''
+        return env.from_string(PAGE).render(title=page.get('title','Captured page'),navigation='',content=Markup(content),footer='',body_style=body_style).encode('utf-8')
 
     def stress(self):
         sections = []

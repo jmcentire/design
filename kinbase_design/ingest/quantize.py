@@ -118,7 +118,7 @@ def spacing_base(values,tolerance=INGEST_SPACE_TOLERANCE_PX):
 
 
 def full_radius(value,box=()):
-    size=min(box[2:4]) if len(box)>=4 else 0
+    size=min(box[2:4]) if box and len(box)>=4 else 0
     return value is not None and value>0 and (value>=INGEST_FULL_RADIUS_PX or size>0 and value>=size/2)
 
 

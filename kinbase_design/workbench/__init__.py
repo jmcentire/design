@@ -29,7 +29,7 @@ class RequestError(ValueError):
         super().__init__(message)
 
 
-def multipart(environ):
+def multipart(environ, extra_fields=(), require_file=True):
     try:
         length = int(environ.get('CONTENT_LENGTH', '0'))
     except ValueError:
@@ -51,7 +51,7 @@ def multipart(environ):
     upload = None
     for part in message.iter_parts():
         name = part.get_param('name', header='content-disposition')
-        if name not in {'file','asset_id','kind','variant','weight','style','family'} or name in fields:
+        if name not in {'file','asset_id','kind','variant','weight','style','family',*extra_fields} or name in fields:
             raise RequestError('Unexpected or repeated upload field')
         content = part.get_payload(decode=True)
         if content is None:
@@ -59,13 +59,13 @@ def multipart(environ):
         if name == 'file':
             if len(content) > MAX_UPLOAD_BYTES:
                 raise RequestError('Upload exceeds configured size limit', 413)
-            upload = (content, part.get_filename())
+            upload = (content, part.get_filename()) if content or part.get_filename() else None
             fields[name] = True
         else:
-            if len(content) > 2048:
+            if len(content) > (16000 if name=='brief' else 2048):
                 raise RequestError('Upload field is too long')
             fields[name] = content.decode('utf-8').strip()
-    if not upload:
+    if not upload and require_file:
         raise RequestError('A file is required')
     return fields, upload
 
@@ -101,6 +101,9 @@ def create_app(library: str | Path, workspace: str | Path):
             segments = path.strip('/').split('/')
             if segments[0] == 'ingest':
                 from .ingest import handle
+                code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif segments[0] == 'generate':
+                from .generate import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
             elif method == 'GET' and path == '/workbench.css':
                 content_type = 'text/css; charset=utf-8'

@@ -24,7 +24,16 @@ def summary(library,workspace,draft_id):
     root=folder(workspace,draft_id);document=load_draft(workspace,draft_id);state=read_document(inside(root,'state.json'))
     with stage(library,workspace,draft_id) as staged:validation=validate(staged,draft_id)
     findings=validation['findings']
+    checked=inside(root,'checks','report.json')
+    if state.get('generation') and checked.exists():
+        rendered=read_document(checked)
+        if rendered.get('version')==digest(document):findings=rendered['findings']
     for f in findings:f['file']=f'drafts/{draft_id}/working.json'
+    generation=state.get('generation')
+    if generation and generation['check_status']!='complete':
+        findings.append(Finding('missing','generate-checks',f'drafts/{draft_id}/state.json',
+                                '/generation/check_status',generation['check_status'],'completed rendered checks',
+                                generation.get('error','Rendered checks have not completed')).to_dict())
     for index,note in enumerate(state['notes']):
         findings.append(Finding('coverage',note.get('rule','ingest-coverage'),f'drafts/{draft_id}/state.json',
                                 pointer('notes',index),note,'review source fidelity',note['message']).to_dict())
@@ -32,6 +41,9 @@ def summary(library,workspace,draft_id):
     result={**report(draft_id,findings),'draft':draft_id,'mapping':'llm' if state['mapping']=='configured-command' else state['mapping'],'facts':state['facts'],
             'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':'unknown (Kinbase unconnected)',
             'views':state['views'],'references':state['references'],'version':digest(document)}
+    if state.get('generation'):
+        result['generation']=state['generation']
+        result['checks_complete']=state['generation']['check_status']=='complete'
     write_document(inside(root,'summary.json'),result)
     return result
 

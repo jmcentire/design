@@ -114,8 +114,17 @@ def reconstruct(library,workspace,draft_id,settings=None):
         view=read_document(inside(root,entry['file']));instances=[]
         for original in view['instances']:
             item={k:deepcopy(original[k]) for k in ('construct','values')};item['media']={}
-            for key in ('selector','parent','box','treatment','hrefs'):
+            for key in ('selector','parent','box','treatment','hrefs','accessible_names','fragments','flow'):
                 if key in original:item[key]=deepcopy(original[key])
+            item['action_icons']={}
+            for slot,icon in original.get('action_icons',{}).items():
+                rendered=reference(icon,view['page'])
+                if rendered:
+                    rendered['element']=icon.get('element','a')
+                    box=icon.get('box');parent_box=original.get('box')
+                    if box:rendered.update(width=box[2],height=box[3])
+                    if box and parent_box:rendered.update(top=max(0,box[1]-parent_box[1]),right=max(0,parent_box[0]+parent_box[2]-box[0]-box[2]))
+                    item['action_icons'][slot]=rendered
             if original.get('background_media'):item['background']=reference(original['background_media'],view['page'])
             for slot,images in original['media'].items():
                 if slot in document.get('components',{}).get(item['construct'],{}).get('assets',{}):
@@ -134,7 +143,7 @@ def reconstruct(library,workspace,draft_id,settings=None):
             else:top.append(item)
         for item in instances:
             measured=[child for child in item.get('children',[]) if child.get('box')]
-            if measured:
+            if measured and not item.get('flow'):
                 y=min(child['box'][1] for child in measured)
                 item['columns']=sum(abs(child['box'][1]-y)<10 for child in measured)
         bottom=0
@@ -146,7 +155,8 @@ def reconstruct(library,workspace,draft_id,settings=None):
             inset=max(0,min(box[0],view['width']-box[0]-box[2]))
             item['geometry']={'inset':inset,'gap':max(0,box[1]-bottom),'height':box[3]}
             bottom=max(bottom,box[1]+box[3])
-        filename=f'page-{index}.html';compositions[filename]={'title':view.get('title',view['page']),'instances':top,'captured':True}
+        filename=f'page-{index}.html';compositions[filename]={'title':view.get('title',view['page']),'instances':top,'captured':True,
+                                                           'spacing_base':measurements([view],settings=settings)['spacing_base']}
         capture=f'capture-{index}.png';private_files[capture]=read_member(workspace,entry['artifact'],entry['screenshot'])
         pairs.append({'page':view['page'],'width':view['width'],'capture':capture,'html':filename,
                       'reconstruction':f'reconstruction-{index}.png','source':entry['file']})
@@ -163,7 +173,7 @@ def reconstruct(library,workspace,draft_id,settings=None):
                 filename=f'reference-{index}-{width}.html';compositions[filename]={'title':'Imported visual reference','instances':[{'construct':'content-section'}]}
                 pairs.append({'page':f'reference-{index}','width':width,'capture':capture,'html':filename,'reconstruction':f'reference-{index}-{width}.png','source':None})
         if not pairs:
-            compositions['index.html']={'title':'Draft visual review','instances':[{'construct':'content-section'},{'construct':'listing-card'}]}
+            compositions['index.html']={'title':'Draft visual review','instances':[{'construct':'content-section'},{'construct':'card'}]}
             notes.append('No captured page or image reference is available; comparisons require a visual source')
     with stage(library,workspace,draft_id) as staged:files=preview_files(staged,draft_id,compositions)
     # Private captured fonts may be used for review without entering the shared asset manifest.

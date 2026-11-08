@@ -833,6 +833,101 @@
           "title": 2
         }
       }
+    },
+    "card": {
+      "slots": [
+        {
+          "id": "media",
+          "role": "media",
+          "emphasis": "neutral",
+          "element": "img",
+          "required": false,
+          "kind": "media",
+          "asset_kind": "image"
+        },
+        {
+          "id": "eyebrow",
+          "role": "caption",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "title",
+          "role": "title",
+          "emphasis": "neutral",
+          "element": "h2",
+          "required": true,
+          "kind": "text"
+        },
+        {
+          "id": "body",
+          "role": "body",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "meta",
+          "role": "subtext",
+          "emphasis": "neutral",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "highlight",
+          "role": "label",
+          "emphasis": "primary",
+          "element": "p",
+          "required": false,
+          "kind": "text"
+        },
+        {
+          "id": "action",
+          "role": "action",
+          "emphasis": "neutral",
+          "element": "a",
+          "required": false,
+          "kind": "action",
+          "interaction": "navigate",
+          "href": "listing.html"
+        }
+      ],
+      "states": [
+        "default",
+        "hover",
+        "focus-visible",
+        "active",
+        "disabled",
+        "selected",
+        "expanded",
+        "loading",
+        "empty",
+        "error"
+      ],
+      "root": "article",
+      "contract": {
+        "landmark": null,
+        "accessible-name": null,
+        "reading-order": [
+          "media",
+          "eyebrow",
+          "title",
+          "body",
+          "meta",
+          "highlight",
+          "action"
+        ],
+        "focus-order": [
+          "action"
+        ],
+        "heading-levels": {
+          "title": 2
+        }
+      }
     }
   },
   "context": {
@@ -895,6 +990,14 @@
       },
       "filter-group": {
         "title": "Find your setting"
+      },
+      "card": {
+        "eyebrow": "From the collection",
+        "title": "Lorem ipsum",
+        "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+        "meta": "Additional details",
+        "highlight": "Featured",
+        "action": "Read more"
       }
     },
     "gallery-images": 3,

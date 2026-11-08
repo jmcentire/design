@@ -9,13 +9,13 @@ IGNORED={'script','style','noscript','template'}
 
 class Snapshot(HTMLParser):
     def __init__(self):
-        super().__init__(convert_charrefs=True);self.stack=[];self.nodes=[]
+        super().__init__(convert_charrefs=True);self.stack=[];self.nodes=[];self.text_order=0
 
     def handle_starttag(self,tag,attrs):
         attrs=dict(attrs);parent=self.stack[-1] if self.stack else None
         counts=parent['_counts'] if parent else {};counts[tag]=counts.get(tag,0)+1
         selector='body' if tag=='body' else (parent['selector']+' > ' if parent else '')+tag+':nth-of-type('+str(counts[tag])+')'
-        node={'tag':tag,'selector':selector,'parent':parent['selector'] if parent else None,'attributes':attrs,'_counts':{},'_text':[], '_direct':[]}
+        node={'tag':tag,'selector':selector,'parent':parent['selector'] if parent else None,'attributes':attrs,'_counts':{},'_text':[], '_direct':[], '_segments':[]}
         if tag=='body' or parent and parent.get('_body'):node['_body']=True
         node['_ignored']=tag in IGNORED or bool(parent and parent.get('_ignored'))
         if node.get('_body') and not node['_ignored']:self.nodes.append(node)
@@ -32,6 +32,7 @@ class Snapshot(HTMLParser):
     def handle_data(self,data):
         if not self.stack or self.stack[-1]['_ignored']:return
         self.stack[-1]['_direct'].append(data)
+        self.stack[-1]['_segments'].append({'text':data,'order':self.text_order});self.text_order+=1
         for node in self.stack:node['_text'].append(data)
 
 
@@ -72,7 +73,8 @@ def content_nodes(view,html=None):
                     node['normalized_colors']={k:v for k,v in node['normalized_colors'].items() if k=='color'}
             # Unsampled structure is not assigned its ancestor's dimensions.
             node['box']=None
-        if node['tag']=='img':
+        node['text_segments']=raw['_segments']
+        if node['tag'] in {'img','svg'}:
             node['src']=node.get('src') or candidates.get(selector,{}).get('url') or node['attributes'].get('src')
         by_selector[selector]=node;result.append(node)
     return result

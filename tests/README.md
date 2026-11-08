@@ -525,8 +525,8 @@ order, green prices (`#0b6e4f`) and rust section headings (`#a14524`).
 both pages, makes the source unavailable, then inspects every reconstructed pair
 through its reported `html` path and the public workbench fidelity route at
 320/768/960 CSS px. It requires each page's own heading, introduction and section;
-three real listing-card constructs in captured order with matching titles, meta,
-prices and visible media; and actual rendered accent text within configured
+three construct instances in captured order with matching titles, meta,
+accent text and visible media; and actual rendered accent text within configured
 ΔE2000 tolerance. Every visible text fragment must occur in that page's source,
 which rejects generic vocabulary/lorem copy without learning sample strings from
 the product. Captures must remain unchanged and later rendering must not contact
@@ -540,3 +540,50 @@ missing-candidate-vocabulary setup errors, with 74 browser cases deselected.
 The new reconstruction check awaits the Validator's real-browser run. Logs:
 `/tmp/kinbase-tester-fidelity-content-collection.log` and
 `/tmp/kinbase-tester-fidelity-content.log`.
+
+Amendment 13 supersedes the specialised fidelity mapping assertions. The fidelity
+checks now locate each reconstructed group by its captured contents, require one
+consistent vocabulary construct per source group in source order, and impose no
+construct id, root tag, or price-slot requirement. All captured visible copy must
+survive and no invented copy may appear. Titles retain a measurable prominence
+cue over meta (size, weight or foreground/surface contrast). Media stays visible;
+for decoded img elements, interior color samples are compared with the source
+using the configured color tolerance, catching a substituted placeholder as well
+as an empty box. Accent text is selected by captured content, not domain meaning.
+
+The retained source examples are supplemented with editorial articles, events and
+team members without currency/price/rating text. These use article, li and div
+source groups and include prose as well as meta and short highlights. A separate
+relation captures two pages with identical markup/presentation but substitutes
+booking, beds, nights, discount, currency and rating-like text. Monospace word
+metrics are matched, and browser geometry/style equality is a precondition. The
+independent captures/drafts must produce identical construct/slot/role/emphasis
+mappings, while preserving each input's own text. The generic `card` vocabulary's
+explicitly pinned slots/defaults are checked separately through the public CLI;
+its article root is not assumed by the generic fidelity invariant.
+
+185 cases collect; compilation and whitespace checks pass. Local diagnostics
+confirm all 21 authored item tuples, local resource references, non-commerce input
+copy, the text-substitution pair's markup/word metrics, and the grey-accent
+negative control. Real rendered geometry/mapping checks await the Validator.
+Non-browser execution reports 109 missing-vocabulary setup errors; 76 browser
+cases are deselected. Logs: `/tmp/kinbase-tester-generic-fidelity-collection.log`
+and `/tmp/kinbase-tester-generic-fidelity.log`.
+
+Amendment 13's blog/travel-guide addendum adds a full journal entry with nested
+sections and a walking guide with an ordered route, narrative prose and practical
+directions. Neither contains prices, ratings or booking actions. Both use the
+same generic reconstruction assertions as the other sources: no domain-specific
+mapping oracle or root/slot requirement. Capture, offline draft validation and
+fidelity run for both pages at every captured width. Lost prose, flattened or
+reordered groups, missing media and grey accents fail those shared checks.
+The shared checks now also compare accessible heading text/order and the relative
+heading levels against the source, allowing native or ARIA headings and absolute
+level shifts while rejecting a hierarchy flattened into plain text.
+
+186 cases collect; compilation and whitespace checks pass. Fixture diagnostics
+confirm both pages' authored headings/content, local resource references and
+absence of commerce signals. Non-browser execution remains blocked by the absent
+candidate `library/vocabulary`: 109 setup errors, 77 browser cases deselected.
+Real browser checks await the Validator. Logs:
+`/tmp/kinbase-tester-guide-collection.log`, `/tmp/kinbase-tester-guide.log`.

@@ -222,6 +222,11 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                 if slot=='links':props={k:v for k,v in props.items() if k in CONTROL_TEXT_PROPERTIES}
                 item['treatment']['slots'][slot]={'properties':props}
                 treatments.setdefault((scope+'.'+slot,view['width']),props)
+            for fragments in item.get('fragments',{}).values():
+                for fragment in fragments:
+                    node=fragment.pop('node')
+                    fragment['properties']={k:v for k,v in properties(view,node).items() if k in CONTROL_TEXT_PROPERTIES}
+
         if view['unmapped']:notes.append({'rule':'ingest-mapping','message':f'{view["page"]}@{view["width"]}: {len(view["unmapped"])} elements have no matching Vocabulary slot','locations':view['unmapped']})
     for scope in sorted({scope for scope,width in treatments}):
         prior={}
@@ -271,13 +276,15 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
             questions.append({'pointer':pointer('style',group,name,'$value'),'construct':scopes[0],'state':state,
                               'values':list(dict.fromkeys([default,'#edf4f5','#fbf6ee'])),'scopes':scopes,
                               'reason':'Interaction/state appearance not observed in the static capture'})
-    if any(item['construct']=='listing-card' and item.get('root_node',{}).get('styles',{}).get('display')=='flex'
-           and item['root_node']['styles'].get('flex-direction')=='row' for view in mappings for item in view['instances']):
-        slots=list(slot_map(vocabulary['constructs']['listing-card']))
-        template='<article>{{slot:media}}<div data-kd-part="content">'+''.join('{{slot:'+slot+'}}' for slot in slots if slot!='media')+'</div></article>'
-        document['layout']['variants']['listing-card']={'captured-side':{'template':template}}
-        card=document['components'].setdefault('listing-card',{});card['variant']='captured-side'
-        card.setdefault('parts',{})['content']={'display':'flex','flex-direction':'column'}
+    for construct,spec in vocabulary['constructs'].items():
+        if spec['root']!='article' or 'media' not in slot_map(spec):continue
+        if any(item['construct']==construct and item.get('root_node',{}).get('styles',{}).get('display')=='flex'
+               and item['root_node']['styles'].get('flex-direction')=='row' for view in mappings for item in view['instances']):
+            slots=list(slot_map(spec))
+            template='<article>{{slot:media}}<div data-kd-part="content">'+''.join('{{slot:'+slot+'}}' for slot in slots if slot!='media')+'</div></article>'
+            document['layout']['variants'][construct]={'captured-side':{'template':template}}
+            card=document['components'].setdefault(construct,{});card['variant']='captured-side'
+            card.setdefault('parts',{})['content']={'display':'flex','flex-direction':'column'}
     questions=deduplicate(document,questions)
     for index,q in enumerate(questions,1):
         q['id']='question-'+str(index)

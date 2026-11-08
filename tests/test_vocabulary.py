@@ -2,7 +2,7 @@
 
 Falsifier: absent/defaultless state contracts or a reordered/retyped pinned slot,
 which would otherwise make a data-driven renderer and its tests agree on wrong data.
-Only nav/listing-card are pinned here; the other construct definitions may evolve.
+Nav/listing-card and amendment 13's generic card are pinned here.
 """
 
 
@@ -38,3 +38,17 @@ def test_vocabulary_pins_and_declared_defaults(vocabulary):
     assert nav["slots"][0]["kind"] == "media"
     assert nav["slots"][0]["asset_kind"] == "logo"
     assert nav["slots"][1]["role"] == "action"
+
+
+def test_generic_card_contract(vocabulary):
+    """Amendment 13 adds a domain-neutral repeated-group vocabulary contract."""
+    card = vocabulary["constructs"]["card"]
+    assert card["root"] == "article"
+    slots = card["slots"]
+    assert [slot["id"] for slot in slots] == ["media", "eyebrow", "title", "body", "meta", "highlight", "action"]
+    assert {slot["id"] for slot in slots if slot["required"]} == {"title"}
+    by_id = {slot["id"]: slot for slot in slots}
+    for name, role in {"eyebrow": "caption", "title": "title", "meta": "subtext", "highlight": "label"}.items():
+        assert by_id[name]["role"] == role
+    assert by_id["media"]["kind"] == "media" and by_id["media"]["asset_kind"] == "image"
+    assert by_id["highlight"]["emphasis"] == "primary"
