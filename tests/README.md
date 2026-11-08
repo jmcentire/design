@@ -305,3 +305,55 @@ After this correction, 145 tests collect and syntax/whitespace checks pass; the
 non-browser attempt still has 102 missing-vocabulary setup errors and 43 browser
 cases deselected. Browser verification remains pending. Logs:
 `/tmp/kinbase-tester-backdrop-collection.log`, `/tmp/kinbase-tester-backdrop.log`.
+
+Amendment 06 keeps the Lantern variant-switch assertion: dangling part treatments
+are advisory coverage. The closed property set and positive validation input now
+include border-style. The authored-control test sets a solid border, measures all
+four native input edges and its background, independently computes their contrast
+against the adjacent surface, requires it below 3:1, and checks the reported ratio.
+This replaces a precondition based only on differing screenshots. Validator run
+573f147f had 143 passes and the two reviewed failures before these amendments;
+the amendment changes still require integrated execution.
+
+M2 first checkpoint (public contract + amendment 07): test-owned HTML/CSS lives
+under `fixtures/sites/`, with a deterministic test-authored TTF generated at runtime.
+The editorial source supplies four known colors, sizes 16/20/25/31.25px (ratio 1.25),
+8px spacing, 8/16px radii and an 800px breakpoint. It includes a rotated layout that
+the closed language property set cannot directly express. A minimal partial source
+and unchanged DTCG input are retained for the remaining question/import journey.
+
+`test_m2_capture.py` exercises real HTTP/Chromium capture, immutable capture files,
+configured widths plus media-query widths, independently calculated CIEDE2000
+distances, extracted token values, font/radius/type/space facts, reconstruction
+pairs, and coverage/question visibility. The source starts returning 503 after
+capture; later draft/fidelity commands must make no further requests. Separate
+cases retain instruction-looking text as data, compare it with equal-length
+ordinary text, reject credential/cookie presentation, and expose network/browser
+failures within finite deadlines. A server-provided cookie probes the explicit
+M2 promise that capture never presents cookies. Missing Chromium is induced through
+Playwright's real browser-installation configuration, not a patched browser.
+
+All source requests are handled by a temporary test-owned HTTP server; no external
+site, LLM or network service is used. Ambient LLM command configuration is removed
+by the harness unless a test explicitly supplies it. Default M2 phases are bounded
+at 420 seconds, CLI stages at 90 seconds (failure probes at 30), and source capture
+configuration at 8 seconds. Existing M0/M1 deadlines are retained.
+
+151 cases collect; compile/whitespace checks pass. The non-browser attempt still
+has 102 absent-candidate-vocabulary setup errors, with 49 browser cases deselected.
+Independent helper diagnostics checked CIEDE2000 against the standard 2.0425 Lab
+example, identity/symmetry, and the generated font's family/95-character cmap.
+These diagnostics are not product evidence. M2 browser execution and the remaining
+import/provenance/questions/workbench tests are still pending. Logs:
+`/tmp/kinbase-tester-m2-first-collection.log`, `/tmp/kinbase-tester-m2-first.log`.
+
+Amendment 08 retains the existing 127.0.0.1 capture sources and adds localhost as
+a positive target. Negative cases exercise file/data/javascript/chrome/ftp schemes
+and embedded user/password credentials. Refusal requires a clear diagnostic or
+reported capture problems with no captured pages; the credential-bearing URL must
+never reach the test server. No internet/LAN service or real credential is used.
+158 cases collect; compile and whitespace checks pass. Local non-browser execution
+still stops at 102 missing-vocabulary prerequisite errors; 56 browser cases are
+deselected. Logs: `/tmp/kinbase-tester-amendment08-collection.log` and
+`/tmp/kinbase-tester-amendment08.log`. The provenance map/granularity clarification
+is still pending; no provenance coverage semantics have been guessed.

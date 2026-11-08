@@ -15,7 +15,7 @@ def test_render_condition_properties_are_valid_language_input(library, language)
         {"color": "{color.ink}", "position": 0}, {"color": "#ffffff", "position": 1}])
     properties = slot_properties(language)
     properties.update({"overflow": "hidden", "text-overflow": "ellipsis", "white-space": "nowrap",
-                       "background-image": gradient})
+                       "background-image": gradient, "border-style": "solid"})
     library.write(language)
     library.validate()
     properties["background-image"] = "asset:fixture-image:primary"

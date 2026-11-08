@@ -16,4 +16,4 @@ kinbase-design = "kinbase_design.cli:main"
 include = ["kinbase_design*"]
 
 [tool.setuptools.package-data]
-kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css", "checks/*.js", "checks/vendor/*"]
+kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css", "checks/*.js", "artifacts/*.js", "checks/vendor/*"]

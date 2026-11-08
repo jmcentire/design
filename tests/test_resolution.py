@@ -9,7 +9,7 @@ import pytest
 
 CSS_PROPERTIES = {
     "color", "background-color", "border-color", "font-family", "font-size",
-    "letter-spacing", "border-width", "border-radius", "width", "max-width",
+    "letter-spacing", "border-width", "border-style", "border-radius", "width", "max-width",
     "font-weight", "line-height", "padding", "padding-block", "padding-inline",
     "margin-block", "gap", "display", "flex-direction", "flex-wrap", "align-items",
     "justify-content", "text-align", "text-transform", "font-style", "text-decoration-line",

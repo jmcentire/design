@@ -29,7 +29,7 @@ class SampleRenderer:
     def links(self):
         return ''.join(element('a', {'href':file}, escape(label)) for file, label in self.context['pages'].items())
 
-    def slot(self, construct, definition, state, values, missing_image):
+    def slot(self, construct, definition, state, values, missing_image, media=None):
         name, role, emphasis = definition['id'], definition['role'], definition['emphasis']
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
         binding = self.document.get('components', {}).get(construct, {}).get('assets', {}).get(name)
@@ -39,7 +39,9 @@ class SampleRenderer:
         tag = definition['element']
         if definition['kind'] == 'media':
             image = None
-            if binding and not missing_image:
+            if media and name in media:
+                image = ''.join(element('img', {'src':item['src'],'alt':item.get('alt',''),'loading':'eager'}) for item in media[name])
+            elif binding and not missing_image:
                 asset, variant = binding.split(':')
                 detail = self.document['assets'][asset]['variants'][variant]
                 image = element('img', {'src':f'assets/{asset}-{variant}.{detail["format"]}', 'alt':self.context['copy']['media'] if definition.get('asset_kind') != 'logo' else 'Home', 'loading':'lazy'})
@@ -49,9 +51,12 @@ class SampleRenderer:
                 attrs['href'] = definition['href']
                 attrs['aria-label'] = 'Home'
                 return element('a', attrs, image)
-            count = self.context.get('gallery-images',1) if construct == 'gallery' else 1
+            count = self.context.get('gallery-images',1) if construct == 'gallery' and not media else 1
             return element('span', attrs, image * count)
         if name == 'links':
+            if name in values:
+                labels=values[name] if isinstance(values[name],list) else [values[name]]
+                return element(tag,attrs,''.join(element('a',{'href':'index.html'},escape(str(label))) for label in labels))
             return element(tag, attrs, self.links())
         if name == 'options':
             controls = ''.join(element('label', {}, element('input', {'type':'checkbox','name':'filter','value':str(index),'disabled':'' if state=='disabled' else None}) + escape(label)) for index,label in enumerate(self.context['filter-options']))
@@ -72,16 +77,17 @@ class SampleRenderer:
             attrs['type'] = 'submit'
             if state == 'disabled':
                 attrs['disabled'] = ''
-            copy = self.context['search-submit'] if construct == 'search-bar' else self.context['form-submit']
+            if name not in values:
+                copy = self.context['search-submit'] if construct == 'search-bar' else self.context['form-submit']
         if state == 'selected' and definition['kind'] == 'control':
             attrs['aria-selected'] = 'true'
         return element(tag, attrs, escape(copy))
 
-    def construct(self, construct, state=None, values=None, missing_image=False):
+    def construct(self, construct, state=None, values=None, missing_image=False, media=None):
         self.sequence += 1
         contract = self.vocabulary['constructs'][construct]
         copy = {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
-        slots = {name:self.slot(construct, definition, state, copy, missing_image)
+        slots = {name:self.slot(construct, definition, state, copy, missing_image, media)
                  for name, definition in slot_map(contract).items()}
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
@@ -100,6 +106,13 @@ class SampleRenderer:
         # This is the restricted parser's placeholder syntax, never executable Jinja.
         rendered = SLOT.sub(lambda match:slots[match[1]], template)
         return re.sub(r'<' + contract['root'] + r'\s*>', lambda match:'<' + contract['root'] + attributes(attrs) + '>', rendered, count=1, flags=re.IGNORECASE)
+
+    def reconstruction(self, page):
+        """Private captured compositions use the same semantic constructs and styles."""
+        self.sequence=0
+        content=''.join(self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media')) for item in page['instances'])
+        env=Environment(autoescape=select_autoescape(default_for_string=True))
+        return env.from_string(PAGE).render(title=page.get('title','Captured page'),navigation='',content=Markup(content),footer='').encode('utf-8')
 
     def stress(self):
         sections = []

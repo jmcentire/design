@@ -15,6 +15,8 @@ import pytest
 from tests.browser_deadline import browser_deadline
 from tests.support import FIXTURES, ROOT, LibraryCase, package_asset
 
+pytest_plugins = ["tests.m2_fixtures"]
+
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "browser: requires real Chromium and optionally loopback HTTP")

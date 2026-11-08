@@ -52,6 +52,11 @@ def load_language(library, language_id):
 
 def save_language(library, language_id, document):
     """The single mutable language write path used by all authoring operations."""
+    save_working(language_path(library, language_id), language_id, document)
+
+
+def save_working(path, language_id, document):
+    """Canonical working-copy writer for both private drafts and shared languages."""
     if document.get("id") != identifier(language_id):
         raise ValueError("Language id must match its directory")
-    write_json(language_path(library, language_id), document)
+    write_json(path, document)

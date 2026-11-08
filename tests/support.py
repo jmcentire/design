@@ -21,7 +21,7 @@ class LibraryCase:
 
     def environment(self, extra=None):
         env = dict(os.environ)
-        for key in ("KINBASE_DESIGN_LIBRARY", "KINBASE_DESIGN_WORKSPACE"):
+        for key in ("KINBASE_DESIGN_LIBRARY", "KINBASE_DESIGN_WORKSPACE", "KINBASE_DESIGN_LLM_COMMAND"):
             env.pop(key, None)
         env["PYTHONPATH"] = str(ROOT)
         env.update(extra or {})

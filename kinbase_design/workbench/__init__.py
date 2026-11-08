@@ -99,7 +99,10 @@ def create_app(library: str | Path, workspace: str | Path):
                 raise RequestError('Unknown route', 404)
             query = parse_qs(environ.get('QUERY_STRING', ''), max_num_fields=20)
             segments = path.strip('/').split('/')
-            if method == 'GET' and path == '/workbench.css':
+            if segments[0] == 'ingest':
+                from .ingest import handle
+                code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif method == 'GET' and path == '/workbench.css':
                 content_type = 'text/css; charset=utf-8'
                 body = Path(__file__).with_name('workbench.css').read_bytes()
             elif method == 'GET' and path == '/':

@@ -1,6 +1,6 @@
 # Kinbase Design
 
-A local visual workbench for reusable design languages. M1 includes two hand-authored languages: coastal **Harbor** and warm editorial **Lantern**, with an SVG wordmark, a landscape illustration, and Instrument Sans.
+A local visual workbench for reusable design languages. Includes the M2 ingest journey and two hand-authored languages: coastal **Harbor** and warm editorial **Lantern**, with an SVG wordmark, a landscape illustration, and Instrument Sans.
 The shared `library/` directory demonstrates a library living inside another Git project.
 
 Requires Python 3.12 with `jinja2`, `rfc8785`, `fonttools`, `pillow`, and `playwright`, plus an installed Chromium browser. No database or build
@@ -114,10 +114,57 @@ Lantern packages Instrument Sans, an authored wordmark and an evening illustrati
 page. The gallery deliberately scrolls horizontally. Media reserves a 3:2 box before images load,
 using `object-fit: contain` to preserve each image’s proportions.
 
-Kinbase standards and direction are **unknown**. M2–M4 remain unimplemented: capture/ingest and
-quantization, guided generation and choice history, export/apply adapters, site inventory
-acceptance, feedback/proposals, and Kinbase standards integration. No deployment, remote
+Kinbase standards and direction are **unknown**. M3–M4 remain unimplemented: guided generation,
+export/apply adapters, site inventory acceptance, feedback/proposals, and Kinbase standards integration. No deployment, remote
 publishing, or telemetry is included.
+
+## Ingest a source (M2)
+
+Open **Ingest** in the workbench (`/ingest`). Enter public URLs, or upload images, mocks,
+wireframes, DTCG JSON, assets, a brief, or a Figma export ZIP. Review captures at each width,
+derive a new draft, inspect the palette/type/spacing measurements, render the fidelity review,
+answer visual questions, and save to the library. These forms work without JavaScript.
+Figma export directories are also accepted by the CLI.
+
+```sh
+python -m kinbase_design capture --url https://example.com --widths 320,768,1280
+python -m kinbase_design import-artifact --file ./variables.json --kind dtcg
+python -m kinbase_design import-artifact --file ./figma-export --kind figma-export
+python -m kinbase_design draft --from artifact-HASH --language my-language
+python -m kinbase_design fidelity my-language
+python -m kinbase_design questions my-language
+python -m kinbase_design answer my-language question-1 candidate-2
+python -m kinbase_design save-draft my-language
+```
+
+Capture uses a fresh Chromium context, strips cookies and authorization, blocks non-public
+network destinations and non-read requests, and adds discovered media-query widths within
+configured bounds. It stores DOM originals, sampled computed styles, screenshots, font faces
+and candidate asset originals. Later operations read those immutable artifacts and never visit
+the live site. A missing Chromium installation or launch failure returns exit 2 clearly.
+
+Drafts live in `workspace/drafts/<id>/`, with working JSON, provenance, captured compositions,
+questions and fidelity artifacts. Palette clustering uses CIEDE2000; type and spacing tolerances
+live in `config.py`. Source DTCG values remain unchanged. Semantic mapping is deterministic and
+reported as **heuristic**. Missing and ambiguous treatments get rendered alternatives; choosing
+again supersedes the value and its chosen provenance. Unsupported layout details, unmapped
+content, capture limits and fidelity divergences remain explicit coverage findings.
+
+The fidelity renderer uses the same vocabulary constructs, validated variants and CSS resolver
+as ordinary previews, with captured text and reference assets kept private. It pairs capture and
+reconstruction screenshots at the captured widths and reports measured colour distances, font
+matches, type ratios and spacing. This is an approximation constrained by the vocabulary and
+closed property set; the comparison exposes its gaps. Draft previews and fidelity rendering
+use the existing validator, and promoted draft assets use the existing promotion operation.
+Captured originals are offered for promotion, never automatically approved. Saving copies the
+working language and approved assets into the library; shared provenance keeps opaque source
+ids and safe selectors/JSON pointers, with private URLs and filesystem locations removed.
+
+An optional user command can be configured with `KINBASE_DESIGN_LLM_COMMAND`. It reads a JSON
+mapping request on stdin and returns an array of `{selector, construct, slot, role, emphasis?}`.
+Every selector must come from the capture and every semantic id from the vocabulary. Invalid
+output is discarded with a coverage finding. No command is run when unconfigured; no API keys
+are read and no model network client is built in. All browser and adapter operations are bounded.
 
 ## Local verification without sockets
 
@@ -125,6 +172,5 @@ publishing, or telemetry is included.
 with a WSGI environment and `start_response` to exercise routes in-process. The renderer's
 `preview_files(library, id)` returns the same filename-to-bytes map used by `build_preview`.
 This lane performed throwaway CLI/WSGI checks; the independent Factory Tester owns the test
-suite. The M0 browser repairs were confirmed by the Validator. The M1 checker and Lantern
-require a fresh Validator Chromium run; rendered acceptance is not claimed from the local
-Python-only checks.
+suite. The M0 browser repairs were confirmed by the Validator. M1 grouping and behavior handling were confirmed by the Validator. M2 capture and fidelity
+require a Validator Chromium run; rendered fidelity is not claimed from local Python-only checks.

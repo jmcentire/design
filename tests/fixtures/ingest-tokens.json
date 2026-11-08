@@ -1,0 +1,18 @@
+{
+  "color": {
+    "$type": "color",
+    "ink": {"$value": "#102a43"},
+    "paper": {"$value": "#f3f0e8"},
+    "accent": {"$value": "#b34224"},
+    "link": {"$value": "{color.accent}"}
+  },
+  "type": {
+    "family": {"$type": "fontFamily", "$value": ["Fixture Sans", "sans-serif"]},
+    "weight": {"$type": "fontWeight", "$value": 400},
+    "leading": {"$type": "number", "$value": 1.5}
+  },
+  "size": {"$type": "dimension", "body": {"$value": {"value": 16, "unit": "px"}}, "title": {"$value": "25px"}},
+  "space": {"$type": "dimension", "unit": {"$value": "8px"}},
+  "radius": {"$type": "dimension", "card": {"$value": "8px"}},
+  "breakpoint": {"$type": "dimension", "md": {"$value": "800px"}}
+}

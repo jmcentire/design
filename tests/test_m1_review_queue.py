@@ -10,7 +10,8 @@ from io import BytesIO
 import pytest
 from PIL import Image
 
-from tests.m1_support import findings, run_check, slot_properties, token
+from tests.m1_support import contrast_ratio, findings, run_check, slot_properties, token
+from tests.test_m1_design import solid_background
 from tests.support import PAGES
 
 pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(240)]
@@ -183,6 +184,7 @@ def test_native_control_appearance_does_not_create_non_text_contrast_findings(
         construct, slot = scope.split(".")
         treatment = {"background-color": token(language, "probe", "faint", "color", "#eeeeee"),
                      "border-color": "{probe.faint}",
+                     "border-style": "solid",
                      "border-width": token(language, "probe", "edge", "dimension", "2px")}
         slot_properties(language, construct, slot).update(treatment)
         for properties in language["roles"]["control"].values():
@@ -194,7 +196,20 @@ def test_native_control_appearance_does_not_create_non_text_contrast_findings(
         assert styled.evaluate("e => e.closest('[data-kd-slot]')?.dataset.kdSlot") == scope
         actual, reference = control_pixels(styled, native)
         assert actual != reference, "Positive control must change painted appearance"
+        painted = styled.evaluate("""e => {
+          const s = getComputedStyle(e);
+          return {background: s.backgroundColor,
+            borders: ['Top','Right','Bottom','Left'].map(side =>
+              [s['border'+side+'Style'], s['border'+side+'Width'], s['border'+side+'Color']])};
+        }""")
+        assert painted["background"] == "rgb(238, 238, 238)"
+        assert all(border == ["solid", "2px", "rgb(238, 238, 238)"] for border in painted["borders"]), painted
+        adjacent = solid_background(styled.locator(".."))
+        adjacent_hex = "#" + "".join(f"{channel:02x}" for channel in adjacent)
+        ratio = contrast_ratio("#eeeeee", adjacent_hex)
+        assert ratio < 3, (painted, adjacent, ratio)
         styled_report = run_check(library, tmp_path / "authored-report", accepted=False)
-        assert findings(styled_report, "non-text-contrast", scope, "violation"), styled_report
+        violations = findings(styled_report, "non-text-contrast", scope, "violation")
+        assert any(f["measured"] == ratio and f["threshold"] == 3 for f in violations), styled_report
     finally:
         native.close()

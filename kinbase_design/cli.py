@@ -19,7 +19,7 @@ def parser():
     common.add_argument('--workspace', default=argparse.SUPPRESS)
     p = argparse.ArgumentParser(prog='kinbase-design', parents=[common])
     commands = p.add_subparsers(dest='command', required=True)
-    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check'):
+    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check','capture','draft','save-draft','fidelity','questions','answer'):
         sub = commands.add_parser(name, parents=[common])
         if name in {'validate','resolve','build-preview','mint','promote','check'}:
             sub.add_argument('language_id')
@@ -34,6 +34,18 @@ def parser():
             sub.add_argument('--widths')
         if name == 'import-artifact':
             sub.add_argument('--file', required=True)
+            sub.add_argument('--kind', choices=['image','mock','wireframe','figma-export','dtcg','asset','brief'])
+        if name == 'capture':
+            sub.add_argument('--url', action='append', required=True)
+            sub.add_argument('--widths')
+        if name == 'draft':
+            sub.add_argument('--from', dest='artifacts', action='append', required=True)
+            sub.add_argument('--language', required=True)
+        if name in {'save-draft','fidelity','questions','answer'}:
+            sub.add_argument('draft_id')
+        if name == 'answer':
+            sub.add_argument('question_id')
+            sub.add_argument('candidate_id')
         if name == 'promote':
             sub.add_argument('--artifact', required=True)
             sub.add_argument('--asset-id', required=True)
@@ -85,7 +97,21 @@ def main(argv=None):
             output(result)
             return 0 if 'ref' in result else 1
         elif args.command == 'import-artifact':
-            output({'artifact': import_file(workspace, args.file)})
+            output({'artifact': import_file(workspace, args.file, args.kind)})
+        elif args.command == 'capture':
+            from .artifacts.capture import capture
+            output(capture(workspace,args.url,args.widths))
+        elif args.command in {'draft','save-draft','questions','answer','fidelity'}:
+            from .ingest import draft,save_draft,questions,answer
+            if args.command=='draft':result=draft(library,workspace,args.artifacts,args.language)
+            elif args.command=='save-draft':result=save_draft(library,workspace,args.draft_id)
+            elif args.command=='questions':result=questions(workspace,args.draft_id)
+            elif args.command=='answer':result=answer(library,workspace,args.draft_id,args.question_id,args.candidate_id)
+            else:
+                from .ingest.fidelity import fidelity
+                result=fidelity(library,workspace,args.draft_id)
+            output(result)
+            if isinstance(result,dict) and result.get('accepted') is False:return 1
         elif args.command == 'promote':
             output(promote(library, workspace, args.language_id, args.artifact, args.asset_id,
                            args.kind, args.variant, args.weight, args.style, args.family))

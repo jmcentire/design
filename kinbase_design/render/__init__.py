@@ -15,7 +15,7 @@ class InvalidLanguage(ValueError):
         super().__init__('Language has unresolved validation findings')
 
 
-def preview_files(library, language_id):
+def preview_files(library, language_id, compositions=None):
     document = load_language(library, language_id)
     result = validate(library, language_id, document)
     if not result['accepted']:
@@ -23,7 +23,8 @@ def preview_files(library, language_id):
     vocabulary = load(library, document['vocabulary'])
     sample_set = samples(library, document['vocabulary'])
     renderer = SampleRenderer(document, vocabulary, sample_set)
-    files = {name:renderer.page(name) for name in vocabulary['context']['pages']}
+    files = ({name:renderer.reconstruction(page) for name,page in compositions.items()} if compositions is not None
+             else {name:renderer.page(name) for name in vocabulary['context']['pages']})
     files['language.css'] = stylesheet(document, vocabulary).encode('utf-8')
     for asset, entry in document.get('assets', {}).items():
         for variant, detail in entry['variants'].items():
