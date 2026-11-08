@@ -37,11 +37,18 @@ def settled(workspace,session):
             prior=result.get(d)
             support=prior['choices'] if prior and prior['value']==values[d] else []
             result[d]={'value':values[d],'choices':support+[choice['id']]}
+    from ..kinbase import fixed_dimensions
+    for dimension,entry in fixed_dimensions(state['resources'].get('kinbase',{})).items():
+        result[dimension]={**entry,'choices':[],'fixed':True}
     return {'session':session,'settled':result,'unsettled':[d for d in DOMAINS if d not in result]}
 
 
 def interview(workspace,session,answers):
     values=validate_values(answers);state=read(workspace,session)
+    fixed=settled(workspace,session)['settled']
+    for dimension,value in values.items():
+        if fixed.get(dimension,{}).get('fixed') and value!=fixed[dimension]['value']:
+            raise ValueError(dimension+' is fixed by Kinbase')
     state['interview'].update(values);write(workspace,state)
     return {'session':session,'answers':state['interview']}
 

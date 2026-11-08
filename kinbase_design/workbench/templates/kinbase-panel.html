@@ -1,0 +1,10 @@
+<section class="panel"><h2>Kinbase standards and direction</h2>
+<p>Standards: {{ kinbase.standards }} · Direction: {{ kinbase.direction }}</p>
+{% if not kinbase.connected %}<p>Kinbase is not connected. Standards are unknown; no authoritative standards are applied.</p>{% endif %}
+{% for fact in kinbase.facts %}<article><h3>{{ fact.kind|title }} · {{ fact.scope }} · {{ fact.state }}</h3>
+<p>{{ fact.application }}</p>{% if fact.fixed %}{% for dimension,value in fact.get('dimensions',{}).items() %}<p>{{ dimension }}: {{ value }} · Fixed by Kinbase</p>{% endfor %}{% endif %}{% if fact.current %}<blockquote>{{ fact.current.statement }}</blockquote><p>Standing: {{ fact.current.standing }} · Scope: {{ fact.current.scope }} · Fact: {{ fact.current.fact_id }}</p>{% endif %}
+<p>Trusted: {{ fact.trusted }}</p><details><summary>Kinbase explain response</summary><pre>{{ fact.receipt|tojson(indent=2) }}</pre></details></article>{% endfor %}
+{% if language is defined %}{% for unknown in kinbase.unknowns %}{% set question_id = unknown.question_id or unknown.unknown_id or unknown.id %}{% if question_id and (unknown.owner_identity or unknown.owner or unknown.owner_role) %}
+<form method="post" action="/languages/{{ language.id }}/kinbase-question"><input type="hidden" name="question" value="{{ question_id }}"><p>{{ unknown.question or unknown.statement }} · Owner: {{ unknown.owner_identity or unknown.owner or unknown.owner_role }}</p><button>Route owned question {{ question_id }}</button></form>
+{% endif %}{% endfor %}{% endif %}
+</section>

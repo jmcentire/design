@@ -118,3 +118,10 @@ def background_binding(document, value):
     if not isinstance(detail, dict) or detail.get('format') not in ('svg','png','jpg','webp'):
         raise ValueError('Background image needs a supported image format')
     return asset, variant, detail
+
+
+def package_files(library, language_id, document):
+    """One binding-name/file mapping for previews, exports and hand-offs."""
+    return {f'assets/{asset}-{variant}.{detail["format"]}': asset_path(library, language_id, detail).read_bytes()
+            for asset,entry in sorted(document.get('assets', {}).items())
+            for variant,detail in sorted(entry['variants'].items())}

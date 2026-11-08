@@ -19,15 +19,24 @@ def parser():
     common.add_argument('--workspace', default=argparse.SUPPRESS)
     p = argparse.ArgumentParser(prog='kinbase-design', parents=[common])
     commands = p.add_subparsers(dest='command', required=True)
-    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check','capture','draft','save-draft','fidelity','questions','answer'):
+    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check','capture','draft','save-draft','fidelity','questions','answer','export','inventory-check','apply'):
         sub = commands.add_parser(name, parents=[common])
-        if name in {'validate','resolve','build-preview','mint','promote','check'}:
+        if name in {'validate','resolve','build-preview','mint','promote','check','export','inventory-check','apply'}:
             sub.add_argument('language_id')
         if name == 'resolve':
             sub.add_argument('scope')
             sub.add_argument('--state', default='default')
             sub.add_argument('--breakpoint')
-        if name == 'build-preview':
+        if name == 'apply':
+            sub.add_argument('--site', required=True)
+            sub.add_argument('--target-dir')
+            sub.add_argument('--page-url', action='append', default=[])
+            sub.add_argument('--branch', action='store_true')
+        if name == 'inventory-check':
+            sub.add_argument('--inventory', required=True)
+        if name in {'export','apply'}:
+            sub.add_argument('--adapter', choices=['generic','dtcg-tailwind'], required=True)
+        if name in {'build-preview','export'}:
             sub.add_argument('--out', required=True)
         if name == 'check':
             sub.add_argument('--out')
@@ -114,6 +123,21 @@ def main(argv=None):
                 from .render import build_preview
                 build_preview(library, args.language_id, args.out)
                 output({'language': args.language_id, 'built': True})
+        elif args.command == 'apply':
+            from .export.handoff import apply
+            output(apply(library,workspace,args.language_id,args.site,args.adapter,args.target_dir,args.page_url,args.branch))
+        elif args.command == 'inventory-check':
+            from .inventory import inventory_check
+            result=inventory_check(library,args.language_id,args.inventory)
+            output(result)
+            return 0 if result['accepted'] else 1
+        elif args.command == 'export':
+            from .export import export
+            result = validate(library, args.language_id)
+            if not result['accepted']:
+                output(result)
+                return 1
+            output(export(library, args.language_id, args.adapter, args.out))
         elif args.command == 'check':
             from .checks import check
             result = check(library, args.language_id, args.out, args.widths)

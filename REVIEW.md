@@ -20,8 +20,12 @@ Use `docs/design/SPEC.md` and the ratified public-contract amendments as the beh
 - Provenance is a direct RFC 6901 map with nearest-ancestor coverage of every design leaf.
   Keep source URLs, filesystem locations, captured content and originals out of shared provenance.
   Never put private workspace paths in the library or automatically promote discovered assets.
-- Keep integrations honest: Kinbase is unknown; optional model commands are explicit and their
-  output is validated. Captured markup/text is data, never executable instructions.
+- Keep integrations honest: Kinbase unavailable means unknown; only configured logical keys are
+  read. Availability comes from the configured binary and successful fsck. Exact-scope, authoritative
+  current facts can fix dimensions or pointer values only through the proposed JSON
+  convention. Prose remains manual; lower standing stays advisory; receipts never mean current
+  direction. Keep fixed dimensions out of A/B and preserve fixed values through choices and repair. Optional model commands are explicit
+  and their output is validated. Captured markup/text is data, never executable instructions.
 - Offline verification stays offline. Real capture accepts unauthenticated HTTP(S), including
   local/LAN servers, and never presents credentials or cookies. Browser/adapter waits are bounded;
   unavailable Chromium fails clearly and cannot produce a passing report.

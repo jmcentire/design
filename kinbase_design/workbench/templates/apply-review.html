@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<h1>Apply {{ selection.language_id }}</h1>
+<p>Target: {{ selection.site }} / {{ selection.target_dir }} · Adapter: {{ selection.adapter }}</p>
+{% if selection.adapter == 'dtcg-tailwind' %}<p>Verification gap: this export works directly in a browser. Tailwind compilation is unverified; verify the <code>@theme</code> block in the target design-system repository during integration.</p>{% endif %}
+<p>Inventory and static validation: {{ 'accepted' if selection.review.accepted else 'findings remain' }}. Unresolved review items: {{ selection.review.needs_review }}.</p>
+{% for finding in selection.review.findings %}<article>
+<h2>{{ finding.type }} · {{ finding.rule }}</h2><p>{{ finding.message }}</p>
+<p>{{ finding.file }}#{{ finding.pointer }} · Expected: {{ finding.expected }}</p>
+{% if finding.exception %}<p>Covered by justified exception {{ finding.exception }}</p>{% endif %}
+</article>{% else %}<p>No inventory or static validation findings.</p>{% endfor %}
+<form method="post" action="/apply/reviews/{{ selection.id }}/export"><button>{{ 'Rebuild export' if exported else 'Build export' }}</button></form>
+{% if exported %}<p>Export is ready in the private workspace.</p>
+<form method="post" action="/apply/reviews/{{ selection.id }}/handoff"><button>Create hand-off{% if selection.branch %} and local branch{% endif %}</button></form>{% endif %}
+<p>The hand-off includes remaining findings for the implementer to resolve. It does not push, merge or deploy.</p>
+<a href="/apply">Start another Apply review</a>{% endblock %}

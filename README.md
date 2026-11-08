@@ -120,8 +120,9 @@ Lantern packages Instrument Sans, an authored wordmark and an evening illustrati
 page. The gallery deliberately scrolls horizontally. Media reserves a 3:2 box before images load,
 using `object-fit: contain` to preserve each image’s proportions.
 
-Kinbase standards and direction are **unknown**. M4 remains unimplemented:
-export/apply adapters, site inventory acceptance, feedback/proposals, and Kinbase standards integration. No deployment, remote
+M4 export, inventory, Apply, feedback/proposals and the Kinbase adapter are implemented.
+In this environment Kinbase standards and direction remain **unknown**: no initialized
+design repository or design logical keys have been configured (G2). No deployment, remote
 publishing, or telemetry is included.
 
 ## Ingest a source (M2)
@@ -305,3 +306,119 @@ suite. The M0 browser repairs were confirmed by the Validator. M1 grouping and b
 require a Validator Chromium run; rendered fidelity is not claimed from local Python-only checks.
 M3 session planning, candidate validity, provenance, CLI and no-JavaScript WSGI flow are exercised
 offline; its actual rendered checks and beach-brief appearance require the Validator's browser.
+
+Export a versioned language with `python -m kinbase_design export harbor --adapter generic
+--out /tmp/harbor-export` (one shell line). Load `tokens.css` before `roles.css` for custom
+properties, role classes (`.kd-role-title-neutral`), and the normal `data-kd-*` treatments.
+`--adapter dtcg-tailwind` produces computed DTCG `tokens.json` and `theme.css` for Tailwind v4:
+`@theme static` registers theme variables and `[data-theme='light']` declares light overrides,
+following the pinned design-system generator. Theme namespaces use the complete token path to
+avoid group collisions (`color.brand` → `--color-color-brand`); generic properties use `--kd-`
+plus the token path (`--kd-color-brand`). Token segments escape hyphens as `_h` and underscores as `_u` to distinguish
+`a-b.c` from `a.b-c` without collisions. Both adapters include all bound asset bytes and native-control, breakpoint,
+state and behavior treatments from the preview renderer. Export mints the language version;
+CSS comments and DTCG metadata identify that version and adapter version. Identical version and
+adapter inputs produce identical files. `theme.css` works directly in a browser: custom properties
+live under `:root, [data-theme='light']`, and role/hook rules remain outside `@theme` (which
+browsers skip). No Tailwind compiler is required or provided offline. **Verification gap:**
+Tailwind's own consumption of the `@theme` block has not been verified; verify it in the target
+design-system repository during Apply.
+
+`python -m kinbase_design inventory-check harbor --inventory /path/to/site/kinbase-design.inventory.json`
+compares a site's inventory with resolved treatments. Role defaults count; non-default states
+must differ from default in at least one resolved property. Only bound, packaged assets count.
+A page's `assets` array accepts bare kinds (`"logo"`) or explicit variants (`"logo:on-dark"`).
+A bare kind needs any bound asset of that kind; a variant request needs that variant packaged
+on a bound asset of the same kind. No variant is required merely because of its name.
+An asset exception uses `page-id/asset/kind[:variant]` and a nonempty reason, for example
+`{"scope":"index/asset/logo:on-dark","rule":"missing","reason":"Light surface only"}`.
+The bare scope `index/asset/logo` covers every logo request on that page; the variant scope
+covers only `logo:on-dark`. The `inventory-asset` rule is also accepted. Earlier `page-id/kind`
+exception scopes remain supported for existing inventories.
+Findings use `inventory-construct`, `inventory-slot`, `inventory-state`, and `inventory-asset`;
+an exception names that rule (or `missing` for missing findings), its reported scope, and a nonempty reason. An exception on a
+construct also covers its slots/states for that rule. Covered findings remain in the report.
+Pointers refer to the site's inventory, relative to its repository root. Drafting inventories
+from a BFF contract is deferred until the target BFF is decided (D3).
+
+
+Open `/apply` to choose a language and a local Git repository, review the inventory findings,
+build an export, and create a hand-off without JavaScript. Equivalent command:
+
+```sh
+python -m kinbase_design apply harbor --site /path/to/site --adapter generic --target-dir theme --page-url http://localhost:3000/
+```
+
+The command prints its private `handoffs/<id>/` bundle path. It contains exported files,
+`findings.json`, a Factory `TASK.md`, and before/after images for each requested page URL at the
+capture widths. After images are explicitly labelled **injected previews**, not the site's real
+build. Screenshots reuse the anonymous capture worker: HTTP(S), including local servers, no
+cookies or credentials, bounded requests and process cleanup. Chromium failure is an error,
+never a passing screenshot report. Omit `--page-url` for an offline bundle without screenshots.
+
+With `--branch`, Apply creates `kinbase-design/<language>-<hash8>` in the target repository,
+commits the export under the target directory, and leaves the site's checkout and unrelated work
+alone. It uses an isolated temporary worktree and never pushes, merges, opens remote PRs, or
+deploys. An existing branch with that name is reported rather than overwritten. Uncovered
+inventory findings stay in the hand-off for the implementer; a hand-off is not deployment approval.
+
+## Kinbase adapter (M4)
+
+The library and viewer display the adapter's direction/standards state. All journeys remain
+usable when the binary or initialized repository is unavailable; badges include the reason.
+Kinbase is not initialized for this design repository, and no design logical keys have been
+established. Nothing is auto-initialized, ratified or promoted. Optional configuration:
+
+```toml
+[kinbase]
+binary = "/path/to/kinbase"
+repo = "/path/to/kinbase-initialized-repository"
+decision = "Choose design standards for this project"
+# Replace these placeholders with keys registered by the Kinbase owner.
+standard_keys = { "design-scope" = "<your-standard-logical-key>" }
+direction_keys = { "site-scope" = "<your-direction-logical-key>" }
+```
+
+The adapter reads `kinbase explain <key> --repo <repo> --decision <decision> --json` and retains
+state, current statement/standing/scope/fact ID, trust, and owned Unknowns. Availability requires
+a configured executable and a successful read-only `kinbase fsck --repo <repo> --json`; failure
+reports the failing step. No repository-marker or version probe substitutes for fsck. Kinbase
+itself remains responsible for trust and authority. Calls use argument arrays, bounded time/output, and no credential lookup.
+A conflict or untrusted projection supplies no fixed values. Scope matching is exact against
+the configured scope; no organization-wide authority is inferred.
+
+**Proposed convention, awaiting confirmation with the Kinbase owner (G2):** a current,
+authoritative, in-scope standard may contain JSON such as:
+
+```json
+{"kinbase-design":{"values":{"/style/color/brand/$value":"#0b6e65"}}}
+```
+
+These RFC 6901 pointer assignments enter generate as fixed inputs. Statements may also carry
+closed generate dimensions, for example
+`{"kinbase-design":{"dimensions":{"hue-family":200}}}`; `dimensions` and `values` are independently
+optional. Fixed dimensions are settled from the start, displayed as **Fixed by Kinbase**, and
+excluded from interview options and A/B rounds. Interview answers and choices cannot replace them.
+
+Each affected value receives `{"kind":"source","artifact":"kinbase:<fact_id>","location":"..."}`
+provenance in both workspace and library. The location is `/kinbase-design/dimensions/hue-family`
+for that dimension, or `/kinbase-design/values/~1style~1color~1brand~1$value` for the example
+pointer (RFC 6901 escaping). Dimension ownership covers the tokens and direct properties that
+that dimension determines; dependent fixed inputs are retained when a value has multiple owners. Generated brand
+colour normally aliases primary; the example fixes that brand value on prominent actions and
+headings. A standard may assign a complete token object when introducing new tokens. Language
+validation still applies: a standard cannot make an invalid value pass. Conflicting fixed
+sources are reported instead of altering supplied values. Every other authoritative statement
+is shown verbatim as **not machine-applicable — apply manually**. Lower-standing facts appear
+as suggestions. Generate reads every configured standard key when starting a session. Derive reads them again
+and replaces the session snapshot with the current results; new fixed dimensions also invalidate
+incompatible pending pairs. Choices and repair cannot rewrite fixed values.
+
+The viewer records comments/flags in private `feedback.jsonl` (author, versioned target, text,
+time). When available it submits through `kin kinbase submit --repo ... --type concept|question`
+with agent provenance; when unavailable it reports **not sent (Kinbase unavailable)**. The UI
+shows the actual receipt/error. Propose as direction mints the language and submits a decision
+naming its version and configured scope; **received** never implies **current**. Owned Unknowns
+from explain can be explicitly routed with `kinbase questions ask <id>`. No feedback action
+changes fixed inputs, validation outcomes or current direction on its own. There are no pushes,
+merges, deployments or automatic authority promotions.

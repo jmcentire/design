@@ -21,6 +21,8 @@ def token(kind,value):return {'$type':kind,'$value':value}
 
 def language(language_id,vocabulary,values,resources,preferences=None):
     """Fixed source tokens/bytes are copied unchanged; generated tokens have their own namespace."""
+    from ..kinbase import apply_dimensions,dimension_provenance
+    values=apply_dimensions(values,resources.get('kinbase',{}))
     preferences=preferences or {};provenance={'':{'kind':'inferred','method':'Colour harmony, modular type scale, spacing rhythm and Vocabulary hierarchy','inputs':[]}}
     doc={'id':language_id,'name':language_id.replace('-',' ').title(),'vocabulary':vocabulary['version'],
          'description':'Generated from visual preferences; standards unknown (Kinbase unconnected).',
@@ -38,6 +40,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
         return '{'+group+'.'+name+'}'
     hue=values['hue-family'];sat=.25+.7*values['saturation']
     primary=put('color','primary','color',hsl(hue,sat,.22),('hue-family','saturation'))
+    primary=put('color','brand','color',primary,('hue-family','saturation'))
     attention=put('color','attention','color',hsl(hue+140*values['whimsy'],sat,.22),('hue-family','saturation','whimsy'))
     wash=put('color','wash','color',hsl(hue,sat,.88),('hue-family','saturation'))
     accent_wash=put('color','attention-wash','color',hsl(hue+140*values['whimsy'],sat,.88),('hue-family','saturation','whimsy'))
@@ -103,7 +106,8 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             if role=='title':props['letter-spacing']=tracking
             if role=='label':
                 props['text-transform']='uppercase' if values['formality']>=.5 else 'none'
-                if 'formality' in preferences:provenance[pointer('roles',role,emphasis,'text-transform')]={'kind':'chosen','choice':preferences['formality']['choices'][-1]}
+                owners[pointer('roles',role,emphasis,'text-transform')]=['formality']
+                if 'formality' in preferences and preferences['formality']['choices']:provenance[pointer('roles',role,emphasis,'text-transform')]={'kind':'chosen','choice':preferences['formality']['choices'][-1]}
             doc['roles'][role][emphasis]=props
     for construct,spec in vocabulary['constructs'].items():
         treatment={'variant':'default','properties':{'padding':spacing['double'],'gap':spacing['base']},'slots':{}}
@@ -157,4 +161,9 @@ def language(language_id,vocabulary,values,resources,preferences=None):
                 fg=max(('#000000','#ffffff'),key=lambda value:contrast(color(value),color(bg)))
                 props['color']=put('color','source-text-'+str(i)+'-'+slot['id'],'color',fg)
     for asset,artifact in resources.get('origins',{}).items():provenance[pointer('assets',asset)]=source(artifact,'page:original')
+    if resources.get('kinbase'):
+        provenance=dimension_provenance(provenance,owners,resources['kinbase'])
+        from ..kinbase import apply_fixed,fixed_inputs
+        doc,provenance=apply_fixed(doc,provenance,fixed_inputs(resources['kinbase']))
+        doc['description']='Generated from visual preferences; Kinbase standards: '+resources['kinbase']['standards']+'.'
     return doc,complete(doc,provenance,[]),owners

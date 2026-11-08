@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<h1>Apply a language</h1>
+<p>Choose a local site repository. Review its inventory, export the language, and prepare a hand-off.</p>
+<p>Inventory drafting from a BFF contract is deferred until the target BFF is decided (D3). The site owns <code>kinbase-design.inventory.json</code>.</p>
+<form method="post" action="/apply">
+<label>Language <select name="language" required>{% for language in languages %}<option value="{{ language.id }}">{{ language.name }}</option>{% endfor %}</select></label>
+<label>Target repository path <input name="site" required placeholder="/path/to/site"></label>
+<label>Adapter <select name="adapter">{% for adapter in adapters %}<option>{{ adapter }}</option>{% endfor %}</select></label>
+<label>Target directory within repository <input name="target_dir" value="kinbase-design" required></label>
+<label>Page URLs for before/after screenshots (optional, one per line)<textarea name="page_urls" rows="4"></textarea></label>
+<label><input type="checkbox" name="branch" value="yes"> Create a local branch with the export committed</label>
+<p>Before/after screenshots show an injected stylesheet preview. Local branches stay local.</p>
+<button>Review inventory findings</button>
+</form>{% endblock %}

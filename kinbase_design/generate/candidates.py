@@ -14,6 +14,8 @@ SPECIMEN_REVISION = 5
 
 
 def materialize(library,workspace,state,values):
+    from ..kinbase import apply_dimensions
+    values=apply_dimensions(values,state['resources'].get('kinbase',{}))
     document,_,_=language('candidate',load(library),values,state['resources'])
     version=digest(document);target=inside(folder(workspace,state['id']),'candidates',version)
     # Preview URLs and package paths serve different consumers. Keep both, also

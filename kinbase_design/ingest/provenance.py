@@ -66,9 +66,15 @@ def shared(provenance):
     for path,entry in provenance.items():
         item={'kind':entry['kind']}
         if entry.get('artifact'):item['artifact']=entry['artifact']
+        if re.fullmatch(r'kinbase:[a-zA-Z0-9_.:-]+',entry.get('source','')):item['source']=entry['source']
         location=entry.get('location','')
         # Producers mark the location grammar. Unmarked paths/URLs remain private.
-        if location.startswith('json:'):
+        if str(entry.get('artifact','')).startswith('kinbase:') and location.startswith('/kinbase-design/') and not any(x in location for x in ('://','\\')):
+            item['location']=location
+            # Composite values may depend on more than one fixed dimension.
+            if entry.get('inputs'):
+                item['inputs']=list(shared({str(i):r for i,r in enumerate(entry['inputs'])}).values())
+        elif location.startswith('json:'):
             value=location[5:]
             if re.fullmatch(r'(?:/[a-zA-Z0-9_$~.-]+)*',value):item['location']=value
         elif location.startswith(('selector:','page:')):
@@ -88,7 +94,7 @@ def inspect_sources(workspace,provenance):
     def artifacts(entry):
         found=[]
         if isinstance(entry,dict):
-            if entry.get('artifact'):found.append(entry['artifact'])
+            if entry.get('artifact') and not entry['artifact'].startswith('kinbase:'):found.append(entry['artifact'])
             for value in entry.get('inputs',[]):found.extend(artifacts(value))
         elif isinstance(entry,str) and entry.startswith('artifact-'):found.append(entry)
         return found
@@ -98,3 +104,9 @@ def inspect_sources(workspace,provenance):
         present=all(inside(workspace,'artifacts',identifier(ref),'metadata.json').is_file() for ref in refs)
         entries.append({'pointer':path,**entry,'status':'source removed' if refs and not present else 'source available' if refs else entry['kind']})
     return entries
+
+
+def protected(provenance,path):
+    """A write cannot replace a source value at, above, or below its target."""
+    return any(entry.get('kind')=='source' and (key==path or key.startswith(path+'/') or path.startswith(key+'/'))
+               for key,entry in provenance.items())

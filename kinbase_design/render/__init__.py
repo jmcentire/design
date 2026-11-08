@@ -3,7 +3,7 @@ import logging
 import json
 from copy import deepcopy
 from pathlib import Path
-from ..assets import asset_path
+from ..assets import package_files
 from ..language import validate
 from ..language.resolver import resolve
 from ..storage import load_language, inside
@@ -59,9 +59,7 @@ def preview_files(library, language_id, compositions=None):
     files = ({name:renderer.reconstruction(page) for name,page in compositions.items()} if compositions is not None
              else {name:renderer.page(name) for name in vocabulary['context']['pages']})
     files['language.css'] = stylesheet(document, vocabulary).encode('utf-8')
-    for asset, entry in document.get('assets', {}).items():
-        for variant, detail in entry['variants'].items():
-            files[f'assets/{asset}-{variant}.{detail["format"]}'] = asset_path(library, language_id, detail).read_bytes()
+    files.update(package_files(library, language_id, document))
     return files
 
 

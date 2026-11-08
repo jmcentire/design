@@ -39,7 +39,7 @@ def summary(library,workspace,draft_id):
                                 pointer('notes',index),note,'review source fidelity',note['message']).to_dict())
     items=questions(workspace,draft_id)
     result={**report(draft_id,findings),'draft':draft_id,'mapping':'llm' if state['mapping']=='configured-command' else state['mapping'],'facts':state['facts'],
-            'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':'unknown (Kinbase unconnected)',
+            'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':state.get('standards','unknown (Kinbase unconnected)'),
             'views':state['views'],'references':state['references'],'version':digest(document)}
     if state.get('generation'):
         result['generation']=state['generation']

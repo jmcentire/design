@@ -15,8 +15,13 @@ def start(library,workspace,brief,artifacts=(),settings=None):
     if not isinstance(brief,str) or not brief.strip() or len(brief)>16000:raise ValueError('Brief must contain 1–16000 characters')
     settings=settings or generate_config();session=sessions.new_id('session');values=seeds(brief)
     state={'id':session,'brief':brief,'seeds':values,'interview':{},'artifacts':list(artifacts),'moodboard':[],
-           'pairs':{},'settings':asdict(settings),'created':sessions.now(),'mapping':'heuristic','standards':'unknown (Kinbase unconnected)'}
+           'pairs':{},'settings':asdict(settings),'created':sessions.now(),'mapping':'heuristic'}
     state['resources']=prepare(library,workspace,session,artifacts)
+    from ..kinbase import status,fixed_inputs,fixed_dimensions
+    snapshot=status(library)
+    state['resources']['kinbase']=snapshot
+    fixed_inputs(snapshot)  # Detect incompatible authoritative values before offering choices.
+    fixed=fixed_dimensions(snapshot)
     imported_briefs=' '.join(item['text'] for item in state['resources']['briefs'])
     if imported_briefs:values.update(seeds(brief+' '+imported_briefs))
     # Palette/image evidence is a starting point; its original values/bytes stay fixed.
@@ -29,6 +34,7 @@ def start(library,workspace,brief,artifacts=(),settings=None):
             values['hue-family']=round(hue*360,6)%360
             values['saturation']=round(saturation,6)
     for d in DOMAINS:
+        if d in fixed:continue
         av,bv=alternatives(d,values[d])
         for n,v in enumerate((av,bv)):
             state['moodboard'].append({'id':d+'-'+str(n+1),'kind':'type pairing' if d=='type-pairing' else 'palette' if d in {'hue-family','saturation','value-contrast'} else 'texture / accent' if d=='whimsy' else 'shape / rhythm' if d in {'shape','density'} else 'typography / tone',
@@ -37,7 +43,7 @@ def start(library,workspace,brief,artifacts=(),settings=None):
         state['moodboard'].append({'id':asset,'kind':entry['kind'],'asset':asset,'pinned':False,'removed':False})
     sessions.write(workspace,state)
     inside(sessions.folder(workspace,session),'choices.jsonl').touch(exist_ok=False)
-    return {'session':session,'seeds':values}
+    return {'session':session,'seeds':values,'fixed':fixed}
 
 
 def moodboard(library,workspace,session,pin=None,remove=None):
@@ -65,7 +71,9 @@ def moodboard(library,workspace,session,pin=None,remove=None):
 def interview_samples(library,workspace,session):
     state=sessions.read(workspace,session);base=baseline(workspace,session);result=[]
     count=state['settings']['candidates_per_question']
+    fixed=sessions.settled(workspace,session)['settled']
     for d in DOMAINS:
+        if fixed.get(d,{}).get('fixed'):continue
         a,b=alternatives(d,base[d]);domain=DOMAINS[d]
         extras=domain if d=='type-pairing' else [a+(b-a)*fraction for fraction in (1/3,2/3,.5)]
         options=[base[d],a,b,*extras]

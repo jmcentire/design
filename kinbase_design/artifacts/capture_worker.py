@@ -162,7 +162,14 @@ async def collect(job):
                             if len(done)+len(pending)<CAPTURE_MAX_WIDTHS:pending.append(candidate)
                             else:problems.append({'page':page_id,'width':width,'message':f'Breakpoint {candidate}px exceeds capture width bound'})
                     files[prefix+'.json']=json.dumps(data,ensure_ascii=False).encode()
-                    record['views'].append({'width':width,'dom':prefix+'.html','data':prefix+'.json','screenshot':prefix+'.png'})
+                    view={'width':width,'dom':prefix+'.html','data':prefix+'.json','screenshot':prefix+'.png'}
+                    if job.get('injected_css'):
+                        await page.add_style_tag(content=job['injected_css'])
+                        # CSS and font bytes are inline; no second network/cookie path.
+                        await asyncio.wait_for(page.evaluate('document.fonts.ready.then(() => true)'),timeout=timeout_ms/1000)
+                        view['injected']=prefix+'-injected.png'
+                        files[view['injected']]=await page.screenshot(full_page=True,animations='disabled',timeout=timeout_ms)
+                    record['views'].append(view)
                     problems.extend({'page':page_id,'width':width,'message':p} for p in data['problems'])
                     if sum(map(len,files.values()))>ARTIFACT_MAX_BYTES:raise ValueError('Capture exceeds artifact size bound')
                 except Error as exc:

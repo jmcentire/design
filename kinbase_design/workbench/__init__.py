@@ -102,6 +102,9 @@ def create_app(library: str | Path, workspace: str | Path):
             if segments[0] == 'ingest':
                 from .ingest import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif segments[0] == 'apply':
+                from .apply import handle
+                code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
             elif segments[0] == 'generate':
                 from .generate import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
@@ -110,6 +113,7 @@ def create_app(library: str | Path, workspace: str | Path):
                 body = Path(__file__).with_name('workbench.css').read_bytes()
             elif method == 'GET' and path == '/':
                 cards = []
+                kinbase_snapshot=kinbase_status(library)
                 languages = inside(library, 'languages')
                 for folder in sorted(languages.iterdir() if languages.exists() else []):
                     if not folder.is_dir():
@@ -130,7 +134,7 @@ def create_app(library: str | Path, workspace: str | Path):
                         cards.append({'id':language_id, 'name':doc.get('name',language_id), 'description':doc.get('description',''),
                                       'provenance':provenance.get('method','Not recorded') if isinstance(provenance,dict) else 'Not recorded',
                                       'counts':{t:Counter(f['type'] for f in summary['findings'])[t] for t in ('violation','missing','needs-review','coverage')},
-                                      'colors':colors, 'kinbase':kinbase_status(), 'latest':latest, 'stale':bool(latest and latest.get('version') != digest(doc))})
+                                      'colors':colors, 'kinbase':kinbase_snapshot, 'latest':latest, 'stale':bool(latest and latest.get('version') != digest(doc))})
                     except (OSError, ValueError) as exc:
                         cards.append({'id':folder.name,'name':folder.name,'description':str(exc),'provenance':'Unknown', 'colors':[], 'counts':{'violation':1}})
                 body = html('grid.html', title='Library', cards=cards)
@@ -162,9 +166,22 @@ def create_app(library: str | Path, workspace: str | Path):
                 if result['accepted']:
                     provenance_file=inside(library,'languages',language_id,'provenance',digest(load_language(library,language_id))+'.json')
                     if provenance_file.exists():provenance_entries=inspect_sources(workspace,read_document(provenance_file))
-                body = html('viewer.html', provenance_entries=provenance_entries, latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
+                kinbase_snapshot=kinbase_status(library)
+                from ..config import kinbase_config
+                try:direction_scopes=kinbase_config().direction_keys
+                except (ValueError,OSError):direction_scopes={}
+                receipt=None
+                if query.get('receipt'):
+                    receipt=read_json(inside(workspace,'kinbase-receipts',identifier(query['receipt'][0])+'.json'))
+                body = html('viewer.html', kinbase=kinbase_snapshot, receipt=receipt, direction_scopes=direction_scopes,
+                            constructs=load_vocabulary(library,doc['vocabulary'])['constructs'], provenance_entries=provenance_entries, latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
                             pages=pages, page=page, width=width, widths=VIEWPORTS,
                             annotations=query.get('annotations',['0'])[0]=='1', upload_mb=MAX_UPLOAD_BYTES//(1024*1024))
+            elif method == 'POST' and len(segments) == 3 and segments[0] == 'languages' and segments[2] in {'feedback','propose','kinbase-question'}:
+                from .kinbase import handle
+                language_id=identifier(segments[1]);load_language(library,language_id)
+                destination=handle(library,workspace,language_id,segments[2],environ)
+                code,body=303,b'';headers.append(('Location',destination))
             elif method == 'POST' and len(segments) == 3 and segments[0] == 'languages' and segments[2] == 'check':
                 language_id = identifier(segments[1])
                 check(library, language_id)

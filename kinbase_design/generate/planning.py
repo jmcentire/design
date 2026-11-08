@@ -1,5 +1,7 @@
 """Pair planning derives state from effective decisions, including neither and revision."""
 from copy import deepcopy
+import hashlib
+import json
 from .dimensions import alternatives,distance,widest
 from .sessions import read,write,choices,effective,settled,new_id
 from .candidates import materialize
@@ -44,7 +46,9 @@ def pair(library,workspace,session):
     answered={c['pair'] for c in log}
     # Repeated GETs/CLI calls do not consume rounds before a decision is made.
     basis=[c['id'] for c in log]
-    pending=[p for key,p in state['pairs'].items() if key not in answered and p.get('basis')==basis and p.get('planning_revision')==PLANNING_REVISION]
+    standards_basis=hashlib.sha256(json.dumps(state['resources'].get('kinbase',{}),sort_keys=True).encode()).hexdigest()
+    pending=[p for key,p in state['pairs'].items() if key not in answered and p.get('basis')==basis and p.get('planning_revision')==PLANNING_REVISION and p.get('standards_basis')==standards_basis
+             and all(d in preferences['unsettled'] for d in p['dimensions'])]
     if pending:return pending[-1]
     if len(answered)>=state['settings']['round_cap'] or not preferences['unsettled']:return {'done':True}
     remaining=[d for d in preferences['unsettled'] if not at_limit(state,log,d)]
@@ -56,7 +60,7 @@ def pair(library,workspace,session):
     values=baseline(workspace,session);a=deepcopy(values);b=deepcopy(values)
     for d in dims:a[d],b[d]=alternatives(d,values[d],rejected(state,log,d))
     result={'pair':new_id('pair'),'round':len(answered)+1,'dimensions':dims,
-            'basis':basis,'planning_revision':PLANNING_REVISION,
+            'basis':basis,'planning_revision':PLANNING_REVISION,'standards_basis':standards_basis,
             'variation':{d:variation(d,a[d],b[d]) for d in dims},
             'exhausted':[d for d in preferences['unsettled'] if at_limit(state,log,d)],
             'a':materialize(library,workspace,state,a),'b':materialize(library,workspace,state,b)}

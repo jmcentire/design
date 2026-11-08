@@ -1,8 +1,9 @@
 """CSS is derived from the resolver; identity stays out of sample HTML."""
 import json
 from pathlib import Path
-from ..language.resolver import resolve, parse_scope
-from ..language.tokens import Tokens
+from ..language.resolver import resolve, parse_scope, property_pointer
+from ..findings import location
+from ..language.tokens import ALIAS, Tokens
 from ..language.properties import property_value, CONTROL_BOX_PROPERTIES, CONTROL_TEXT_PROPERTIES
 from ..language.versions import digest
 from ..vocabulary import slot_map
@@ -41,14 +42,23 @@ def treatments(properties, control):
             declaration({k:v for k,v in properties.items() if k in CONTROL_BOX_PROPERTIES}))
 
 
-def stylesheet(document, vocabulary):
+def stylesheet(document, vocabulary, variables=None):
     tokens = Tokens(document.get('style', {}))
+
+    def resolved(scope, state='default', breakpoint=None):
+        properties = resolve(document, vocabulary, scope, state, breakpoint)['properties']
+        if variables is not None:
+            for name, detail in properties.items():
+                _, raw = location(document, property_pointer(document, vocabulary, name, detail))
+                alias = ALIAS.fullmatch(raw) if isinstance(raw, str) else None
+                if alias:detail['value'] = 'var(' + variables[alias[1]] + ')'
+        return properties
     # JSON escapes user text, and escaping comment terminators keeps this inert.
     identity = json.dumps({'id':document['id'], 'name':document['name'], 'hash':digest(document)}, ensure_ascii=True).replace('*/', '*\\/')
     rules = ['/* Kinbase Design ' + identity + ' */', Path(__file__).with_name('base.css').read_text()]
-    body = resolve(document, vocabulary, 'page-shell.body')['properties']
+    body = resolved('page-shell.body')
     inherited = {k:v for k,v in body.items() if k in {'color','font-family','font-size','font-weight','line-height'}}
-    background = resolve(document,vocabulary,'page-shell')['properties'].get('background-color')
+    background = resolved('page-shell').get('background-color')
     if background: inherited['background-color'] = background
     focus = inherited.get('color', {}).get('value', 'currentColor')
     rules.append('body{--kd-focus-color:' + str(focus) + ';' + declaration(inherited) + '}')
@@ -56,7 +66,7 @@ def stylesheet(document, vocabulary):
         for slot in contract['slots']:
             if slot['kind']=='control':
                 rules.append(selector(construct,slot['id'],native=True)+'{'+declaration({p:{'value':'inherit'} for p in CONTROL_TEXT_PROPERTIES})+'}')
-    for asset, entry in document.get('assets', {}).items():
+    for asset, entry in sorted(document.get('assets', {}).items()):
         if entry['kind'] != 'font':
             continue
         families = set()
@@ -76,9 +86,9 @@ def stylesheet(document, vocabulary):
             for slot in [None] + list(slot_map(contract)):
                 scope = construct + ('.' + slot if slot else '')
                 control = slot is not None and slot_map(contract)[slot]['kind']=='control'
-                base = treatments(resolve(document, vocabulary, scope, 'default', bp)['properties'],control)
+                base = treatments(resolved(scope, 'default', bp),control)
                 for state in contract['states']:
-                    props = treatments(resolve(document, vocabulary, scope, state, bp)['properties'],control)
+                    props = treatments(resolved(scope, state, bp),control)
                     key = (construct, slot, state)
                     if state != 'default' and props == base and key not in emitted:
                         continue
@@ -90,9 +100,11 @@ def stylesheet(document, vocabulary):
             rules.append(f'@media (min-width:{tokens.breakpoint(bp):g}px)' + '{\n' + '\n'.join(block) + '\n}')
         elif not bp:
             rules.extend(block)
-    for construct, component in document.get('components', {}).items():
-        for part, props in component.get('parts', {}).items():
-            values = {key:{'value':property_value(document, tokens, key, value)} for key,value in props.items()}
+    for construct, component in sorted(document.get('components', {}).items()):
+        for part, props in sorted(component.get('parts', {}).items()):
+            values = {key:{'value':('var(' + variables[ALIAS.fullmatch(value)[1]] + ')'
+                                  if variables is not None and isinstance(value,str) and ALIAS.fullmatch(value)
+                                  else property_value(document, tokens, key, value))} for key,value in props.items()}
             rules.append(f'[data-kd-construct="{construct}"] [data-kd-part="{part}"]' + '{' + declaration(values) + '}')
     for behavior in document.get('behaviors', []):
         scope = parse_scope(behavior['scope'], vocabulary)

@@ -139,3 +139,46 @@ def generate_config(path=None):
     unknown=set(values)-set(GenerateConfig.__dataclass_fields__)
     if unknown:raise ValueError('Unknown generate settings: '+', '.join(sorted(unknown)))
     return GenerateConfig(**values)
+
+# Apply subprocess bounds. Browser work shares the capture worker's total bound.
+APPLY_GIT_TIMEOUT_SECONDS = 30
+APPLY_DEFAULT_TARGET_DIR = 'kinbase-design'
+
+KINBASE_TIMEOUT_SECONDS = 10
+KINBASE_OUTPUT_BYTES = 1024 * 1024
+KINBASE_FEEDBACK_LENGTH = 16000
+KINBASE_MAX_KEYS = 32
+
+
+@dataclass(frozen=True)
+class KinbaseConfig:
+    binary: str = 'kinbase'
+    repo: str | None = None
+    decision: str = 'Apply a reusable Kinbase Design language'
+    direction_keys: dict | None = None
+    standard_keys: dict | None = None
+
+    def __post_init__(self):
+        for name in ('binary','decision'):
+            if not isinstance(getattr(self,name),str) or not getattr(self,name).strip():raise ValueError('kinbase.'+name+' must be nonempty text')
+        if self.repo is not None and not isinstance(self.repo,str):raise ValueError('kinbase.repo must be a path')
+        for name in ('direction_keys','standard_keys'):
+            value=getattr(self,name)
+            if value is None:value={}
+            if not isinstance(value,dict) or len(value)>KINBASE_MAX_KEYS or any(not isinstance(k,str) or not k or not isinstance(v,str) or not v for k,v in value.items()):
+                raise ValueError('kinbase.'+name+' must map scopes to logical keys')
+            object.__setattr__(self,name,dict(value))
+
+
+def kinbase_config(path=None):
+    path=Path(path) if path is not None else Path.cwd()/'kinbase-design.toml'
+    values=tomllib.loads(path.read_text()).get('kinbase',{}) if path.exists() else {}
+    if not isinstance(values,dict):raise ValueError('kinbase configuration must be a table')
+    unknown=set(values)-set(KinbaseConfig.__dataclass_fields__)
+    if unknown:raise ValueError('Unknown kinbase settings: '+', '.join(sorted(unknown)))
+    values=dict(values)
+    for name in ('repo','binary'):
+        value=values.get(name)
+        if value is not None and not isinstance(value,str):raise ValueError('kinbase.'+name+' must be text')
+        if value and (name=='repo' or '/' in value):values[name]=str((path.parent/Path(value).expanduser()).resolve())
+    return KinbaseConfig(**values)

@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<h1>Hand-off ready</h1><p>{{ record.language }} · {{ record.adapter }}</p>
+<p>Target {{ record.site }} / {{ record.target_dir }}</p>
+{% if record.local_branch %}<p>Local branch {{ record.local_branch.branch }} · commit {{ record.local_branch.commit }}</p>{% else %}<p>Proposed branch {{ record.branch }} (not created).</p>{% endif %}
+<p><a href="/apply/handoffs/{{ record.id }}/TASK.md">Factory task</a> · <a href="/apply/handoffs/{{ record.id }}/findings.json">Findings report</a> · <a href="/apply/handoffs/{{ record.id }}/handoff.json">Bundle manifest</a></p>
+{% if record.adapter.startswith('dtcg-tailwind@') %}<p>Verification gap: Tailwind consumption of <code>@theme</code> is unverified. Verify it in the target design-system repository; browser inspection needs no compiler.</p>{% endif %}
+<h2>Export files</h2><ul>{% for file in record.export_files %}<li><a href="/apply/handoffs/{{ record.id }}/export/{{ file }}">{{ file }}</a></li>{% endfor %}</ul>
+<h2>Before / injected preview</h2>
+{% for pair in record.screenshots.pairs %}<section><h3>{{ pair.url }} · {{ pair.width }} px</h3><p>{{ pair.label }}</p>
+<div class="kd-comparison"><figure><figcaption>Before: page as served</figcaption><a href="/apply/handoffs/{{ record.id }}/{{ pair.before }}"><img style="max-width:100%" src="/apply/handoffs/{{ record.id }}/{{ pair.before }}" alt="Before at {{ pair.width }} pixels"></a></figure>
+<figure><figcaption>After: injected stylesheet preview</figcaption><a href="/apply/handoffs/{{ record.id }}/{{ pair.after }}"><img style="max-width:100%" src="/apply/handoffs/{{ record.id }}/{{ pair.after }}" alt="Injected preview at {{ pair.width }} pixels"></a></figure></div></section>
+{% else %}<p>No page URLs were requested.</p>{% endfor %}
+{% for problem in record.screenshots.problems %}<p>Capture problem: {{ problem.message }}</p>{% endfor %}
+<a href="/apply">Apply another language</a>{% endblock %}
