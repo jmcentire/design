@@ -73,7 +73,7 @@ def test_justified_exception_reports_and_covers_its_missing_state(library, langu
                                  "reason": "This page intentionally uses the same treatment in this state."}]
     covered = only_missing(inventory_check(library, site, inventory, accepted=True))
     assert covered.get("exception"), "A covered finding must remain reported with its exception"
-    for key in ("rule", "file", "pointer", "observed"):
+    for key in ("source", "rule", "file", "pointer", "observed"):
         assert covered[key] == missing[key]
     inventory["exceptions"][0]["reason"] = ""
     report = inventory_check(library, site, inventory, accepted=False)
@@ -98,7 +98,7 @@ def test_confirmed_language_violation_fails_inventory_acceptance(library, langua
     language["components"]["card"]["properties"]["padding"] = "9px"
     library.write(language)
     report = inventory_check(library, site, inventory_document(), accepted=False)
-    assert any(finding["type"] == "violation" and finding["rule"] == "R2" for finding in report["findings"]), report
+    assert any(finding["source"] == "language" and finding["type"] == "violation" and finding["rule"] == "R2" for finding in report["findings"]), report
 
 
 def test_coverage_alone_does_not_fail_inventory_acceptance(library, language, vocabulary, site):
@@ -110,7 +110,7 @@ def test_coverage_alone_does_not_fail_inventory_acceptance(library, language, vo
     control = library.validate(accepted=True)
     assert any(finding["type"] == "coverage" for finding in control["findings"])
     report = inventory_check(library, site, inventory_document(), accepted=True)
-    assert any(finding["type"] == "coverage" for finding in report["findings"]), report
+    assert any(finding["source"] == "language" and finding["type"] == "coverage" for finding in report["findings"]), report
     assert not [finding for finding in report["findings"] if finding["type"] in {"missing", "violation"}], report
 
 
@@ -188,7 +188,7 @@ def test_asset_exceptions_respect_variant_kind_and_page_and_retain_findings(libr
         assert len(findings) == 4 and {f["pointer"] for f in findings} == expected
         for finding in findings:
             original = missing[finding["pointer"]]
-            for key in ("file", "pointer", "rule", "observed"):
+            for key in ("source", "file", "pointer", "rule", "observed"):
                 assert finding[key] == original[key], "An exception changed or removed its underlying finding"
             if finding.get("exception"):
                 # Amendment 21 pins an inventory JSON pointer, not a scope string

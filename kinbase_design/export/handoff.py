@@ -66,7 +66,7 @@ def task_text(record):
     lines.extend('- `'+record['target_dir']+'/'+name+'`' for name in record['export_files'])
     lines.extend(['','## Findings to resolve',''])
     for finding in record['findings']['findings']:
-        lines.append('- '+finding['type']+' '+finding['rule']+' at `'+finding['file']+'#'+finding['pointer']+'`: '+finding['message']+
+        lines.append('- '+finding['type']+' '+finding['rule']+' ('+finding['source']+') at `'+finding['file']+'#'+finding['pointer']+'`: '+finding['message']+
                      (' (covered by '+str(finding['exception'])+')' if finding.get('exception') else ''))
     if not record['findings']['findings']:lines.append('No inventory or static validation findings.')
     lines.extend(['','See findings.json for measured evidence and exception details.',''])

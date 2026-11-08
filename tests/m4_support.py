@@ -47,20 +47,27 @@ def inventory_check(library, repo, document, accepted):
     report = library.json("inventory-check", "tidal", "--inventory", inventory, code=0 if accepted else 1)
     assert report["language"] == "tidal" and report["accepted"] is accepted
     assert isinstance(report["findings"], list)
+    assert_mixed_report_pointers(library, repo, report)
+    return report
+
+
+def assert_mixed_report_pointers(library, repo, report):
+    """Amendment 22: inventory and language findings have distinct file roots."""
+    roots = {"inventory": repo.resolve(), "language": library.library.resolve()}
     for finding in report["findings"]:
+        assert finding.get("source") in roots, ("Missing/unknown finding source", finding)
+        root = roots[finding["source"]]
         relative = Path(finding["file"])
         assert not relative.is_absolute()
-        file = (repo / relative).resolve()
-        # Reports can refer to the separate fixture language library via a
-        # relative path; never let a candidate direct this reader outside tmp.
-        assert file.is_relative_to(repo.parent.resolve()), file
+        file = (root / relative).resolve()
+        assert file.is_relative_to(root), ("Finding escaped its declared source root", finding)
         value = json.loads(file.read_text())
         assert pointer_value(value, finding["pointer"]) == finding["observed"]
-    return report
 
 
 def only_missing(report):
     missing = [finding for finding in report["findings"] if finding["type"] == "missing"]
     assert len(missing) == 1, report
+    assert missing[0]["source"] == "inventory", report
     assert not [finding for finding in report["findings"] if finding["type"] == "violation"], report
     return missing[0]

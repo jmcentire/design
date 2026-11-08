@@ -52,7 +52,7 @@ def test_apply_without_inventory_is_advisory_or_actionable(library, language, tm
             if isinstance(value, dict) and "findings" in value:
                 reports.append(value)
         assert any(report.get("accepted") is True and any(
-            finding["type"] == "coverage" and absent_inventory_message(finding.get("message", ""))
+            finding.get("source") == "inventory" and finding["type"] == "coverage" and absent_inventory_message(finding.get("message", ""))
             for finding in report["findings"]) for report in reports), (
                 "Successful Apply silently omitted the absent-inventory advisory", reports)
     else:

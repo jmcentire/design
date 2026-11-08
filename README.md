@@ -342,8 +342,10 @@ Findings use `inventory-construct`, `inventory-slot`, `inventory-state`, and `in
 an exception names that rule (or `missing` for missing findings), its reported scope, and a nonempty reason. An exception on a
 construct also covers its slots/states for that rule. Covered findings remain in the report.
 The same report also includes the language's validation findings, including coverage advisories;
-acceptance covers both sets. Inventory pointers refer to the site's inventory relative to its
-repository root; language findings retain their library-relative file and pointer. Drafting inventories
+acceptance covers both sets. Every finding has `source: "inventory"` or `source: "language"`.
+Inventory files are relative to the site repository root; language files are relative to the
+library root. Resolve each pointer in its source's file. Apply preserves these labels in its
+report, task and findings display. Drafting inventories
 from a BFF contract is deferred until the target BFF is decided (D3).
 If the inventory file is absent, Apply and inventory-check stop with a message identifying the
 file to create and the requirements it should list. Site findings remain unknown until it exists.

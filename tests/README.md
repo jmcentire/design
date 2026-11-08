@@ -1040,3 +1040,21 @@ namespaces and declarations found only outside the theme. Non-browser execution
 remains blocked by absent candidate vocabulary (132 prerequisite errors, 101
 browser cases deselected). Logs: `/tmp/kinbase-tester-m4-final-gaps-collection.log`
 and `/tmp/kinbase-tester-m4-final-gaps.log`. Integrated verification awaits the Validator.
+
+Validator run b9e037cd (candidate 80e686a) reported 231/233. Amendment 22 resolves
+the two remaining test-side pointer failures: mixed inventory reports explicitly
+label each finding `source: inventory|language`. The report driver now requires
+that discriminator, resolves inventory files from the site repository and language
+files from the library root, confines the path to its selected root, and compares
+the pointed value with `observed`. It no longer interprets language-relative paths
+as repository-relative paths. Exception-preservation checks retain source identity;
+seeded language R2/coverage findings must identify the language source. Apply's
+absent-inventory advisory must identify the inventory source.
+
+Local diagnostics used identically named JSON files containing different values
+under the two roots, verified both pointers, and rejected a wrong root, absent or
+unknown source, and a path escaping its source root. Python compilation and
+whitespace checks pass; all 233 tests collect. Non-browser product execution
+remains blocked by absent candidate vocabulary (132 prerequisite errors, 101
+browser cases deselected). Logs: `/tmp/kinbase-tester-m4-source-collection.log`
+and `/tmp/kinbase-tester-m4-source.log`. Integrated verification awaits the Validator.

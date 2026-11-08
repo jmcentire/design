@@ -128,7 +128,7 @@ def inventory_check(library, language_id, inventory_path):
     # Retain language findings with their library-relative files and pointers.
     # Site exceptions cover inventory requirements, not defects in the language.
     validation=validate(library,language_id,document)
-    findings=list(validation['findings'])
+    findings=[{**finding,'source':'language'} for finding in validation['findings']]
     try:
         vocabulary=load(library,document['vocabulary'])
         treatment=Treatment(library,language_id,document,vocabulary)
@@ -142,6 +142,7 @@ def inventory_check(library, language_id, inventory_path):
     def issue(kind, rule, at, expected, message, scope=None):
         existing,observed=location(inventory,at)
         item=Finding(kind,rule,file,existing,observed,expected,message).to_dict()
+        item['source']='inventory'
         item['scope']=scope
         item['exception']=justified_exception(exceptions,scope,rule,kind) if scope else None
         findings.append(item)
