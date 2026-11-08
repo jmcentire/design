@@ -10,21 +10,29 @@ def records(workspace, artifact):
     meta=metadata(workspace,artifact)
     source=meta.get('details',{}).get('source',{})
     if source.get('provider')!='figma':raise ValueError('Expected a Figma snapshot artifact')
+    document=json.loads(read_member(workspace,artifact,'figma.json'))
+    modified=document.get('lastModified')
     result=[]
-    def emit(kind,statement,node=None,version=None,observed=None):
+    def emit(kind,statement,node=None,version=None,observed=None,comment_id=None):
         origin={'kind':'figma','file_key':source['file_key'],'version':version,'digest':artifact,
                 'evidence_kind':kind}
         if node:origin['node_id']=node
+        if comment_id:origin['comment_id']=comment_id
+        origin['time_basis']='observed' if observed else ('source-modified' if modified else 'capture-fallback')
         # The extractor, not a typed comment author name, owns this observation.
         payload={'source':origin,'statement':statement,'author_kind':'agent'}
-        digest=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
+        # Identity follows the source observation, not its changing contents.
+        # A node's values are one aggregate: replacing it also removes old fields.
+        identity={key:origin[key] for key in ('kind','file_key','evidence_kind','node_id','comment_id') if key in origin}
+        digest=hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()
         result.append({'schema':'design-evidence/1','id':digest,**payload,
-                       'updated_at':observed or meta['created'],
+                       'updated_at':observed or modified or meta['created'],
                        'evidence_refs':['figma:'+source['file_key']+':'+str(version or 'live')+('#'+node if node else ''),artifact]})
     tokens=json.loads(read_member(workspace,artifact,'tokens.json'))
     for group in tokens.values():
         identity=group.get('$extensions',{}).get('figma',{})
         values={k:v for k,v in group.items() if not k.startswith('$')}
+        if not identity.get('nodeId'):continue
         emit('node-values','Observed Figma node values (not an approved standard): '+json.dumps(values,sort_keys=True),
              identity.get('nodeId'),source['version'])
     for observation in meta['details'].get('observations',[]):
@@ -36,11 +44,13 @@ def records(workspace, artifact):
             payload=json.loads(read_member(workspace,artifact,observation['member']))
             for comment in payload.get('comments',[]):
                 message=comment.get('message','')
+                comment_id=comment.get('id')
+                if not isinstance(comment_id,str) or not comment_id:continue
                 if not isinstance(message,str) or not message.strip():continue
                 fact={'comment_id':comment.get('id'),'source_user_id':comment.get('user',{}).get('id'),
                       'message':message[:6000],'excerpt':len(message)>6000}
                 emit('comment-observation','Unverified source comment; not a design ruling: '+json.dumps(fact,sort_keys=True),
-                     observed=observation.get('observed_at'))
+                     observed=observation.get('observed_at'),comment_id=comment_id)
         else:
             emit(kind+'-reference','Live unversioned '+kind+' evidence retained in private artifact member '+observation['member'],
                  observed=observation.get('observed_at'))

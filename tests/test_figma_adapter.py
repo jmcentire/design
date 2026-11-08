@@ -136,3 +136,45 @@ def test_repository_receipt_does_not_claim_company_adoption(tmp_path, monkeypatc
     assert receipt['status']=='received'
     assert receipt['delivery_scope']=='repository-evidence'
     assert receipt['company_publication']==receipt['adoption']=='not-verified'
+
+def test_evidence_identity_survives_source_edits_without_colliding(tmp_path):
+    from copy import deepcopy
+    from kinbase_design.design_evidence import records
+    class ChangingAPI(API):
+        def __init__(self, version, size, comment):
+            self.source=deepcopy(SOURCE)
+            self.source['version']=version
+            self.source['lastModified']='2026-11-01T00:00:00Z' if version=='42' else '2026-11-02T00:00:00Z'
+            node=self.source['document']['children'][0]
+            node['style']['fontSize']=size
+            if version=='43':node['style'].pop('fontFamily')
+            other=deepcopy(node); other['id']='2:3'
+            self.source['document']['children'].append(other)
+            self.comment=comment
+        def get(self,path,**query):
+            if path.endswith('/comments'):
+                return {'comments':[{'id':'c1','message':self.comment},
+                                    {'id':'c2','message':'A distinct comment'},
+                                    {'message':'No stable identity'}]}
+            return self.source
+    old=records(tmp_path,snapshot(tmp_path,'example',api=ChangingAPI('42',32,'Old'),comments=True)['artifact'])
+    new=records(tmp_path,snapshot(tmp_path,'example',api=ChangingAPI('43',40,'Revised'),comments=True)['artifact'])
+    assert len(old)==len(new)==4
+    assert len({r['id'] for r in old})==4
+    assert {r['id'] for r in old}=={r['id'] for r in new}
+    by_id={r['id']:r for r in old}
+    for record in new:
+        previous=by_id[record['id']]
+        assert previous['source']['digest']!=record['source']['digest']
+        if record['source']['evidence_kind']=='node-values':
+            assert previous['source']['version']=='42' and record['source']['version']=='43'
+            assert previous['statement']!=record['statement']
+            assert record['source']['time_basis']=='source-modified'
+            assert previous['updated_at'] < record['updated_at']
+            assert record['updated_at']=='2026-11-02T00:00:00Z'
+            assert 'font_family' not in record['statement']
+        elif record['source']['comment_id']=='c1':
+            assert record['source']['time_basis']=='observed'
+            assert 'Revised' in record['statement'] and 'Old' in previous['statement']
+    other=records(tmp_path,snapshot(tmp_path,'differentfile',api=ChangingAPI('43',40,'Revised'),comments=True)['artifact'])
+    assert not {r['id'] for r in other}&{r['id'] for r in new}

@@ -95,3 +95,18 @@ Only the approved Company publisher should submit it with its existing capped ma
 The publisher adapter and authorized deployment must be verified before claiming shared learning.
 Lauren's delegated design authority requires the Company policy to support it; never relabel her
 as founder or infer authority from a typed name.
+
+Observation IDs are stable by Figma file and evidence kind, plus node ID for node values/renders
+or comment ID for comments. Versions, artifact digests and values remain provenance, not identity.
+All measured properties of a node form one replaceable observation, so changing or removing a
+field updates that observation rather than leaving the old field as an independent current fact.
+Records without the required source node/comment identity are not exported. Entirely deleted
+nodes/comments and nodes losing all measured values still require explicit publisher retraction;
+absence in a partial snapshot is not a deletion. The additive handoff does not implement that
+retraction or determine whether an intentionally historical snapshot should replace current
+observations. Publish current captures in source order, not arbitrary historical replays.
+For versioned node/render evidence, `updated_at` uses Figma's `lastModified` when available;
+`source.time_basis` records `source-modified`. Live endpoints use `observed`. Legacy snapshots
+without source time use `capture-fallback`, which is not evidence of version freshness and must
+not automatically supersede an existing Company observation. Capture time does not make an
+older source version newer.
