@@ -296,6 +296,9 @@ class Validator:
                     self.issue('R1', pointer('style', *path.split('.'), '$extensions'), asset, 'a declared font asset', type='missing')
 
     def font_gaps(self):
+        assets=self.doc.get('assets',{})
+        if not isinstance(assets,dict) or not any(isinstance(asset,dict) and asset.get('kind')=='font' for asset in assets.values()):
+            return  # Asset references were checked above; no supplied faces to compare.
         breakpoints = [None]
         for path in self.tokens.nodes:
             if path.startswith('breakpoint.'):

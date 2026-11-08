@@ -9,6 +9,7 @@ from ..artifacts.capture import media_widths, group_problems
 from ..config import INGEST_IMAGE_SAMPLE_SIZE
 from ..language.tokens import Tokens
 from .quantize import px
+from .dom import content_nodes
 
 
 def image_colors(data):
@@ -31,6 +32,8 @@ def collect(workspace, artifact_ids):
             for page in details['pages']:
                 for view in page['views']:
                     data=json.loads(read_member(workspace,artifact,view['data']))
+                    if view.get('dom') in meta.get('members',{}):
+                        data['structure']=content_nodes(data,read_member(workspace,artifact,view['dom']).decode('utf-8',errors='replace'))
                     result['views'].append({**data,**view,'page':page['id'],'artifact':artifact,'url':page['url'],
                                             'breakpoints':media_widths(data.get('media_queries',[]))})
         elif kind=='figma-export':

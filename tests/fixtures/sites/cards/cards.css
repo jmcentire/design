@@ -1,0 +1,16 @@
+* { box-sizing: border-box; }
+body, h1, h2, h3, p { margin: 0; }
+body { font: 16px/1.5 Arial, sans-serif; color: #243447; background: #f4f0e7; }
+nav, footer { padding: 16px; }
+nav { display: flex; gap: 16px; flex-wrap: wrap; }
+main { padding: 24px; }
+h1 { font-size: 28px; margin-bottom: 16px; }
+h2 { font-size: 24px; color: #a14524; margin-block: 24px 16px; }
+h3 { font-size: 20px; margin-block: 12px 8px; }
+.cards { display: grid; gap: 16px; }
+article { padding: 16px; border-radius: 12px; background: #ffffff; }
+article img { display: block; width: 100%; height: auto; }
+.meta { color: #536375; }
+.price { color: #0b6e4f; font-size: 20px; font-weight: 600; margin-block: 8px; }
+a { color: #0b6e4f; }
+@media (min-width: 768px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

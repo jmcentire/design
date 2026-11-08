@@ -34,6 +34,10 @@ def handle(library,workspace,environ,segments,query,html):
     def static(data,name):
         kind=mimetypes.guess_type(name)[0] or 'application/octet-stream'
         return 200,data,kind,[('Content-Security-Policy',"sandbox allow-same-origin; default-src 'none'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'")]
+    def draft_file(root,name):
+        if not name.endswith(('.html','.css','.png','.jpg','.webp','.svg','.woff2','.woff','.ttf','.otf')):
+            raise RequestError('Unknown draft artifact',404)
+        return static(inside(root,name).read_bytes(),name)
     if not tail and method=='GET':
         drafts=[];artifacts=[]
         parent=inside(workspace,'drafts')
@@ -85,7 +89,9 @@ def handle(library,workspace,environ,segments,query,html):
             promote_draft(library,workspace,draft_id,data['artifact'],data['asset_id'],data['kind'],data['variant'],
                           int(data['weight']) if data.get('weight') else None,data.get('style') or None,data.get('family') or None,data.get('scope') or None)
             return redirect('/ingest/drafts/'+draft_id)
-        if action=='fidelity':
+        if action=='fidelity' and method=='GET' and len(tail)>=4:
+            return draft_file(inside(root,'fidelity'),'/'.join(tail[3:]))
+        if action=='fidelity' and len(tail)==3:
             if method=='POST':fidelity(library,workspace,draft_id);return redirect('/ingest/drafts/'+draft_id+'/fidelity')
             if method=='GET':
                 path=inside(root,'fidelity','report.json');result=read_document(path) if path.exists() else None
@@ -101,7 +107,7 @@ def handle(library,workspace,environ,segments,query,html):
             return redirect('/languages/'+draft_id)
         if action=='files' and method=='GET' and len(tail)>=5:
             name='/'.join(tail[3:])
-            if tail[3] not in {'questions','fidelity'} or not name.endswith(('.html','.css','.png','.jpg','.webp','.svg','.woff2','.woff','.ttf','.otf')):
+            if tail[3] not in {'questions','fidelity'}:
                 raise RequestError('Unknown draft artifact',404)
-            return static(inside(root,name).read_bytes(),name)
+            return draft_file(root,name)
     raise RequestError('Unknown ingest route',404)

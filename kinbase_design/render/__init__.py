@@ -1,5 +1,7 @@
 """Pure preview assembly shared by disk builds and the workbench."""
 import logging
+import json
+from copy import deepcopy
 from pathlib import Path
 from ..assets import asset_path
 from ..language import validate
@@ -23,6 +25,28 @@ def preview_files(library, language_id, compositions=None):
     vocabulary = load(library, document['vocabulary'])
     sample_set = samples(library, document['vocabulary'])
     renderer = SampleRenderer(document, vocabulary, sample_set)
+    if compositions is not None:
+        compositions=deepcopy(compositions)
+        checked_contexts={}
+        def contexts(items):
+            for item in items:
+                if 'treatment' in item:
+                    key=(item['construct'],json.dumps(item['treatment'],sort_keys=True))
+                    if key in checked_contexts:
+                        item['resolved_context']=checked_contexts[key];contexts(item.get('children',[]));continue
+                    local=deepcopy(document);component=item['construct']
+                    previous=local['components'].get(component,{})
+                    local['components']={component:{**{k:v for k,v in previous.items() if k in {'variant','assets','parts'}},**item['treatment']}}
+                    for slot,treatment in local['components'][component].get('slots',{}).items():
+                        for field in ('role','emphasis'):
+                            if field in previous.get('slots',{}).get(slot,{}):treatment[field]=previous['slots'][slot][field]
+                    local['overrides']=[]
+                    checked=validate(library,language_id,local)
+                    if not checked['accepted']:raise InvalidLanguage(checked)
+                    item['resolved_context']=local
+                    checked_contexts[key]=local
+                contexts(item.get('children',[]))
+        for page in compositions.values():contexts(page['instances'])
     files = ({name:renderer.reconstruction(page) for name,page in compositions.items()} if compositions is not None
              else {name:renderer.page(name) for name in vocabulary['context']['pages']})
     files['language.css'] = stylesheet(document, vocabulary).encode('utf-8')

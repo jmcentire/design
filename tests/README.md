@@ -436,3 +436,107 @@ A local diagnostic confirms the exit watcher rejects a living child and detects
 its exit. The sandbox denies `ps`, so process-tree inspection and the two new
 browser cases await the Validator; no integrated pass is claimed for them. Logs:
 `/tmp/kinbase-tester-fanout-collection.log`, `/tmp/kinbase-tester-fanout.log`.
+
+M3 first increment (`test_m3_choices.py`, `test_m3_derive.py`) uses the public
+amendment 10 value domains and settled-support schema. A/B decisions and a
+superseding revision must append exactly one log record without changing earlier
+bytes; settled values and later candidates must follow the effective decision.
+Beach candidates use an independently defined broad green/turquoise/blue interval
+of 90–255 degrees, rather than exact generated colors.
+
+Two early-stop cases derive after zero or one comparison with a tester-authored
+PNG logo, a real generated TTF and exact DTCG palette colors. Every pair of source
+palette colors has contrast below 3:1; the delivered result must preserve those
+values and sources while independently passing `validate` and rendered `check`
+at 320/768/1280. Packaged bytes, bindings, actual loaded font use, visible logo,
+all-value provenance, private originals and shared-data privacy are checked
+through derive and save. This establishes readable output with fixed constraints;
+it does not claim the internal repair loop necessarily executed.
+
+177 cases collect, compile/whitespace checks pass, and the non-browser run retains
+108 missing-vocabulary setup errors (69 browser cases deselected). No new M3
+candidate pass is claimed. Logs: `/tmp/kinbase-tester-m3-collection.log` and
+`/tmp/kinbase-tester-m3.log`. Remaining M3 coverage: rejected-pair widening/cap,
+rendered pair isolation, interview/moodboard and the no-JS workbench journey.
+The widening case needs a contract answer on revisiting rejected dimensions
+before the cap; eight one-dimensional rounds could otherwise visit distinct
+members of the nine-dimensional domain without exercising widening at all.
+
+M3 amendment 10 item 5 adds an eight-round rejection sequence. Immediately
+following `neither`, the same dimensions must return with larger domain distance;
+exhausted numeric ranges retain their maximum and an exhausted pair gives way to
+other unsettled dimensions. Categorical alternatives cannot reuse the last
+rejected values while unused alternatives remain. Repeated rejection never
+settles a value and the default cap stops new rounds without changing history.
+A separate revision from `neither` to B verifies normal sequencing is restored.
+
+`test_m3_workbench.py` runs the no-JS generate journey using visible forms/links:
+upload, a visual interview answer, mood-board pin/remove, A/B plus comment,
+revision, early derive, rendered review and library save. Public workspace files
+corroborate each mutation; no generate CLI command drives the journey. Inline
+CSS samples, loaded images and nonempty frames are supported as visual choices.
+Draft validity and provenance are independently checked before saving.
+
+180 cases collect; compilation and whitespace checks pass. The non-browser run
+still has 108 missing-vocabulary setup errors, with 72 browser cases deselected.
+These new cases await the Validator. Logs:
+`/tmp/kinbase-tester-m3-journey-collection.log`, `/tmp/kinbase-tester-m3-journey.log`.
+The remaining rendered-pair isolation test needs the public inspectable preview
+surface and dimension-to-rendered-property contract, particularly for formality
+and whimsy; labels/JSON values alone cannot establish what actually changed.
+
+M3 amendment 11 resolves candidate inspection. `preview` now identifies the exact
+workspace directory `sessions/<session>/candidates/<hash>/`, with working copy,
+`sample.html`, stylesheet and assets. All pair drivers enforce this shape. The
+workbench journey also validates every materialized language-backed swatch it
+encounters, without treating a plain inline CSS palette strip as a full language.
+
+`test_m3_rendered_pairs.py` walks the offered rounds through real Chromium with
+JavaScript disabled, validates each candidate in isolation and reads the public
+candidate route. It compares decoded screenshots, identical default-variant HTML
+under B1's binding conditions, semantic/content observations and computed
+properties. Width comparison uses CSS Typed OM's computed auto/percentage values,
+not reflow-dependent used widths; unchanged em-based UA heading margins may scale
+with type size. Unrelated typography, spacing, radii, opacity, transforms and
+filters remain fixed. Relations cover primary hue/chroma, alpha-composed
+text/surface lightness, consecutive role-size ratios, spacing/radius ordering,
+label case/title tracking, and attention/primary hue distance. The beach base hue
+is checked in actual rendered color as well as candidate values.
+
+The public cap does not promise all nine dimensions within eight rounds; the test
+records the dimensions actually observed in `rendered_dimensions`. Generic/common
+system font stacks are checked for serif/sans compatibility. Unknown custom
+family names are retained as `font_genres_needing_review`, rather than guessed from
+their spelling; the typography comparison still requires different computed
+families, and supplied-font loading/use has independent coverage. No OCR is used.
+
+181 tests collect. Compilation and whitespace checks pass. Counterfactual helper
+diagnostics accept a hue-only change, reject an unrelated font-size change and
+measure a 60-degree attention offset. These diagnostics validate only the oracle,
+not the product. The non-browser run still reports 108 missing-vocabulary setup
+errors; 73 browser cases are deselected. Real M3 execution awaits the Validator.
+Logs: `/tmp/kinbase-tester-m3-rendered-collection.log` and
+`/tmp/kinbase-tester-m3-rendered.log`.
+
+M2 amendment 12 / real-site fidelity regression adds the tester-authored `cards`
+site: two pages, six distinct media/title/meta/price cards in non-alphabetical
+order, green prices (`#0b6e4f`) and rust section headings (`#a14524`).
+`test_m2_fidelity_content.py` first verifies the source preconditions, captures
+both pages, makes the source unavailable, then inspects every reconstructed pair
+through its reported `html` path and the public workbench fidelity route at
+320/768/960 CSS px. It requires each page's own heading, introduction and section;
+three real listing-card constructs in captured order with matching titles, meta,
+prices and visible media; and actual rendered accent text within configured
+ΔE2000 tolerance. Every visible text fragment must occur in that page's source,
+which rejects generic vocabulary/lorem copy without learning sample strings from
+the product. Captures must remain unchanged and later rendering must not contact
+the live source. No OCR or report palette assertion substitutes for DOM/paint.
+
+182 cases collect; syntax and whitespace checks pass. A local fixture diagnostic
+checks the six authored card tuples and local resource references; independent
+color-distance diagnostics confirm grey fails both accent tolerances. These are
+fixture/oracle checks, not product results. Non-browser execution retains 108
+missing-candidate-vocabulary setup errors, with 74 browser cases deselected.
+The new reconstruction check awaits the Validator's real-browser run. Logs:
+`/tmp/kinbase-tester-fidelity-content-collection.log` and
+`/tmp/kinbase-tester-fidelity-content.log`.

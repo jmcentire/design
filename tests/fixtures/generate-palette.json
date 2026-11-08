@@ -1,0 +1,10 @@
+{
+  "color": {
+    "$type": "color",
+    "supplied": {
+      "sea": {"$value": "#b8e4ed"},
+      "leaf": {"$value": "#c7ead1"},
+      "foam": {"$value": "#f2fcfa"}
+    }
+  }
+}

@@ -3,6 +3,8 @@ from .documents import read_document, write_document
 from copy import deepcopy
 from dataclasses import replace
 import json
+import hashlib
+import re
 from pathlib import Path
 from ..artifacts import read_artifact
 from ..artifacts.bundle import read_member
@@ -80,24 +82,71 @@ def reconstruct(library,workspace,draft_id,settings=None):
     output=inside(root,'fidelity');output.mkdir(parents=True,exist_ok=True)
     compositions={};pairs=[];private_files={};notes=[]
     assets={a.get('url'):a for a in state['assets'] if a.get('url')}
+    responsive={};inline_images={}
+    for entry in state['views']:
+        source_view=read_document(inside(root,entry['file']))
+        for candidate in source_view.get('candidates',[]):
+            if candidate.get('url') in assets:responsive.setdefault((entry['page'],candidate.get('selector')),[]).append(candidate['url'])
+            if candidate.get('inline'):inline_images[candidate['url']]=candidate['inline']
+    def reference(image,page):
+        if image['url'] in inline_images:
+            data=inline_images[image['url']]
+            if re.fullmatch(r'#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?',image.get('color') or ''):data=data.replace('currentColor',image['color'])
+            data=data.encode('utf-8')
+            try:fmt=inspect_format(data,'image')
+            except ValueError:
+                notes.append('Captured inline image is not safe for reconstruction');return None
+            name='assets/reference-'+hashlib.sha256(data).hexdigest()+'.'+fmt;private_files[name]=data
+            return {'src':name,'alt':image.get('alt','')}
+        candidate=assets.get(image['url'])
+        if not candidate and responsive.get((page,image.get('selector'))):
+            candidate=assets[responsive[page,image['selector']][0]]
+            notes.append('Responsive source image reused from another captured width: '+page)
+        if not candidate:
+            notes.append('Captured media was not downloaded; retained as a fidelity gap');return None
+        data,meta=read_artifact(workspace,candidate['artifact'])
+        try:fmt=inspect_format(data,'image')
+        except Exception as exc:
+            notes.append('Captured image unavailable for reconstruction: '+str(exc)[:150]);return None
+        name='assets/reference-'+meta['sha256']+'.'+fmt;private_files[name]=data
+        return {'src':name,'alt':image.get('alt','')}
     for index,entry in enumerate(state['views'],1):
         view=read_document(inside(root,entry['file']));instances=[]
         for original in view['instances']:
             item={k:deepcopy(original[k]) for k in ('construct','values')};item['media']={}
+            for key in ('selector','parent','box','treatment','hrefs'):
+                if key in original:item[key]=deepcopy(original[key])
+            if original.get('background_media'):item['background']=reference(original['background_media'],view['page'])
             for slot,images in original['media'].items():
-                if slot in document.get('components',{}).get(item['construct'],{}).get('assets',{}):continue
+                if slot in document.get('components',{}).get(item['construct'],{}).get('assets',{}):
+                    # Keep approved bindings visible even when no captured copy is supplied.
+                    binding=document['components'][item['construct']]['assets'][slot];asset,variant=binding.split(':')
+                    detail=document['assets'][asset]['variants'][variant]
+                    item['media'][slot]=[{'src':f'assets/{asset}-{variant}.{detail["format"]}','alt':images[0].get('alt','') if images else ''}];continue
                 for image in images:
-                    candidate=assets.get(image['url'])
-                    if candidate:
-                        data,meta=read_artifact(workspace,candidate['artifact'])
-                        try:fmt=inspect_format(data,'image')
-                        except Exception as exc:
-                            notes.append('Captured image unavailable for reconstruction: '+str(exc)[:150]);continue
-                        name='assets/reference-'+meta['sha256']+'.'+fmt;private_files[name]=data
-                        item['media'].setdefault(slot,[]).append({'src':name,'alt':image['alt']})
-                    else:notes.append('Captured media was not downloaded; retained as a fidelity gap')
+                    rendered=reference(image,view['page'])
+                    if rendered:item['media'].setdefault(slot,[]).append(rendered)
             instances.append(item)
-        filename=f'page-{index}.html';compositions[filename]={'title':view.get('title',view['page']),'instances':instances}
+        by_selector={i['selector']:i for i in instances if i.get('selector')};top=[]
+        for item in instances:
+            parent=by_selector.get(item.get('parent'))
+            if parent:parent.setdefault('children',[]).append(item)
+            else:top.append(item)
+        for item in instances:
+            measured=[child for child in item.get('children',[]) if child.get('box')]
+            if measured:
+                y=min(child['box'][1] for child in measured)
+                item['columns']=sum(abs(child['box'][1]-y)<10 for child in measured)
+        bottom=0
+        for item in top:
+            box=item.get('box')
+            if not box:continue
+            if item['construct']=='nav' and any(other.get('background') and other.get('box') and other['box'][1]<box[1]+box[3] for other in top):
+                item['geometry']={'overlay':True};continue
+            inset=max(0,min(box[0],view['width']-box[0]-box[2]))
+            item['geometry']={'inset':inset,'gap':max(0,box[1]-bottom),'height':box[3]}
+            bottom=max(bottom,box[1]+box[3])
+        filename=f'page-{index}.html';compositions[filename]={'title':view.get('title',view['page']),'instances':top,'captured':True}
         capture=f'capture-{index}.png';private_files[capture]=read_member(workspace,entry['artifact'],entry['screenshot'])
         pairs.append({'page':view['page'],'width':view['width'],'capture':capture,'html':filename,
                       'reconstruction':f'reconstruction-{index}.png','source':entry['file']})
@@ -141,7 +190,6 @@ def reconstruct(library,workspace,draft_id,settings=None):
             except Exception as exc:notes.append('Captured font unavailable: '+str(exc)[:150]);continue
             name='assets/reference-'+meta['sha256']+'.'+fmt;private_files[name]=data
             # CSS strings are encoded, never interpolated as executable declarations.
-            import re
             if not re.fullmatch(r'[\w -]+',family) or not re.fullmatch(r'\d+(?: \d+)?',key[1]) or key[2] not in {'normal','italic'}:continue
             faces.append('@font-face{font-family:'+json.dumps(family)+';src:url("'+name+'") format("'+FONT_FORMAT_HINTS[fmt]+'");font-weight:'+key[1]+';font-style:'+key[2]+'}')
     files['language.css']+=('\n'+'\n'.join(faces)).encode()

@@ -155,6 +155,8 @@ and image originals under `assets/`. Capture stdout lists only successfully capt
 unloaded pages appear in problems. Draft stdout is also saved as `drafts/<id>/summary.json`,
 including `measured` facts and a numeric question count; `questions <id>` returns the candidates.
 Fidelity writes `drafts/<id>/fidelity/report.json` with image pairs and aggregate measured facts.
+Each pair's `html` points to the reconstructed page rendered for that screenshot. The workbench
+links to it at `/ingest/drafts/<id>/fidelity/<file>`, serving its adjacent stylesheet and assets.
 
 Optional settings in the current directory's `kinbase-design.toml` apply to CLI and workbench:
 
@@ -187,6 +189,10 @@ reconstruction screenshots at the captured widths and reports measured colour di
 matches, type ratios and spacing. This is an approximation constrained by the vocabulary and
 closed property set; the comparison exposes its gaps. Draft previews and fidelity rendering
 use the existing validator, and promoted draft assets use the existing promotion operation.
+Captured compositions recover content and repeated groups from the saved DOM, leave unobserved
+slots empty, and retain measured context as references to draft tokens. These contexts pass
+through the same validator and resolver. Responsive source-image substitutions are reported;
+saved inline SVGs pass the ordinary asset safety checks before private rendering.
 Captured originals are offered for promotion, never automatically approved. Saving copies the
 working language and approved assets into the library; shared provenance keeps opaque source
 ids and safe selectors/JSON pointers, with private URLs and filesystem locations removed.

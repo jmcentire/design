@@ -7,7 +7,7 @@ import re
 from ..config import INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig
 from ..checks.math import effective_background
 from ..findings import pointer
-from ..language.properties import KEYWORDS, SPACE_PROPERTIES
+from ..language.properties import KEYWORDS, SPACE_PROPERTIES, CONTROL_TEXT_PROPERTIES
 from ..language.tokens import Tokens, normalize
 from ..vocabulary import slot_map
 from .mapping import map_view
@@ -96,7 +96,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
     for entry in facts['palette']:color_token(entry['value'])
     for size in facts['type_scale']:token('dimension',f'{size:g}px')
     for view in sorted(sources['views'],key=lambda v:v['width']):
-        mappings.append({**view,**map_view(view,vocabulary,suggestions)})
+        mappings.append({**{k:v for k,v in view.items() if k!='structure'},**map_view(view,vocabulary,suggestions)})
     body=next((n for v in mappings for n in v['nodes'] if n['tag']=='body'),None)
     body_style={**body.get('styles',{}),**body.get('normalized_colors',{})} if body else {}
     foreground=body_style.get('color') or (facts['palette'][0]['value'] if facts['palette'] else '#222222')
@@ -109,7 +109,9 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
     base={'color':color_token(foreground) or color_token('#222222'),'surface':color_token(surface) or color_token('#ffffff'),'font-family':token('fontFamily',family),
           'font-size':token('dimension',f'{base_size:g}px'),'font-weight':token('fontWeight',400),'line-height':token('number',1.5)}
     base={k:v for k,v in base.items() if v is not None}
-    def origin(view,node,prop):return source(view['artifact'],'selector:'+node['selector']+'; '+prop+'; '+view['page']+'@'+str(view['width']))
+    def origin(view,node,prop):
+        evidence=source(view['artifact'],'selector:'+node.get('style_inferred_from',node['selector'])+'; '+prop+'; '+view['page']+'@'+str(view['width']))
+        return {'kind':'inferred','method':'Style from matching repeated DOM structure or inherited text','inputs':[evidence]} if node.get('style_inferred_from') else evidence
     def properties(view,node,root=False):
         style={**node.get('styles',{}),**node.get('normalized_colors',{})};result={}
         for prop,raw in style.items():
@@ -132,7 +134,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                   or prop=='width' and node['tag'] in {'img','svg'}) and px(raw) is not None:
                 prop={'border-top-width':'border-width','border-top-left-radius':'border-radius'}.get(prop,prop)
                 number=px(raw)
-                if prop=='border-radius' and full_radius(number,node.get('box',())):
+                if prop=='border-radius' and full_radius(number,node.get('box') or ()):
                     document['style'].setdefault(group,{})['full-radius']={'$type':'dimension','$value':f'{INGEST_FULL_RADIUS_PX}px'}
                     result[prop]='{'+group+'.full-radius}'
                     provenance[pointer('style',group,'full-radius')]={'kind':'inferred','method':'Full/pill radius normalized from computed radius and element box','inputs':[where]}
@@ -209,8 +211,17 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
     for view in mappings:
         for item in view['instances']:
             scope=item['construct']
-            if item.get('root_node'):treatments.setdefault((scope,view['width']),properties(view,item['root_node'],True))
-            for slot,node in item['nodes'].items():treatments.setdefault((scope+'.'+slot,view['width']),properties(view,node))
+            item['treatment']={'properties':properties(view,item['root_node'],True) if item.get('root_node') else {},'slots':{}}
+            if item.get('root_node'):treatments.setdefault((scope,view['width']),item['treatment']['properties'])
+            for slot,node in item['nodes'].items():
+                props=properties(view,node)
+                # A media slot wraps an image; its captured fixed pixel width is
+                # not a portable text-column width in the reconstruction.
+                definition=slot_map(vocabulary['constructs'][scope])[slot]
+                if definition['kind']=='media' and definition.get('asset_kind')!='logo':props.pop('width',None)
+                if slot=='links':props={k:v for k,v in props.items() if k in CONTROL_TEXT_PROPERTIES}
+                item['treatment']['slots'][slot]={'properties':props}
+                treatments.setdefault((scope+'.'+slot,view['width']),props)
         if view['unmapped']:notes.append({'rule':'ingest-mapping','message':f'{view["page"]}@{view["width"]}: {len(view["unmapped"])} elements have no matching Vocabulary slot','locations':view['unmapped']})
     for scope in sorted({scope for scope,width in treatments}):
         prior={}
