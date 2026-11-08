@@ -13,7 +13,7 @@ from playwright.sync_api import expect
 
 from tests.browser_support import link_at
 from tests.m2_support import assert_provenance, assert_valid_draft, read_json, scalar_leaves
-from tests.m3_support import BEACH, candidate_directory, log_bytes, log_records
+from tests.m3_support import BEACH, candidate_directory, candidate_library, log_bytes, log_records
 from tests.test_m2_workbench import activate, submit, visible
 from tests.test_versions_assets import expected_hash
 
@@ -36,7 +36,8 @@ def inspect_materialized_swatches(library, session_root, seen):
             continue
         candidate_directory(library, session_root.name, {
             "hash": directory.name, "preview": str(directory.relative_to(library.workspace))})
-        assert_valid_draft(library, read_json(directory / "working.json"), directory)
+        isolated, document = candidate_library(library, directory)
+        isolated.validate(document["id"], accepted=True)
         seen.add(directory)
 
 

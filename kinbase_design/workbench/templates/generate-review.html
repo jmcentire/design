@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% block content %}
+<p>Current standards: unknown. Kinbase is not connected; no authoritative standards are applied.</p>
 <h1>Review your language</h1><nav class="actions"><a href="/generate/{{ state.id }}/pair">Revise choices</a><a href="/generate/{{ state.id }}/moodboard">Mood board</a></nav>
 {% if result %}<h2>{{ result.draft }}</h2><p>Current standards: {{ result.standards }}</p><p>Rendered checks: {{ result.generation.check_status }}. {% if result.checks_complete %}Accepted: {{ result.accepted }}. Unresolved review items: {{ result.needs_review }}.{% else %}Acceptance has not been established by rendered checks.{% endif %}</p>
 {% if result.generation.error %}<p class="error">{{ result.generation.error }}</p>{% endif %}

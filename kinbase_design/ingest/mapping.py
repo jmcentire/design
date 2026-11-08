@@ -3,8 +3,9 @@ import re
 from urllib.parse import urljoin
 from ..artifacts.capture import public_url
 from ..vocabulary import slot_map
-from .flow import long_form,split_flow,block,inline_role
-from .presentation import visible_text,chroma,repeated_candidate,card_slots,clipped_media
+from .arrangement import groups
+from .flow import long_form,split_flow,block,inline_role,level
+from .presentation import visible_text,chroma,repeated_candidate,card_slots,clipped_media,heading
 
 
 def semantic_role(node):
@@ -40,8 +41,9 @@ def map_view(view,vocabulary,suggestions=()):
     for node in nodes:children.setdefault(node.get('parent'),[]).append(node)
     descendants=lambda root:[n for n in nodes if n['selector'].startswith(root['selector']+' > ')]
     roots={};assignments=[];unmapped=[]
-    def add(node,kind):
+    def add(node,kind,group=None):
         roots[node['selector']]={'construct':kind,'selector':node['selector'],'values':{},'media':{},'nodes':{},'root_node':node}
+        if group:roots[node['selector']]['group']=group
     def landmark_content(node):
         parent=by.get(node.get('parent'))
         while parent:
@@ -61,7 +63,7 @@ def map_view(view,vocabulary,suggestions=()):
     # Media-only carousel frames do not meet the text/grouping criteria.
     for parent,peers in sorted(repeated.items(),key=lambda pair:len(pair[0] or ''),reverse=True):
         for node in peers:
-            if not any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):add(node,'card')
+            if not any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):add(node,'card',parent)
     for node in nodes:
         if construct_for(node)!='card' or long_form(node,descendants(node)):continue
         if any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):continue
@@ -132,6 +134,9 @@ def map_view(view,vocabulary,suggestions=()):
             for segment in segments:
                 item.setdefault('fragments',{}).setdefault(slot,[]).append({**segment,'block':block(node,by),'href':href_for(node),'node':node})
         spec=slot_map(vocabulary['constructs'][item['construct']])[slot]
+        if re.fullmatch('h[1-6]',spec.get('element','')):
+            source_heading=heading(node,by)
+            if source_heading:item.setdefault('heading_levels',{})[slot]=level(by[source_heading])
         assignments.append({'selector':node['selector'],'construct':item['construct'],'slot':slot,'role':spec['role'],'emphasis':spec['emphasis']})
     owned={key:[] for key,item in roots.items() if item['construct']=='card'}
     for node in nodes:
@@ -152,6 +157,7 @@ def map_view(view,vocabulary,suggestions=()):
             if clipped_media(node,by):continue
             slot=next((s for s,d in slots.items() if d['kind']=='media'),None)
             image={'url':node['src'],'alt':node.get('attributes',{}).get('alt',''),'selector':node['selector']}
+            if node.get('box') and node['box'][3]>0:image['aspect_ratio']=node['box'][2]/node['box'][3]
             if slot:
                 # Keep each visible source image once; offscreen carousel frames remain in the capture.
                 box=node.get('box');root_box=item['root_node'].get('box')
@@ -232,4 +238,4 @@ def map_view(view,vocabulary,suggestions=()):
         parents=[p for p in ordered if item['selector'].startswith(p['selector']+' > ') and p['construct']!='card']
         item['parent']=flow_parents.get(item['selector']) or (max(parents,key=lambda p:len(p['selector']))['selector'] if parents else None)
         while item['parent'] and item['parent'] not in available:item['parent']=flow_parents.get(item['parent'])
-    return {'instances':ordered,'assignments':assignments,'unmapped':unmapped}
+    return {'instances':ordered,'groups':groups(ordered,by),'assignments':assignments,'unmapped':unmapped}

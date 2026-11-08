@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 from jinja2 import Environment, select_autoescape
 from markupsafe import Markup
 from ..vocabulary import slot_map
+from ..config import INGEST_MAX_COLUMNS
 from ..language.variants import SLOT, Template
 from ..language.resolver import resolve
 from .styles import declaration
@@ -31,6 +32,11 @@ def captured_href(value):
     except ValueError:return None
 
 
+def geometry_style(geometry):
+    if geometry.get('overlay'):return 'position:absolute;inset:0 0 auto;z-index:2'
+    return ';'.join(f'{prop}:{max(0,float(geometry[key])):g}px' for key,prop in [('inset','margin-inline'),('gap','margin-top'),('height','min-height')] if key in geometry)
+
+
 class SampleRenderer:
     def __init__(self, document, vocabulary, samples):
         self.document, self.vocabulary, self.samples = document, vocabulary, samples
@@ -40,7 +46,7 @@ class SampleRenderer:
     def links(self):
         return ''.join(element('a', {'href':file}, escape(label)) for file, label in self.context['pages'].items())
 
-    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None):
+    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None,heading_level=None):
         name, role, emphasis = definition['id'], definition['role'], definition['emphasis']
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
         if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
@@ -50,11 +56,12 @@ class SampleRenderer:
             attrs['data-kd-asset'] = binding
         copy = str(values.get(name, '' if icon else self.context['copy'][role]))
         tag = definition['element']
+        if re.fullmatch('h[1-6]',tag) and type(heading_level) is int and 1<=heading_level<=6:tag='h'+str(heading_level)
         if icon and icon.get('element') in {'a','button'}:tag=icon['element']
         if definition['kind'] == 'media':
             image = None
             if media and name in media:
-                image = ''.join(element('img', {'src':item['src'],'alt':item.get('alt',''),'loading':'eager'}) for item in media[name])
+                image = ''.join(element('img', {'src':item['src'],'alt':item.get('alt',''),'loading':'eager','style':f'aspect-ratio:{float(item["aspect_ratio"]):g}' if item.get('aspect_ratio') else None}) for item in media[name])
             elif binding and not missing_image:
                 asset, variant = binding.split(':')
                 detail = self.document['assets'][asset]['variants'][variant]
@@ -116,11 +123,11 @@ class SampleRenderer:
         if not fragments and tag!='a' and hrefs is not None and (href:=captured_href(hrefs.get(name))):content=element('a',{'href':href},content)
         return element(tag, attrs, content)
 
-    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False):
+    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False,heading_levels=None):
         self.sequence += 1
         contract = self.vocabulary['constructs'][construct]
         copy = dict(values or {}) if captured else {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
-        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name)) if not captured or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
+        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name) if captured else None) if not captured or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
                  for name, definition in slot_map(contract).items()}
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
@@ -128,9 +135,7 @@ class SampleRenderer:
         if flow:attrs['data-kd-flow']='true'
         if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct)['properties'])
         if geometry:
-            if geometry.get('overlay'):layout='position:absolute;inset:0 0 auto;z-index:2'
-            else:layout=';'.join(f'{prop}:{max(0,float(geometry[key])):g}px' for key,prop in [('inset','margin-inline'),('gap','margin-top'),('height','min-height')] if key in geometry)
-            attrs['style']=attrs.get('style','')+';'+layout
+            attrs['style']=attrs.get('style','')+';'+geometry_style(geometry)
         backdrop=''
         if background:
             attrs['data-kd-backdrop']='true'
@@ -158,10 +163,14 @@ class SampleRenderer:
         self.sequence=0
         def render(item):
             children=''.join(render(child) for child in item.get('children',[]))
+            if item.get('group') is True:
+                layout=item['layout'];style=f'width:auto;--kd-columns:{int(layout["columns"])};'+geometry_style(item.get('geometry',{}))
+                style+=';'+ ';'.join(f'{prop}:{max(0,float(layout[prop])):g}px' for prop in ('row-gap','column-gap') if prop in layout)
+                return element('div',{'class':'kd-captured-children','data-kd-group':item['selector'],'style':style},children)
             if children:
-                columns=max(1,min(12,int(item.get('columns',1))))
+                columns=max(1,min(INGEST_MAX_COLUMNS,int(item.get('columns',1))))
                 children=element('div',{'class':'kd-captured-children','style':f'--kd-columns:{columns}'},children)
-            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False))
+            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'))
         content=''.join(render(item) for item in page['instances'])
         env=Environment(autoescape=select_autoescape(default_for_string=True))
         body_style=f'--kd-captured-space:{max(0,float(page["spacing_base"])):g}px' if page.get('captured') and 'spacing_base' in page else ''

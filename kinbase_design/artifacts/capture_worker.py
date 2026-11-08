@@ -13,6 +13,7 @@ from ..storage import read_json
 from . import import_bytes
 from .capture import public_url, media_widths, anonymous_headers
 from .capture_output import publish_capture
+from .media_ready import prepare_media
 from .runtime import async_chromium, watch_parent, read_job
 
 
@@ -108,9 +109,11 @@ async def collect(job):
                 try:
                     response=await page.goto(url,wait_until='domcontentloaded',timeout=timeout_ms)
                     if response and response.status>=400:problems.append({'page':page_id,'width':width,'message':f'HTTP {response.status}'})
-                    await page.evaluate('''async timeout=>{for(const image of document.images)image.loading='eager';await Promise.race([Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]),new Promise(resolve=>setTimeout(resolve,timeout))]);}''',timeout_ms)
+                    readiness=await prepare_media(page,timeout_ms)
                     properties=sorted((TOKEN_PROPERTIES.keys()|KEYWORDS.keys()|{'padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','border-top-width','border-top-color','border-top-left-radius','row-gap','column-gap','position','grid-template-columns','box-shadow'})-{'surface'})
                     data=await page.evaluate(Path(__file__).with_name('capture.js').read_text(),{'properties':properties,'maxNodes':CAPTURE_MAX_NODES,'maxText':CAPTURE_MAX_TEXT})
+                    data['stats']['media_readiness']=readiness['stats']
+                    data['notes'].extend(readiness['notes']);data['problems'].extend(readiness['problems'])
                     prefix=f'{page_id}/{width}'
                     dom=(await page.content()).encode()
                     if len(dom)>MAX_UPLOAD_BYTES:

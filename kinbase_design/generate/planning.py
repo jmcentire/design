@@ -26,7 +26,7 @@ def pair(library,workspace,session):
     basis=[c['id'] for c in log]
     pending=[p for key,p in state['pairs'].items() if key not in answered and p.get('basis')==basis]
     if pending:return pending[-1]
-    if len(state['pairs'])>=state['settings']['round_cap'] or not preferences['unsettled']:return {'done':True}
+    if len(answered)>=state['settings']['round_cap'] or not preferences['unsettled']:return {'done':True}
     remaining=[d for d in preferences['unsettled'] if not exhausted(d,rejected(state,log,d))]
     retry=[]
     if log and log[-1]['choice']=='neither':
@@ -35,7 +35,7 @@ def pair(library,workspace,session):
     if not dims:return {'done':True}
     values=baseline(workspace,session);a=deepcopy(values);b=deepcopy(values)
     for d in dims:a[d],b[d]=alternatives(d,values[d],rejected(state,log,d))
-    result={'pair':new_id('pair'),'round':len(state['pairs'])+1,'dimensions':dims,
+    result={'pair':new_id('pair'),'round':len(answered)+1,'dimensions':dims,
             'basis':basis,
             'a':materialize(library,workspace,state,a),'b':materialize(library,workspace,state,b)}
     state['pairs'][result['pair']]=result;write(workspace,state)

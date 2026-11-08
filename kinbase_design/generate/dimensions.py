@@ -47,7 +47,12 @@ def alternatives(d,center,rejected=()):
     """Grow rejected intervals, then offer the full domain without cycling forever."""
     if d=='type-pairing':
         used={v for pair in rejected for v in pair};available=[v for v in DOMAINS[d] if v not in used]
-        if len(available)<2:available=list(DOMAINS[d])
+        if len(available)<2:
+            # With an odd-sized domain, pair its final unseen value with an
+            # earlier value, avoiding the immediately rejected pair if possible.
+            last=set(rejected[-1]) if rejected else set()
+            available += [v for v in DOMAINS[d] if v not in available and v not in last]
+            available += [v for v in DOMAINS[d] if v not in available]
         if not rejected:available=[center]+[v for v in available if v!=center]
         return available[:2]
     lo,hi=DOMAINS[d];maximum=180 if d=='hue-family' else hi-lo
@@ -61,6 +66,6 @@ def alternatives(d,center,rejected=()):
 
 def exhausted(d,rejected):
     if not rejected:return False
-    if d=='type-pairing':return len({v for pair in rejected for v in pair})>=len(DOMAINS[d])-1
+    if d=='type-pairing':return len({v for pair in rejected for v in pair})>=len(DOMAINS[d])
     maximum=180 if d=='hue-family' else DOMAINS[d][1]-DOMAINS[d][0]
     return any(distance(d,*pair)>=maximum-1e-7 for pair in rejected)

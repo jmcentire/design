@@ -13,6 +13,9 @@ from .theory import language
 def materialize(library,workspace,state,values):
     document,_,_=language('candidate',load(library),values,state['resources'])
     version=digest(document);target=inside(folder(workspace,state['id']),'candidates',version)
+    # Preview URLs and package paths serve different consumers. Keep both, also
+    # repairing cached candidates created before package assets were materialized.
+    shutil.copytree(inside(folder(workspace,state['id']),'assets'),inside(target,'assets'),dirs_exist_ok=True)
     if not (target/'sample.html').exists() or not (target/'swatch.html').exists():
         with TemporaryDirectory(prefix='kinbase-candidate-') as temporary:
             stage=Path(temporary);shutil.copytree(inside(library,'vocabulary'),stage/'vocabulary')

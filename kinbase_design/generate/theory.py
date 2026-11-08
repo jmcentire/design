@@ -30,14 +30,16 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     def put(group,name,kind,value,dimension=None):
         doc['style'].setdefault(group,{})[name]=token(kind,value)
         path=pointer('style',group,name)
-        if dimension:owners[path]=dimension
-        if dimension in preferences:
-            provenance[path]={'kind':'chosen','choice':preferences[dimension]['choices'][-1]}
+        dimensions=(dimension,) if isinstance(dimension,str) else dimension or ()
+        if dimensions:owners[path]=list(dimensions)
+        decisions=list(dict.fromkeys(choice for d in dimensions if d in preferences for choice in preferences[d]['choices']))
+        if decisions:
+            provenance[path]={'kind':'chosen','choice':decisions[-1],'choices':decisions}
         return '{'+group+'.'+name+'}'
     hue=values['hue-family'];sat=.25+.7*values['saturation']
-    primary=put('color','primary','color',hsl(hue,sat,.22),'hue-family')
-    attention=put('color','attention','color',hsl(hue+140*values['whimsy'],sat,.22),'whimsy')
-    wash=put('color','wash','color',hsl(hue,sat*.25,.97),'hue-family')
+    primary=put('color','primary','color',hsl(hue,sat,.22),('hue-family','saturation'))
+    attention=put('color','attention','color',hsl(hue+140*values['whimsy'],sat,.22),('hue-family','saturation','whimsy'))
+    wash=put('color','wash','color',hsl(hue,sat*.25,.97),('hue-family','saturation'))
     ink=round(80-64*values['value-contrast'])
     foreground=put('color','ink','color','#'+f'{ink:02x}'*3,'value-contrast')
     paper=put('color','paper','color','#ffffff')
@@ -54,7 +56,8 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             return value
         # Rebase references into their source namespace; literal supplied values stay exact.
         doc['style'][group]=namespace(tree)
-        provenance[pointer('style',group)]=source(item['artifact'],'json:')
+        source_prefix='member:'+item['location']+'#' if item.get('location') else 'json:'
+        provenance[pointer('style',group)]=source(item['artifact'],source_prefix if item.get('location') else 'page:original')
         tokens=Tokens(tree)
         for name in tokens.nodes:
             kind,value=tokens.evaluate(name)
@@ -63,7 +66,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
                 # routed tokens preserve their original literal/evaluated colour separately.
                 node=tokens.nodes[name]
                 ref=put('palette','p'+str(len(palette_refs)),'color',node['$value'] if not isinstance(node['$value'],str) or not node['$value'].startswith('{') else value)
-                provenance[pointer('style','palette','p'+str(len(palette_refs)))]=source(item['artifact'],'json:/'+name.replace('.','/'))
+                provenance[pointer('style','palette','p'+str(len(palette_refs)))]=source(item['artifact'],source_prefix+pointer(*name.split('.')))
                 palette_refs.append(ref)
     families=PAIRINGS[values['type-pairing']]
     title_family=put('font','title','fontFamily',families[0],'type-pairing')
@@ -72,7 +75,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     if supplied_font:
         body_family=put('font','supplied','fontFamily',[supplied_font['family'],'sans-serif'])
         doc['style']['font']['supplied']['$extensions']={'kinbase-design':{'asset':supplied_font['asset']}}
-        provenance['/style/font/supplied']=source(supplied_font['artifact'],'json:')
+        provenance['/style/font/supplied']=source(supplied_font['artifact'],'page:original')
     regular=put('font','regular','fontWeight',supplied_font['weight'] if supplied_font else 400)
     strong=put('font','strong','fontWeight',600)
     ratio=values['type-scale'];sizes={}
@@ -111,7 +114,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             if slot['kind']=='action' and slot['element']!='div':
                 props={'padding':spacing['base'],'border-radius':radius}
                 if slot['element']=='button':props.update({'background-color':primary,'color':paper,'border-style':'solid','border-color':primary,'border-width':line_width})
-            if slot['kind']=='control' and slot['element']=='label':
+            if slot['kind']=='control' and slot['element'] in {'label','input','select','textarea','button'}:
                 props={'border-radius':radius,'border-style':'solid','border-color':border,'border-width':line_width,
                        'background-color':paper,'padding':spacing['base']}
             if slot.get('asset_kind'):
@@ -133,5 +136,5 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             comp=doc['components'][construct];comp['properties']['background-color']=ref
             for slot in vocabulary['constructs'][construct]['slots']:
                 comp['slots'].setdefault(slot['id'],{}).setdefault('properties',{}).update(color=foreground_ref)
-    for asset,artifact in resources.get('origins',{}).items():provenance[pointer('assets',asset)]=source(artifact,'json:')
+    for asset,artifact in resources.get('origins',{}).items():provenance[pointer('assets',asset)]=source(artifact,'page:original')
     return doc,complete(doc,provenance,[]),owners

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}{% block content %}
+<p>Current standards: unknown. Kinbase is not connected; no authoritative standards are applied.</p>
 <h1>A visual starting point</h1><p class="lede">{{ state.brief }}</p><p>Choose the specimens that feel right. These are starting preferences; A/B choices can revise them.</p>
 <form method="post" action="/generate/{{ state.id }}/interview">
 {% for question in questions %}<fieldset class="panel"><legend>{{ question.dimension|replace('-',' ')|title }}</legend><div class="generate-options">

@@ -146,6 +146,8 @@ python -m kinbase_design save-draft my-language
 Capture uses fresh Chromium and unauthenticated request contexts. It accepts internet, loopback
 and private-network HTTP(S) URLs, refuses embedded credentials and other URL schemes, strips
 cookies/auth headers and Set-Cookie responses, and blocks non-read requests and WebSockets.
+Capture scrolls through the page to activate lazy media, waits within configured time/step bounds,
+and restores the starting position before sampling. Unloaded images remain explicit capture problems.
 Discovered media-query widths are added within configured bounds. It stores DOM originals, sampled computed styles, screenshots, font faces
 and candidate asset originals. Later operations read those immutable artifacts and never visit
 the live site. A missing Chromium installation or launch failure returns exit 2 clearly.
@@ -197,6 +199,7 @@ closed property set; the comparison exposes its gaps. Draft previews and fidelit
 use the existing validator, and promoted draft assets use the existing promotion operation.
 Long-form pages retain heading-led sections, ordered prose and media, and inline link/accent
 fragments. These use structure and presentation signals, including for blogs and travel guides.
+Repeated-group containers retain measured columns and row/column gaps at each captured width.
 Captured compositions recover content and repeated groups from the saved DOM, leave unobserved
 slots empty, and retain measured context as references to draft tokens. These contexts pass
 through the same validator and resolver. Responsive source-image substitutions are reported;
@@ -251,6 +254,9 @@ at greater distances until their domain is exhausted, then moves on. Interview a
 mood-board directions provide priors; A/B choices take precedence. Candidate directories hold
 `working.json`, `sample.html`, `swatch.html`, the normal sample pages, CSS and packaged assets.
 The workbench serves these at `/generate/<session>/candidates/<hash>/<file>`.
+Candidates include the manifest’s `assets/sha256/` package files as well as preview URLs, so
+the directory can be copied to `languages/<working.json id>/` in another library. The round
+cap counts answered pairs; replacing an unanswered pair after a revision consumes no round.
 
 ```toml
 [generate]

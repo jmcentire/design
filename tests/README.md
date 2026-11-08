@@ -587,3 +587,46 @@ absence of commerce signals. Non-browser execution remains blocked by the absent
 candidate `library/vocabulary`: 109 setup errors, 77 browser cases deselected.
 Real browser checks await the Validator. Logs:
 `/tmp/kinbase-tester-guide-collection.log`, `/tmp/kinbase-tester-guide.log`.
+
+M3 amendment 14 extends every observed materialized candidate check to require
+the manifest's `assets/sha256/<hex>` files within that candidate directory, with
+independently computed SHA-256 matching the declared name. Existing rendered-pair
+and interview-swatch validation now copies the whole directory unchanged into a
+separate library with a fresh workspace, rather than sharing session originals.
+A focused supplied-logo/font case copies both A/B candidates, removes the external
+originals and moves the session workspace out of reach, then runs public validate
+and build-preview on each copy. The rebuilt pages must actually load/use the
+supplied font and visibly render the logo. This catches candidates that work only
+while their generating session exists, or include preview URLs but omit the
+content-addressed package files. All process and browser waits remain bounded.
+
+187 cases collect; compilation and whitespace checks pass. Non-browser execution
+still has 109 setup errors from absent candidate `library/vocabulary`, with 78
+browser cases deselected. The candidate portability and rendering assertions await
+the Validator. Logs: `/tmp/kinbase-tester-portable-collection.log` and
+`/tmp/kinbase-tester-portable.log`.
+
+The Validator's lazy-media/grid regressions add `test_m2_lazy_grid.py` and a
+generic visual-journal fixture under `sites/lazy/`. Six individually colored SVG
+originals sit below a 5000px introduction, with native `loading="lazy"` and a
+separate IntersectionObserver/placeholder version. A separate JS-enabled source
+browser scrolls each image into view with bounded waits and independently verifies
+its decoded pixels and card positions. Product capture starts in its own browser;
+the test's scrolling/cache cannot prepare that session for it.
+
+Capture must offer all six originals and its full-page screenshots must paint
+their known colors at the independently observed source image centers. At every
+captured width, including 390, 768 and 1280, the offline reconstruction must retain
+one construct per source group, source order, decoded/visible media and its painted
+colors. Card boxes must retain the source row membership (six single-card rows
+below 768; two three-card rows above), allowing 2 CSS px of fractional alignment
+rounding and rejecting overlapping columns/rows. Exact sizes or layout mechanisms
+are not prescribed. The source is unavailable throughout drafting and fidelity.
+
+189 cases collect; compilation and whitespace checks pass. Local fixture/oracle
+diagnostics verify all media bindings, local references and authored content,
+distinguish wide/narrow row arrangements, and reject the grey placeholder. These
+are diagnostics, not product/browser evidence. Non-browser execution remains
+blocked by missing `library/vocabulary` (109 setup errors; 80 browser cases
+deselected). Validator browser execution remains required. Logs:
+`/tmp/kinbase-tester-lazy-grid-collection.log`, `/tmp/kinbase-tester-lazy-grid.log`.

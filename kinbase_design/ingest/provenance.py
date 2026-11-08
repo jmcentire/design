@@ -74,8 +74,11 @@ def shared(provenance):
         elif location.startswith(('selector:','page:')):
             value=location.split(':',1)[1]
             if not any(s in value for s in ('://','\\','/')):item['location']=value
+        if entry['kind']=='source':item.setdefault('location','')  # The artifact root, when a private location is redacted.
         if entry['kind']=='inferred':item['method']='Derived from design evidence and Vocabulary defaults'
-        if entry['kind']=='chosen':item['method']='Visual choice '+re.sub('[^a-zA-Z0-9_-]','',entry.get('choice',''))
+        if entry['kind']=='chosen':
+            choices=entry.get('choices') or [entry.get('choice','')]
+            item['method']='Visual choice '+', '.join(re.sub('[^a-zA-Z0-9_-]','',choice) for choice in choices)
         result[path]=item
     return result
 

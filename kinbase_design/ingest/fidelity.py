@@ -10,7 +10,7 @@ from ..artifacts import read_artifact
 from ..artifacts.bundle import read_member
 from ..artifacts.runtime import run_job
 from ..assets import inspect_format
-from ..config import IngestConfig, ingest_config, INGEST_FULL_RADIUS_PX
+from ..config import IngestConfig, ingest_config, INGEST_FULL_RADIUS_PX, INGEST_ROW_TOLERANCE_PX
 from ..findings import Finding,report,pointer,location
 from ..language.versions import digest
 from ..language.tokens import Tokens
@@ -20,6 +20,7 @@ from ..storage import inside
 from .staging import folder,load_draft,stage
 from .quantize import measurements,delta_e,color_distance_key
 from .reporting import fidelity_facts
+from .arrangement import compose
 
 
 def compare(source,reconstructed,settings=None,draft_palette=None):
@@ -114,7 +115,7 @@ def reconstruct(library,workspace,draft_id,settings=None):
         view=read_document(inside(root,entry['file']));instances=[]
         for original in view['instances']:
             item={k:deepcopy(original[k]) for k in ('construct','values')};item['media']={}
-            for key in ('selector','parent','box','treatment','hrefs','accessible_names','fragments','flow'):
+            for key in ('selector','parent','box','treatment','hrefs','accessible_names','fragments','flow','heading_levels'):
                 if key in original:item[key]=deepcopy(original[key])
             item['action_icons']={}
             for slot,icon in original.get('action_icons',{}).items():
@@ -134,23 +135,21 @@ def reconstruct(library,workspace,draft_id,settings=None):
                     item['media'][slot]=[{'src':f'assets/{asset}-{variant}.{detail["format"]}','alt':images[0].get('alt','') if images else ''}];continue
                 for image in images:
                     rendered=reference(image,view['page'])
-                    if rendered:item['media'].setdefault(slot,[]).append(rendered)
+                    if rendered:
+                        if image.get('aspect_ratio'):rendered['aspect_ratio']=image['aspect_ratio']
+                        item['media'].setdefault(slot,[]).append(rendered)
             instances.append(item)
-        by_selector={i['selector']:i for i in instances if i.get('selector')};top=[]
-        for item in instances:
-            parent=by_selector.get(item.get('parent'))
-            if parent:parent.setdefault('children',[]).append(item)
-            else:top.append(item)
+        top=compose(instances,view.get('groups',[]))
         for item in instances:
             measured=[child for child in item.get('children',[]) if child.get('box')]
             if measured and not item.get('flow'):
                 y=min(child['box'][1] for child in measured)
-                item['columns']=sum(abs(child['box'][1]-y)<10 for child in measured)
+                item['columns']=sum(abs(child['box'][1]-y)<=INGEST_ROW_TOLERANCE_PX for child in measured)
         bottom=0
         for item in top:
             box=item.get('box')
             if not box:continue
-            if item['construct']=='nav' and any(other.get('background') and other.get('box') and other['box'][1]<box[1]+box[3] for other in top):
+            if item.get('construct')=='nav' and any(other.get('background') and other.get('box') and other['box'][1]<box[1]+box[3] for other in top):
                 item['geometry']={'overlay':True};continue
             inset=max(0,min(box[0],view['width']-box[0]-box[2]))
             item['geometry']={'inset':inset,'gap':max(0,box[1]-bottom),'height':box[3]}

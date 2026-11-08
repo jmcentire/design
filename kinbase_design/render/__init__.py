@@ -44,6 +44,8 @@ def preview_files(library, language_id, compositions=None):
             return local
         def contexts(items):
             for item in items:
+                if item.get('group') is True:
+                    contexts(item.get('children',[]));continue
                 component=item['construct']
                 if 'treatment' in item:item['resolved_context']=context(component,item['treatment'])
                 for slot,fragments in item.get('fragments',{}).items():

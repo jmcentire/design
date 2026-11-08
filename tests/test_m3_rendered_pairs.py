@@ -7,15 +7,16 @@ color/spacing/shape choices. No candidate implementation or resolver is the orac
 
 import hashlib
 from io import BytesIO
+import shutil
 
 import pytest
 from PIL import Image
 
-from tests.m2_support import assert_valid_draft, read_json
 from tests.m3_render_support import (assert_dimension_effects, assert_formality, assert_known_font_genres, hsl,
                                      paint_snapshot, primary)
-from tests.m3_support import BEACH, candidate_directory, choose, pair, settled, start
+from tests.m3_support import BEACH, candidate_directory, candidate_library, choose, pair, settled, start
 from tests.test_m1_design import solid_background
+from tests.test_m3_derive import source_assets, supplied_sources
 
 pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(600)]
 
@@ -37,8 +38,8 @@ def same_default_bindings(first, second):
 
 def observe_candidate(library, server, page, session, candidate, tmp_path):
     root = candidate_directory(library, session, candidate)
-    document = read_json(root / "working.json")
-    assert_valid_draft(library, document, root)
+    isolated, document = candidate_library(library, root)
+    isolated.validate(document["id"], accepted=True)
     url = f'{server}/generate/{session}/candidates/{candidate["hash"]}/sample.html'
     response = page.goto(url)
     assert response and response.ok and response.body() == (root / "sample.html").read_bytes()
@@ -96,3 +97,41 @@ def test_all_offered_pairs_render_same_screen_with_only_advertised_dimension_eff
     record_property("rendered_dimensions", ",".join(sorted(observed_dimensions)))
     record_property("font_genres_needing_review", ",".join(sorted(unclassified_families)))
     assert pair(library, session, root)["done"] is True
+
+
+def test_asset_bearing_candidates_validate_and_rebuild_without_original_workspace(library, tmp_path, page):
+    """Amendment 14: a copied language must not depend on session-private originals."""
+    originals = tmp_path / "portable-supplied"
+    sources = supplied_sources(library, originals)
+    session, session_root, _ = start(library, BEACH, [source["artifact"] for source in sources.values()])
+    offered = pair(library, session, session_root)
+    assert not offered.get("done"), "No rendered choices for the supplied design constraints"
+    copies = []
+    for side in ("a", "b"):
+        directory = candidate_directory(library, session, offered[side])
+        case, document = candidate_library(library, directory)
+        source_assets(case.path(document["id"]).parent, document, sources)
+        copies.append((side, case, document))
+    # Only this test's temporary inputs are moved/removed. Public validation and
+    # rebuild use a new workspace with no session/artifact history to fall back on.
+    shutil.rmtree(originals)
+    unavailable = tmp_path / "unavailable-session-workspace"
+    library.workspace.rename(unavailable)
+    try:
+        for side, case, document in copies:
+            case.validate(document["id"], accepted=True)
+            preview = case.build(tmp_path / ("portable-preview-" + side), document["id"])
+            page.goto((preview / "index.html").as_uri())
+            page.wait_for_function("document.fonts.status === 'loaded'", timeout=5000)
+            assert page.evaluate("document.fonts.check('16px \"Fixture Sans\"')")
+            assert page.locator("[data-kd-slot]").evaluate_all("""els => els.some(e =>
+              e.textContent.trim() && getComputedStyle(e).fontFamily.includes('Fixture Sans'))""")
+            logo = page.locator('[data-kd-slot="nav.logo"] img, img[data-kd-slot="nav.logo"]').first
+            assert logo.is_visible()
+            assert logo.evaluate("e => e.complete && e.naturalWidth > 0 && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().height > 0")
+    finally:
+        # A command recreating the old path would itself reveal a hidden source
+        # dependency; preserve that evidence and still restore the test fixture.
+        if library.workspace.exists():
+            library.workspace.rename(tmp_path / "unexpected-recreated-workspace")
+        unavailable.rename(library.workspace)

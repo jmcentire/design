@@ -1,10 +1,13 @@
 """M3 public-command drivers and amendment 10 dimension/choice oracles."""
 
+import hashlib
 import json
 import math
 from pathlib import Path
+import shutil
 
-from tests.m2_support import read_json
+from tests.m2_support import confined, read_json
+from tests.support import LibraryCase
 
 RANGES = {
     "hue-family": (0, 360), "value-contrast": (0, 1), "saturation": (0, 1),
@@ -61,7 +64,29 @@ def candidate_directory(library, session, candidate):
     for name in ("working.json", "sample.html", "language.css"):
         assert (directory / name).is_file(), ("Incomplete candidate", directory, name)
     assert (directory / "assets").is_dir()
+    # Amendment 14: preview URLs alone do not constitute a language package.
+    # Every manifest reference must resolve to local, content-addressed bytes.
+    document = read_json(directory / "working.json")
+    for asset in document.get("assets", {}).values():
+        for variant in asset["variants"].values():
+            file = confined(directory / "assets", variant["file"])
+            digest = hashlib.sha256(file.read_bytes()).hexdigest()
+            assert variant["file"] == "sha256/" + digest, ("Missing or altered packaged asset", variant)
     return directory
+
+
+def candidate_library(library, directory):
+    """Copy the complete delivered directory, without repairing its manifest/files."""
+    project = library.project / "portable-candidates" / directory.name
+    root = project / "design-library"
+    document = read_json(directory / "working.json")
+    shutil.copytree(library.library / "vocabulary", root / "vocabulary", dirs_exist_ok=True)
+    case = LibraryCase(project, root, project / "fresh-workspace")
+    destination = case.path(document["id"]).parent
+    assert destination.resolve().is_relative_to(root.resolve())
+    shutil.copytree(directory, destination, dirs_exist_ok=True)
+    assert case.path(document["id"]).read_bytes() == (directory / "working.json").read_bytes()
+    return case, document
 
 
 def pair(library, session, root):
