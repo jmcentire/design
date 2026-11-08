@@ -128,3 +128,30 @@ Local checks after these additions: 108 cases collect, including 13 browser
 cases. The 95 non-browser cases still stop at the absent candidate-vocabulary
 prerequisite. Compilation, diff checks and the TTF diagnostic pass. Browser
 execution remains delegated to the Validator because of sandbox restrictions.
+
+Timeout repair after tester commit `1336c85`: the Validator reports that the
+integrated run reached its 900-second timeout inside the right-edge helper.
+The helper incorrectly awaited `requestAnimationFrame` in a JavaScript-disabled
+context, where that callback never fired. No browser result from that run is
+claimed. The helper now uses synchronous instant scrolling and synchronous
+layout/hit-test reads, preserving the reachability and exact-width assertions.
+
+Every browser-marked setup, call and teardown phase now has a 60-second host
+deadline using POSIX `setitimer`, independent of page JavaScript and Playwright's
+action timers. Expiry fails the current test phase; a repeating signal also
+bounds cleanup entered while unwinding. Browser launch is limited to 15 seconds,
+and page actions/navigation to 5 seconds. The deadline covers evaluate promises,
+font/image waits and browser cleanup as well as normal actions. Unsupported
+platform/thread configurations fail explicitly rather than silently losing the
+deadline.
+
+Local deadline diagnostics interrupted an unresolved asyncio Future inside a
+real greenlet, and verified timer cancellation on completion. A separate pytest
+subprocess (itself limited to 10 seconds) exercised actual setup/call/teardown
+hooks with real SIGALRM signals: the three forced failures were reported and the
+positive control passed. These are harness checks, not product evidence.
+
+After this repair, all 108 cases still collect; compilation, whitespace and font
+fixture diagnostics pass. The local non-browser attempt still has 95 missing-
+vocabulary setup errors, with 13 browser cases deselected. The repaired browser
+suite still requires an integrated Validator run.

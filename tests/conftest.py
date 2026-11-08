@@ -1,6 +1,7 @@
 """Independent M0 fixtures. Oracle: M0 public contract + amendment 01, normative."""
 
 import json
+from contextlib import nullcontext
 import queue
 import shutil
 import socket
@@ -10,11 +11,36 @@ import threading
 
 import pytest
 
+from tests.browser_deadline import browser_deadline
 from tests.support import FIXTURES, ROOT, LibraryCase, package_asset
 
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "browser: requires real Chromium and optionally loopback HTTP")
+
+
+def browser_phase_guard(item, phase):
+    if item.get_closest_marker("browser"):
+        return browser_deadline(f"{item.nodeid} ({phase})")
+    return nullcontext()
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_setup(item):
+    with browser_phase_guard(item, "setup"):
+        yield
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_call(item):
+    with browser_phase_guard(item, "call"):
+        yield
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_teardown(item, nextitem):
+    with browser_phase_guard(item, "teardown"):
+        yield
 
 
 @pytest.fixture
@@ -72,7 +98,7 @@ def app(library, language):
 def browser_context():
     from playwright.sync_api import sync_playwright
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
+        browser = playwright.chromium.launch(headless=True, timeout=15000)
         context = browser.new_context(java_script_enabled=False, viewport={"width": 1280, "height": 900})
         try:
             yield context
@@ -85,6 +111,7 @@ def browser_context():
 def page(browser_context):
     page = browser_context.new_page()
     page.set_default_timeout(5000)
+    page.set_default_navigation_timeout(5000)
     yield page
     page.close()
 

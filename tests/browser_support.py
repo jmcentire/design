@@ -40,7 +40,7 @@ def reveal_preview_right_edge(frame):
     defect, since hidden content can be programmatically scrollable. No styles or
     layout are changed. Hit testing checks the final visible edge, not scrollWidth.
     """
-    return frame.evaluate("""async frame => {
+    return frame.evaluate("""frame => {
       const root = document.scrollingElement;
       const rootStyle = getComputedStyle(document.documentElement);
       const bodyStyle = getComputedStyle(document.body);
@@ -73,8 +73,7 @@ def reveal_preview_right_edge(frame):
         node.scrollTo({left: node.scrollLeft + (canX && v.sx > 0 ? dx / v.sx : 0),
           top: node.scrollTop + (canY && v.sy > 0 ? dy / v.sy : 0), behavior: 'instant'});
       }
-      // Await the browser's next rendering opportunity, not an elapsed-time delay.
-      await new Promise(requestAnimationFrame);
+      // Instant scrolling and these layout/hit-test reads are synchronous.
       const r = contentBox(frame);
       const x = r.right - Math.min(0.5, (r.right - r.left) / 2);
       let top = Math.max(0, r.top);
