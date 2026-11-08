@@ -5,20 +5,21 @@ import re
 from pathlib import Path
 import sys
 from urllib.parse import urlsplit, unquote, urljoin
-from ..config import (CAPTURE_TIMEOUT_MS, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_REDIRECTS,
+from ..config import (IngestConfig, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_REDIRECTS,
                       CAPTURE_MAX_ASSETS, ARTIFACT_MAX_BYTES, MAX_UPLOAD_BYTES, CHECK_VIEWPORT_HEIGHT)
 from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
 from ..storage import read_json
 from . import import_bytes
-from .bundle import import_bundle
-from .capture import public_url, media_widths, anonymous_headers, group_problems
+from .capture import public_url, media_widths, anonymous_headers
+from .capture_output import publish_capture
 from .runtime import chromium
 
 
 def collect(job):
     from playwright.sync_api import Error
+    settings=IngestConfig(**job.get('settings',{}));timeout_ms=settings.timeout_ms
     files={}; pages=[]; problems=[]; assets={}; asset_bytes=0
-    with chromium(with_requests=True) as (browser,requests):
+    with chromium(with_requests=True,timeout_ms=timeout_ms) as (browser,requests):
         for number,url in enumerate(job['urls'],1):
             page_id=f'page-{number}'; record={'id':page_id,'url':url,'views':[]};pages.append(record)
             pending=list(job['widths']);done=set()
@@ -27,7 +28,7 @@ def collect(job):
                 if width in done:continue
                 done.add(width)
                 context=browser.new_context(viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},service_workers='block',accept_downloads=False)
-                context.set_default_timeout(CAPTURE_TIMEOUT_MS)
+                context.set_default_timeout(timeout_ms)
                 def problem(message):
                     finding={'page':page_id,'width':width,'message':message}
                     if finding not in problems:problems.append(finding)
@@ -47,10 +48,10 @@ def collect(job):
                         # until their destination has passed the same URL checks.
                         destination=request.url
                         for hop in range(CAPTURE_MAX_REDIRECTS+1):
-                            fetcher=requests.new_context(timeout=CAPTURE_TIMEOUT_MS)
+                            fetcher=requests.new_context(timeout=timeout_ms)
                             try:
                                 response=fetcher.fetch(destination,method=request.method,headers=headers,
-                                                   timeout=CAPTURE_TIMEOUT_MS,max_redirects=0,max_retries=0)
+                                                   timeout=timeout_ms,max_redirects=0,max_retries=0)
                                 response_headers=response.headers;status=response.status
                                 if status in {301,302,303,307,308} and response_headers.get('location'):
                                     destination=public_url(urljoin(response.url,response_headers['location']))
@@ -94,9 +95,9 @@ def collect(job):
                 page=context.new_page();responses=[]
                 page.on('response',lambda response:responses.append(response) if response.request.resource_type in {'font','image','stylesheet'} else None)
                 try:
-                    response=page.goto(url,wait_until='domcontentloaded',timeout=CAPTURE_TIMEOUT_MS)
+                    response=page.goto(url,wait_until='domcontentloaded',timeout=timeout_ms)
                     if response and response.status>=400:problems.append({'page':page_id,'width':width,'message':f'HTTP {response.status}'})
-                    page.evaluate('''async timeout=>{for(const image of document.images)image.loading='eager';await Promise.race([Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]),new Promise(resolve=>setTimeout(resolve,timeout))]);}''',CAPTURE_TIMEOUT_MS)
+                    page.evaluate('''async timeout=>{for(const image of document.images)image.loading='eager';await Promise.race([Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]),new Promise(resolve=>setTimeout(resolve,timeout))]);}''',timeout_ms)
                     properties=sorted((TOKEN_PROPERTIES.keys()|KEYWORDS.keys()|{'padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','border-top-width','border-top-color','border-top-left-radius','row-gap','column-gap','position','grid-template-columns','box-shadow'})-{'surface'})
                     data=page.evaluate(Path(__file__).with_name('capture.js').read_text(),{'properties':properties,'maxNodes':CAPTURE_MAX_NODES,'maxText':CAPTURE_MAX_TEXT})
                     prefix=f'{page_id}/{width}'
@@ -104,7 +105,7 @@ def collect(job):
                     if len(dom)>MAX_UPLOAD_BYTES:
                         problems.append({'page':page_id,'width':width,'message':'DOM exceeds artifact size bound'});dom=dom[:MAX_UPLOAD_BYTES]
                     files[prefix+'.html']=dom
-                    files[prefix+'.png']=page.screenshot(full_page=True,animations='disabled',timeout=CAPTURE_TIMEOUT_MS)
+                    files[prefix+'.png']=page.screenshot(full_page=True,animations='disabled',timeout=timeout_ms)
                     for response in responses:
                         if len(assets)>=CAPTURE_MAX_ASSETS:break
                         try:
@@ -152,9 +153,7 @@ def collect(job):
                 except Error as exc:
                     problems.append({'page':page_id,'width':width,'message':str(exc)[:500]})
                 finally:context.close()
-    details={'pages':pages,'problems':group_problems(problems),'assets':list(assets.values())}
-    artifact=import_bundle(job['workspace'],files,'capture',details)
-    return {'artifact':artifact,**details}
+    return publish_capture(job['workspace'],files,pages,problems,list(assets.values()))
 
 
 def main():

@@ -5,7 +5,7 @@ from ..artifacts import import_bytes,read_artifact
 from ..artifacts.bundle import metadata,read_member
 from ..artifacts.capture import capture
 from ..assets import inspect_format
-from ..config import MAX_UPLOAD_BYTES,VIEWPORTS
+from ..config import MAX_UPLOAD_BYTES,ingest_config
 from ..ingest import draft,summary,save_draft,promote_draft,questions,answer
 from ..ingest.fidelity import fidelity
 from ..ingest.staging import folder,stage,load_draft
@@ -43,7 +43,7 @@ def handle(library,workspace,environ,segments,query,html):
         for item in sorted(parent.iterdir() if parent.exists() else []):
             if item.is_dir() and item.name.startswith('artifact-'):
                 meta=metadata(workspace,item.name);artifacts.append({'id':item.name,'kind':meta.get('kind','asset'),'name':meta.get('filename',meta.get('kind','capture')),'created':meta['created']})
-        return page('ingest.html',title='Ingest',drafts=drafts,artifacts=artifacts[-40:],widths=VIEWPORTS)
+        return page('ingest.html',title='Ingest',drafts=drafts,artifacts=artifacts[-40:],widths=ingest_config().widths)
     if tail==['capture'] and method=='POST':
         data=fields(environ);urls=data.get('urls',[''])[0].split()
         result=capture(workspace,urls,data.get('widths',[''])[0] or None)

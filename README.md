@@ -150,6 +150,26 @@ Discovered media-query widths are added within configured bounds. It stores DOM 
 and candidate asset originals. Later operations read those immutable artifacts and never visit
 the live site. A missing Chromium installation or launch failure returns exit 2 clearly.
 
+Capture artifacts expose `capture.json`, with screenshots, DOM and style samples under `pages/`
+and image originals under `assets/`. Capture stdout lists only successfully captured page names;
+unloaded pages appear in problems. Draft stdout is also saved as `drafts/<id>/summary.json`,
+including `measured` facts and a numeric question count; `questions <id>` returns the candidates.
+Fidelity writes `drafts/<id>/fidelity/report.json` with image pairs and aggregate measured facts.
+
+Optional settings in the current directory's `kinbase-design.toml` apply to CLI and workbench:
+
+```toml
+[ingest]
+color_delta_e = 2.0
+type_size_px = 1.0
+type_ratio = 0.05
+spacing_px = 1.0
+radius_px = 1.0
+widths = [320, 768, 1280]
+capture_timeout_s = 30
+max_pages = 10
+```
+
 Drafts live in `workspace/drafts/<id>/`, with working JSON, provenance, captured compositions,
 questions and fidelity artifacts. Provenance files are direct JSON-pointer maps: a record covers
 its value and descendants, and the nearest ancestor record wins. Token values and other design

@@ -4,7 +4,7 @@ import math
 import re
 from ..checks.math import color
 from ..config import (INGEST_COLOR_DELTA_E, INGEST_TYPE_TOLERANCE_PX,
-                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_SPACE_SUPPORT, INGEST_FULL_RADIUS_PX)
+                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_SPACE_SUPPORT, INGEST_FULL_RADIUS_PX, IngestConfig)
 
 
 def hex_color(value):
@@ -106,15 +106,16 @@ def full_radius(value,box=()):
     return value is not None and value>0 and (value>=INGEST_FULL_RADIUS_PX or size>0 and value>=size/2)
 
 
-def measurements(views,extra_colors=()):
+def measurements(views,extra_colors=(),settings=None):
+    settings=settings or IngestConfig()
     nodes=[n for view in views for n in view.get('nodes',[])]
     styles=[{**n.get('styles',{}),**n.get('normalized_colors',{})} for n in nodes]
-    sizes=scale([px(s.get('font-size')) for s in styles])
+    sizes=scale([px(s.get('font-size')) for s in styles],settings.type_size_px)
     spaces=[n for s in styles for p in ('padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','row-gap','column-gap') if (n:=px(s.get(p))) is not None and n>=0]
     radii=[(px(n.get('styles',{}).get('border-top-left-radius')),n.get('box',())) for n in nodes]
-    return {'palette':palette([s.get(p) for s in styles for p in ('color','background-color','border-top-color')]+list(extra_colors)),
+    return {'palette':palette([s.get(p) for s in styles for p in ('color','background-color','border-top-color')]+list(extra_colors),settings.color_delta_e),
             'type_scale':sizes,'type_scale_ratios':[round(b/a,4) for a,b in zip(sizes,sizes[1:]) if a],
             'font_families':list(dict.fromkeys(s['font-family'] for s in styles if s.get('font-family'))),
-            'spacing':scale(spaces,INGEST_SPACE_TOLERANCE_PX),'spacing_base':spacing_base(spaces),
-            'radii':scale([r for r,box in radii if not full_radius(r,box)])+(['full'] if any(full_radius(r,box) for r,box in radii) else []),
+            'spacing':scale(spaces,settings.spacing_px),'spacing_base':spacing_base(spaces),
+            'radii':scale([r for r,box in radii if not full_radius(r,box)],settings.radius_px)+(['full'] if any(full_radius(r,box) for r,box in radii) else []),
             'breakpoints':sorted({w for view in views for w in view.get('breakpoints',[])})}

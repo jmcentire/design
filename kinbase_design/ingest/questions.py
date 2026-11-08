@@ -59,4 +59,6 @@ def answer(library,workspace,draft_id,question_id,candidate_id):
     write_json(inside(root,'provenance.json'),complete(document,provenance,[]))
     question['answer']=candidate_id
     write_json(inside(root,'questions.json'),all_questions)
+    from . import summary
+    summary(library,workspace,draft_id)
     return {'draft':draft_id,'question':question_id,'candidate':candidate_id,'value':candidate['value']}

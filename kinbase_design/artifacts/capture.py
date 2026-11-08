@@ -2,7 +2,7 @@
 import re
 import json
 from urllib.parse import urlsplit
-from ..config import CAPTURE_WIDTHS, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_PAGES, CHECK_MAX_WIDTH
+from ..config import CAPTURE_WIDTHS, CAPTURE_MAX_WIDTHS, CHECK_MAX_WIDTH, ingest_config
 from .runtime import run_job
 
 
@@ -50,7 +50,9 @@ def media_widths(queries):
                    if 1<=float(value)*(16 if unit in {'rem','em'} else 1)<=CHECK_MAX_WIDTH})
 
 
-def capture(workspace, urls, requested_widths=None):
+def capture(workspace, urls, requested_widths=None, settings=None):
+    settings=settings or ingest_config()
     urls=list(dict.fromkeys(public_url(url) for url in urls))
-    if not urls or len(urls)>CAPTURE_MAX_PAGES:raise ValueError(f'Capture requires 1–{CAPTURE_MAX_PAGES} URLs')
-    return run_job('kinbase_design.artifacts.capture_worker',{'workspace':str(workspace),'urls':urls,'widths':widths(requested_widths)})
+    if not urls or len(urls)>settings.max_pages:raise ValueError(f'Capture requires 1–{settings.max_pages} URLs')
+    return run_job('kinbase_design.artifacts.capture_worker',{'workspace':str(workspace),'urls':urls,
+                   'widths':widths(settings.widths if requested_widths is None else requested_widths),'settings':settings.to_dict()})

@@ -3,7 +3,7 @@ from collections import Counter
 from copy import deepcopy
 import json
 import re
-from ..config import INGEST_COLOR_DELTA_E, INGEST_DEFAULT_SPACE, INGEST_TYPE_TOLERANCE_PX, INGEST_SPACE_TOLERANCE_PX, INGEST_FULL_RADIUS_PX
+from ..config import INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig
 from ..checks.math import effective_background
 from ..findings import pointer
 from ..language.properties import KEYWORDS, SPACE_PROPERTIES
@@ -14,10 +14,12 @@ from .provenance import values, source, complete
 from .quantize import measurements, hex_color, delta_e, px, scale, spacing_base, full_radius
 
 
-def derive(language_id,vocabulary,sources,suggestions=()):
-    facts=measurements(sources['views'],sources['colors']);provenance={};notes=[];questions=[]
+def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
+    settings=settings or IngestConfig()
+    facts=measurements(sources['views'],sources['colors'],settings);provenance={};notes=[];questions=[]
     for key,entries in sources.get('source_facts',{}).items():
-        if not facts[key] and entries:facts[key]=list(dict.fromkeys(entries)) if key=='font_families' else scale(entries)
+        tolerance=settings.radius_px if key=='radii' else settings.spacing_px if key=='spacing' else settings.type_size_px
+        if not facts[key] and entries:facts[key]=list(dict.fromkeys(entries)) if key=='font_families' else scale(entries,tolerance)
     facts['spacing']=[v for v in facts['spacing'] if v>=0]
     if not sources['views']:facts['spacing_base']=spacing_base(facts['spacing'])
     facts['type_scale_ratios']=[round(b/a,4) for a,b in zip(facts['type_scale'],facts['type_scale'][1:]) if a]
@@ -72,7 +74,7 @@ def derive(language_id,vocabulary,sources,suggestions=()):
     def color_token(raw,origin=None):
         value=hex_color(raw)
         if value is None:return None
-        nearby=[g['value'] for g in facts['palette'] if len(g['value'])==len(value) and (len(value)!=9 or value[-2:]==g['value'][-2:]) and delta_e(g['value'],value)<=INGEST_COLOR_DELTA_E]
+        nearby=[g['value'] for g in facts['palette'] if len(g['value'])==len(value) and (len(value)!=9 or value[-2:]==g['value'][-2:]) and delta_e(g['value'],value)<=settings.color_delta_e]
         chosen=nearby[0] if nearby else value
         if origin and chosen!=value:origin={'kind':'inferred','method':'CIEDE2000 palette quantization','inputs':[origin]}
         return token('color',chosen,origin)
@@ -81,12 +83,16 @@ def derive(language_id,vocabulary,sources,suggestions=()):
             notes.append({'rule':'ingest-spacing','message':f'Negative offset {number:g}px retained in the capture; it is not a spacing step'})
             return None
         base=facts['spacing_base'];nearest=round(number/base)*base
-        if abs(number-nearest)<=INGEST_SPACE_TOLERANCE_PX:
+        if abs(number-nearest)<=settings.spacing_px:
             if nearest!=number:where={'kind':'inferred','method':'Spacing base quantization','inputs':[where]}
             number=nearest
         else:notes.append({'rule':'ingest-spacing','message':f'{number:g}px lies outside the inferred spacing rhythm and is retained exactly'})
         return token('dimension',f'{number:g}px',where,True)
     mappings=[]
+    # Preserve each sampled palette cluster even when its element has no slot
+    # mapping; the reusable palette must cover the source's accent colors too.
+    for entry in facts['palette']:color_token(entry['value'])
+    for size in facts['type_scale']:token('dimension',f'{size:g}px')
     for view in sorted(sources['views'],key=lambda v:v['width']):
         mappings.append({**view,**map_view(view,vocabulary,suggestions)})
     body=next((n for v in mappings for n in v['nodes'] if n['tag']=='body'),None)
@@ -95,6 +101,7 @@ def derive(language_id,vocabulary,sources,suggestions=()):
     surface=body_style.get('background-color') or '#ffffff'
     if hex_color(surface) in {None,'#00000000'}:surface='#ffffff'
     base_size=px(body_style.get('font-size')) or (facts['type_scale'][0] if facts['type_scale'] else 16)
+    facts['type_base_px']=base_size
     family=body_style.get('font-family') or (facts['font_families'][0] if facts['font_families'] else 'system-ui')
     family=[f.strip().strip('\"\'') for f in family.split(',')]
     base={'color':color_token(foreground) or color_token('#222222'),'surface':color_token(surface) or color_token('#ffffff'),'font-family':token('fontFamily',family),
@@ -129,7 +136,7 @@ def derive(language_id,vocabulary,sources,suggestions=()):
                     provenance[pointer('style',group,'full-radius')]={'kind':'inferred','method':'Full/pill radius normalized from computed radius and element box','inputs':[where]}
                     continue
                 if prop=='font-size':
-                    number=next((v for v in facts['type_scale'] if abs(v-number)<=INGEST_TYPE_TOLERANCE_PX),number)
+                    number=next((v for v in facts['type_scale'] if abs(v-number)<=settings.type_size_px),number)
                 if number!=px(raw):where={'kind':'inferred','method':'Type scale quantization','inputs':[where]}
                 ref=token('dimension',f'{number:g}px',where)
             elif prop in SPACE_PROPERTIES and px(raw) is not None:ref=space_token(px(raw),where)

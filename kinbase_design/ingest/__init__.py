@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 from ..assets import promote
+from ..config import ingest_config
 from ..findings import Finding,location,report,pointer
 from ..language import validate
 from ..language.versions import digest
@@ -15,6 +16,7 @@ from .adapter import propose
 from .provenance import complete,shared
 from .staging import folder,load_draft,write_draft,stage
 from .questions import render_questions,questions,answer
+from .reporting import measured
 
 
 def summary(library,workspace,draft_id):
@@ -25,23 +27,27 @@ def summary(library,workspace,draft_id):
     for note in state['notes']:
         pointer,observed=location(document,note.get('pointer','/style'))
         findings.append(Finding('coverage',note.get('rule','ingest-coverage'),f'drafts/{draft_id}/working.json',pointer,observed,'review source fidelity',note['message']).to_dict())
-    return {**report(draft_id,findings),'draft':draft_id,'mapping':state['mapping'],'facts':state['facts'],
-            'assets':state['assets'],'questions':questions(workspace,draft_id),'standards':'unknown (Kinbase unconnected)',
+    items=questions(workspace,draft_id)
+    result={**report(draft_id,findings),'draft':draft_id,'mapping':'llm' if state['mapping']=='configured-command' else state['mapping'],'facts':state['facts'],
+            'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':'unknown (Kinbase unconnected)',
             'views':state['views'],'references':state['references'],'version':digest(document)}
+    write_json(inside(root,'summary.json'),result)
+    return result
 
 
-def draft(library,workspace,artifact_ids,language_id):
+def draft(library,workspace,artifact_ids,language_id,settings=None):
+    settings=settings or ingest_config()
     identifier(language_id)
     root=folder(workspace,language_id)
     if root.exists() or inside(library,'languages',language_id).exists():raise ValueError('Draft needs a new language id')
     if not artifact_ids:raise ValueError('At least one source artifact is required')
     sources=collect(workspace,artifact_ids);vocabulary=load(library)
-    derived=derive(language_id,vocabulary,sources)
+    derived=derive(language_id,vocabulary,sources,settings=settings)
     proposal,problem=propose(derived['document'],vocabulary,sources)
     if problem:derived['notes'].append(problem)
     if proposal is not None:
-        derived=derive(language_id,vocabulary,sources,proposal)
-        derived['mapping']='configured-command'
+        derived=derive(language_id,vocabulary,sources,proposal,settings)
+        derived['mapping']='llm'
         for item in proposal:
             owner=derived['document']['components'].setdefault(item['construct'],{}).setdefault('slots',{}).setdefault(item['slot'],{})
             owner.update(role=item['role'],emphasis=item.get('emphasis','neutral'))
@@ -59,7 +65,7 @@ def draft(library,workspace,artifact_ids,language_id):
     if sources['briefs']:notes.append({'rule':'ingest-brief','message':'Brief text retained as source data; heuristic mapping does not execute its instructions'})
     notes=list({json.dumps(note,sort_keys=True):note for note in notes}.values())
     write_json(inside(root,'state.json'),{'artifacts':list(artifact_ids),'facts':derived['facts'],'views':views,'references':sources['references'],
-                                         'assets':sources['assets'],'notes':notes,'mapping':derived['mapping'],'proposal':proposal})
+                                         'assets':sources['assets'],'notes':notes,'mapping':derived['mapping'],'proposal':proposal,'settings':settings.to_dict()})
     render_questions(library,workspace,language_id,derived['questions'])
     return summary(library,workspace,language_id)
 
@@ -110,4 +116,5 @@ def promote_draft(library,workspace,draft_id,artifact_id,asset_id,kind,variant,w
     if scope:
         provenance[pointer('components',parsed.construct,'assets',parsed.slot)]={'kind':'inferred','method':'Explicit media binding','inputs':[artifact_id]}
     write_json(inside(root,'provenance.json'),complete(document,provenance,[artifact_id]))
+    summary(library,workspace,draft_id)
     return entry

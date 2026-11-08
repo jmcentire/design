@@ -29,13 +29,13 @@ def run_job(module, job, timeout=CAPTURE_TOTAL_SECONDS):
 
 
 @contextmanager
-def chromium(with_requests=False):
+def chromium(with_requests=False,timeout_ms=CAPTURE_TIMEOUT_MS):
     from playwright.sync_api import sync_playwright
     engine=sync_playwright().start()
     try:
         if not Path(engine.chromium.executable_path).is_file():
             raise ValueError('Chromium executable is not installed')
-        try:browser=engine.chromium.launch(headless=True,timeout=CAPTURE_TIMEOUT_MS)
+        try:browser=engine.chromium.launch(headless=True,timeout=timeout_ms)
         except Exception as exc:raise ValueError('Chromium is unavailable or cannot start: '+str(exc)[:1000]) from exc
         try:yield (browser,engine.request) if with_requests else browser
         finally:browser.close()

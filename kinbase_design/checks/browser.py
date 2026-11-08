@@ -18,12 +18,12 @@ class BrowserUnavailable(RuntimeError):
     pass
 
 
-def prepare(page, file):
-    page.goto(file.as_uri(),wait_until='load',timeout=CHECK_TIMEOUT_MS)
+def prepare(page, file, timeout_ms=CHECK_TIMEOUT_MS):
+    page.goto(file.as_uri(),wait_until='load',timeout=timeout_ms)
     # DevTools can inspect a no-JS document. Poll native readiness from Python,
     # rather than relying on page timers in the JavaScript-disabled context.
     page.evaluate("() => {for(const image of document.images) image.loading='eager';}")
-    deadline=time.monotonic()+CHECK_TIMEOUT_MS/1000
+    deadline=time.monotonic()+timeout_ms/1000
     while not page.evaluate("() => document.fonts.status!=='loading' && [...document.images].every(image=>image.complete)"):
         if time.monotonic()>=deadline:
             from playwright.sync_api import TimeoutError
