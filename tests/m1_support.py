@@ -58,23 +58,66 @@ def run_check(library, out, language="tidal", widths=(320,), accepted=None):
     assert report["needs_review"] == sum(f["type"] == "needs-review" for f in report["findings"])
     assert set(report["checked"]["pages"]) == set(PAGES)
     assert set(report["checked"]["widths"]) == set(widths)
+    verified_screenshots = set()
     for finding in report["findings"]:
+        assert {"type", "rule", "file", "pointer", "observed", "expected", "message"} <= finding.keys()
+        assert finding["type"] in {"violation", "missing", "needs-review", "coverage"}
         if finding["rule"] not in RENDERED_RULES:
+            continue
+        if finding["type"] == "coverage" and not finding.get("exception") and "page" not in finding:
             continue
         assert finding["page"] in PAGES
         assert finding["width"] in widths
         assert isinstance(finding["target"], str) and finding["target"]
         assert isinstance(finding["criterion"], str) and finding["criterion"]
         assert {"measured", "threshold", "exception", "screenshot"} <= finding.keys()
-        relative = Path(finding["screenshot"])
-        assert not relative.is_absolute()
-        screenshot = out / relative
-        assert screenshot.resolve().is_relative_to(out.resolve())
-        with Image.open(screenshot) as rendered:
-            assert rendered.format == "PNG"
-            assert rendered.width == finding["width"] and rendered.height > 0
-            rendered.verify()
+        occurrences = finding["occurrences"]
+        assert isinstance(occurrences, list) and occurrences
+        assert {key: finding[key] for key in ("page", "width", "screenshot")} == {
+            key: occurrences[0][key] for key in ("page", "width", "screenshot")}
+        for occurrence in occurrences:
+            assert occurrence["page"] in PAGES and occurrence["width"] in widths
+            relative = Path(occurrence["screenshot"])
+            assert not relative.is_absolute()
+            screenshot = out / relative
+            assert screenshot.resolve().is_relative_to(out.resolve())
+            identity = (screenshot, occurrence["width"])
+            if identity in verified_screenshots:
+                continue
+            with Image.open(screenshot) as rendered:
+                assert rendered.format == "PNG"
+                # Full-page overflow and device scale can enlarge the pixel capture.
+                assert rendered.width >= occurrence["width"] and rendered.height > 0
+                rendered.verify()
+            with Image.open(screenshot) as rendered:
+                rendered.load()
+            verified_screenshots.add(identity)
     return report
+
+
+def assert_full_text_available(page, text):
+    """A clipped DOM string is not evidence of full-content availability on the detail page."""
+    candidates = page.get_by_text(text, exact=True)
+    for index in range(candidates.count()):
+        candidate = candidates.nth(index)
+        if not candidate.is_visible():
+            continue
+        if candidate.evaluate("""element => {
+          const range = document.createRange(); range.selectNodeContents(element);
+          const rects = [...range.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+          if (!rects.length) return false;
+          for (let e = element; e; e = e.parentElement) {
+            const style = getComputedStyle(e), box = e.getBoundingClientRect();
+            const left = box.left + e.clientLeft, top = box.top + e.clientTop;
+            if (['hidden','clip'].includes(style.overflowX) &&
+                rects.some(r => r.left < left - 1 || r.right > left + e.clientWidth + 1)) return false;
+            if (['hidden','clip'].includes(style.overflowY) &&
+                rects.some(r => r.top < top - 1 || r.bottom > top + e.clientHeight + 1)) return false;
+          }
+          return true;
+        }"""):
+            return
+    raise AssertionError(f"Full title is absent, hidden or clipped on the detail page: {text!r}")
 
 
 def replace_asset_bytes(library, document, asset_id, variant, data):

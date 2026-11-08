@@ -3,8 +3,9 @@ from ..config import (CHECK_NON_TEXT_CONTRAST, CHECK_TARGET_SIZE, CHECK_PIXEL_TO
 from ..findings import Finding, location
 from ..language.resolver import resolve, property_pointer
 from ..language.tokens import Tokens, ALIAS
-from ..language.behaviors import matching
+from ..language.behaviors import matching, property_exception
 from .math import color, contrast, effective_background, text_threshold, spacing_exception, css_equal
+from .grouping import observation_context
 
 
 def breakpoint_at(document, width):
@@ -18,9 +19,10 @@ class Evaluation:
         self.document, self.vocabulary = document, vocabulary
         self.findings = []
         self.covered = set()
+        self.context = None
 
     def add(self, rule, page, width, target='page', *, type='violation', criterion=None,
-            measured=None, threshold=None, expected='', message='', exception=None, pointer=None):
+            measured=None, threshold=None, expected='', message='', exception=None, pointer=None, context=None):
         if pointer is None:
             construct = target.split('.')[0]
             pointer = '/components/' + construct if construct in self.vocabulary['constructs'] else ''
@@ -29,6 +31,7 @@ class Evaluation:
                           observed,expected,message or expected).to_dict()
         finding.update(page=page,width=width,target=target,criterion=criterion or rule,measured=measured,
                        threshold=threshold,exception=exception,screenshot=page.removesuffix('.html')+f'@{width}.png')
+        finding['_context'] = context if context is not None else self.context
         if exception and exception.startswith('/behaviors/'):
             self.covered.add(exception)
         self.findings.append(finding)
@@ -38,6 +41,7 @@ class Evaluation:
         bp = breakpoint_at(self.document,width)
         tokens = Tokens(self.document['style'])
         for node in snapshot['nodes']:
+            self.context = observation_context(node)
             target = node['target']
             if not node['visible']:
                 if node['image'] or node.get('backgroundAsset'):
@@ -50,6 +54,7 @@ class Evaluation:
                     if not css_equal(prop,treatment['value'],actual,node['fontSize'],snapshot['rootSize']):
                         self.add('role-conformance',page,width,target,measured={'property':prop,'value':actual},threshold=treatment['value'],
                                  expected=f'{prop} = {treatment["value"]}',message=f'{prop}: computed {actual}; resolved {treatment["value"]}',
+                                 exception=property_exception(self.document,target,prop),
                                  pointer=property_pointer(self.document,self.vocabulary,prop,treatment))
                 family = props.get('font-family')
                 if family and node['text'].strip():
@@ -62,7 +67,7 @@ class Evaluation:
                         style = props.get('font-style',{}).get('value','normal')
                         loaded = any(f['family'].strip('"')==first and f['status']=='loaded' and f['weight']==weight and f['style']==style for f in snapshot['fonts'])
                         if not loaded or not node['fontReady'] or node['css']['font-family'].split(',')[0].strip().strip('"')!=first:
-                            self.add('asset-load',page,width,target,measured={'family':first,'loaded':loaded,'ready':node['fontReady']},threshold='loaded and used',expected='bound font loaded and used by its text',pointer=raw_path)
+                            self.add('asset-load',page,width,target,measured={'family':first,'loaded':loaded,'ready':node['fontReady']},threshold='loaded and used',expected='bound font loaded and used by its text',pointer=raw_path,context={'asset':asset})
             if node['directText'].strip() and not node['disabled']:
                 background = effective_background(node['backgrounds'])
                 foreground = color(node['css']['color'])
@@ -90,7 +95,7 @@ class Evaluation:
                     self.add('non-text-contrast',page,width,target,type='needs-review',criterion='WCAG 1.4.11',threshold=CHECK_NON_TEXT_CONTRAST,expected='review image/logo legibility on this surface',message='Image colors and meaningful regions require visual review')
             if node.get('backgroundAsset') and not node.get('backgroundDecoded'):
                 self.add('asset-load',page,width,target,measured={'backgroundDecoded':False,'box':node['box']},threshold='decoded and visible',expected='bound background image decodes into a visible box')
-            if node['control'] and not node['disabled']:
+            if node['control'] and not node['disabled'] and not node.get('nativeControl', False):
                 external = effective_background(node['backgrounds'][1:])
                 boundary = color(node['boundary']) if node['boundary'] else None
                 if boundary is None or external is None:
@@ -101,6 +106,7 @@ class Evaluation:
                         self.add('non-text-contrast',page,width,target,criterion='WCAG 1.4.11',measured=round(ratio,2),threshold=CHECK_NON_TEXT_CONTRAST,expected='control boundary contrast at least 3:1')
         targets = [n for n in snapshot['nodes'] if n['interactive'] and n['visible'] and not n['disabled']]
         for node in targets:
+            self.context = observation_context(node)
             if node['box'][2]>=CHECK_TARGET_SIZE and node['box'][3]>=CHECK_TARGET_SIZE:
                 continue
             declarations = matching(self.document,'target-exception',node['target'])
@@ -110,6 +116,7 @@ class Evaluation:
             if not exception and node['equivalent']:
                 exception='equivalent'
             self.add('target-size',page,width,node['target'],criterion='WCAG 2.5.8',measured={'width':round(node['box'][2],2),'height':round(node['box'][3],2)},threshold=CHECK_TARGET_SIZE,exception=exception,expected='24×24 CSS px target or a named WCAG exception')
+        self.context = None
         if width==320:
             if snapshot['pageWidth']>width+CHECK_PIXEL_TOLERANCE:
                 self.add('reflow',page,width,criterion='WCAG 1.4.10',measured=snapshot['pageWidth'],threshold=width,expected='no horizontal page scrolling at 320 CSS px')
@@ -117,7 +124,7 @@ class Evaluation:
                 if node['visible'] and node['scroll'][0]>node['box'][2]+CHECK_PIXEL_TOLERANCE and node['scrollContainer']:
                     declarations = matching(self.document,'horizontal-scroll',node['target'])
                     exception = declarations[0][0] if declarations else None
-                    self.add('reflow',page,width,node['target'],criterion='WCAG 1.4.10',measured={'scrollWidth':node['scroll'][0],'width':node['box'][2]},threshold=width,exception=exception,expected='horizontal content scrolling declared intentionally')
+                    self.add('reflow',page,width,node['target'],criterion='WCAG 1.4.10',measured={'scrollWidth':node['scroll'][0],'width':node['box'][2]},threshold=width,exception=exception,expected='horizontal content scrolling declared intentionally',context=observation_context(node))
 
     def coverage(self, pages, widths):
         for index,behavior in enumerate(self.document.get('behaviors',[])):

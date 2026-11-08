@@ -220,27 +220,46 @@ def test_viewer_preview_right_edge_is_reachable_at_selected_width(server, page, 
     assert edge["edgeHitsFrame"], ("Selected preview's right edge is not reachable", edge)
 
 
-def test_keyboard_focus_has_visible_treatment(library, language, tmp_path, page):
+@pytest.mark.parametrize("page_name", PAGES)
+def test_keyboard_focus_has_visible_treatment(library, language, tmp_path, page, page_name):
+    """M1 strengthens B9 to all pages, a visible change, and Tab reading order."""
     out = library.build(tmp_path / "focus")
-    page.goto((out / "form.html").as_uri())
+    page.goto((out / page_name).as_uri())
+    page.evaluate("document.activeElement.blur()")
     candidates = page.locator('a[href],button,input:not([type="hidden"]),select,textarea,[tabindex]')
     eligible = [(i, candidates.nth(i)) for i in range(candidates.count())
                 if candidates.nth(i).is_visible() and candidates.nth(i).is_enabled()
-                and candidates.nth(i).get_attribute("tabindex") != "-1"]
+                and (candidates.nth(i).evaluate("e => ['A','BUTTON','INPUT','SELECT','TEXTAREA'].includes(e.tagName)")
+                     or candidates.nth(i).get_attribute("tabindex") != "-1")]
     assert eligible
     before = {i: focus_style(locator) for i, locator in eligible}
+    by_index = dict(eligible)
     visited = set()
-    for _ in range(len(eligible) + 1):
+    order = []
+    for _ in range(len(eligible) + 2):
         page.keyboard.press("Tab")
-        for index, locator in eligible:
-            if locator.evaluate("e => e === document.activeElement"):
-                expect(locator).to_be_visible()
-                assert_visible_focus(before[index], focus_style(locator))
-                visited.add(index)
-    # Radio groups intentionally share one native tab stop; other enabled controls must be reached.
+        index = candidates.evaluate_all("els => els.findIndex(e => e === document.activeElement)")
+        if index in by_index:
+            locator = by_index[index]
+            expect(locator).to_be_visible()
+            after = focus_style(locator)
+            assert after != before[index], ("Focus did not change visible treatment", page_name, index)
+            assert_visible_focus(before[index], after)
+            visited.add(index)
+            order.append(index)
+    # Retain the accepted M0 native-radio interpretation: one Tab stop per group.
     required = {index for index, locator in eligible if locator.get_attribute("type") != "radio"}
     assert required <= visited, (required - visited)
+    groups = {}
+    for index, locator in eligible:
+        if locator.get_attribute("type") == "radio":
+            form, name = locator.evaluate("e => [Array.from(document.forms).indexOf(e.form), e.name]")
+            groups.setdefault((form, name or index), set()).add(index)
+    assert all(members & visited for members in groups.values())
     assert visited
+    reading_order = [index for index, _ in eligible if index in visited]
+    for previous, current in zip(order, order[1:]):
+        assert reading_order.index(current) == (reading_order.index(previous) + 1) % len(reading_order), order
 
 
 def test_workbench_page_width_compare_and_upload_without_js(server, library, page, tmp_path):

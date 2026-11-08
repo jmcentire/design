@@ -14,6 +14,7 @@ from ..language.versions import digest
 from ..render import build_preview
 from ..storage import identifier, inside, load_language, read_json, write_json
 from ..vocabulary import load
+from .grouping import screenshots
 
 log=logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ def save_report(library, language_id, version, out, result):
     canonical.mkdir(parents=True,exist_ok=True)
     if canonical.resolve()!=Path(out).resolve():
         for finding in result['findings']:
-            screenshot=finding.get('screenshot')
-            if screenshot:
+            for screenshot in screenshots(finding):
                 source=inside(out,screenshot)
                 if source.is_file(): inside(canonical,screenshot).write_bytes(source.read_bytes())
         for page in result['checked']['pages']:

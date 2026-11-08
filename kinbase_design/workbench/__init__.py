@@ -14,6 +14,7 @@ from ..kinbase import status as kinbase_status
 from ..language import validate
 from ..language.versions import digest
 from ..checks import check, latest_report, report_folder
+from ..checks.grouping import screenshots
 from ..language.tokens import Tokens
 from ..storage import identifier, inside, load_language, read_json
 from ..vocabulary import load as load_vocabulary
@@ -183,7 +184,7 @@ def create_app(library: str | Path, workspace: str | Path):
                 folder = report_folder(library, language_id, segments[2])
                 result = read_json(inside(folder,'report.json'))
                 allowed = {page.removesuffix('.html') + f'@{width}.png' for page in result['checked']['pages'] for width in result['checked']['widths']}
-                allowed.update(f['screenshot'] for f in result['findings'] if f.get('screenshot'))
+                allowed.update(name for finding in result['findings'] for name in screenshots(finding))
                 if segments[3] == 'report.json':
                     content_type = 'application/json; charset=utf-8'
                 elif segments[3] in allowed:

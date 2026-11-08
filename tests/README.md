@@ -179,3 +179,94 @@ the absent candidate vocabulary prerequisite; 25 browser cases are deselected.
 Compilation and diff checks pass. These M1 checks have not been run against a
 candidate and remain evidence gaps. Lantern design/role agreement and the M1
 workbench report journey are still being authored.
+
+M1 completion adds `test_m1_design.py` and `test_m1_workbench.py`. The former
+compares authored slot values with both the resolver and real computed styles,
+then tests Lantern against literal brief values at 320, 767, 768 and 1280px.
+It checks stacked/beside media geometry, two-line title visibility and full text
+on listing.html, relational variant semantics, real Instrument Sans glyph use,
+and accepted `check` output. The public Lantern package must contain the stated
+space-scale values and exact md/lg breakpoints; extra unrequested tokens are not
+forbidden. Default-screen geometry assertions exclude the state gallery's empty
+and loading depictions; gallery semantics and states retain their own checks.
+
+The workbench test submits the real check form with JavaScript disabled, reads
+the default hash-addressed report, follows actual screenshot links, checks
+unresolved review, changes an authored color, submits again, and verifies the
+latest panel/grid summary. It does not infer success from a redirect alone.
+The existing keyboard test now covers all five pages, requires a visible focus
+change and checks Tab reading order, retaining the accepted native-radio rule of
+one Tab stop per group. Missing native controls cannot escape by setting tabindex
+to -1. Existing no-JS navigation/state tests remain in place.
+
+The M1 acceptance clarification is applied to the validation helper: a
+needs-review finding is retained rather than misclassified as acceptance failure.
+The new `check` tests separately require the exact unresolved count and show
+that needs-review alone does not block an otherwise accepted Lantern fixture.
+No failed finding is removed or relabeled to agree with candidate output.
+
+| M1 invariant | Independent observation / falsifier | Current evidence |
+| --- | --- | --- |
+| Normal and large contrast, alpha composition | Authored colors + WCAG formula; exact reported ratio/threshold | Gap: browser run pending |
+| Image/gradient uncertainty | Real background-image inputs must produce needs-review and unresolved counts | Gap: browser run pending |
+| Clipping/scroll/target exceptions | Seed geometry, negative report, scoped exception still reported, full content retained | Gap: browser run pending |
+| Missing/violation/coverage acceptance | Real command exit and report; coverage-only accepted, required missing rejected | Gap: browser run pending |
+| Role agreement / asset loading | Distinct role/emphasis values; real corrupt bytes, real custom font glyphs | Gap: browser run pending |
+| Check report and no-JS workbench | POST, persisted newest report, actual PNG link bytes, counts | Gap: browser run pending |
+| Lantern brief | Literal values, viewport boundary geometry, semantic relation and accepted check | Gap: browser run pending |
+
+At M1 completion, 140 total cases collect: 102 non-browser attempts stop at the
+missing candidate vocabulary prerequisite, and 38 browser cases are deselected.
+Syntax and diff checks pass. The TTF diagnostic still passes. Host deadline
+diagnostics again fail setup/call/teardown stalls and pass both browser and
+non-browser controls; the custom M1 budget is finite and tested. The independent
+contrast calculation gives 4.48/4.54 for #777777/#767676 on white, 2.85/3.03 for
+#999999/#949494 on white, and 3.95 for white on #808080. These calculations and
+harness checks are not candidate evidence. Logs: `/tmp/kinbase-tester-m1-complete.log`
+and `/tmp/kinbase-tester-m1-collection.log`.
+
+No rendered role-conformance mismatch is artificially injected: the available
+public language contract provides no legitimate alternate CSS path. The positive
+agreement case checks every rendered fixture slot against independently authored
+values and the resolver, as the M1 assignment permits. OCR is not used as an oracle.
+
+M1 review repair: the Validator's integrated run at `bd6c3bd` reported 121 passed
+and four failed. The clipping assertion exposed a product defect and is retained.
+Three tester corrections follow the source-free review: screenshot evidence now
+requires a valid, fully decodable PNG at least as wide as the CSS width, allowing
+full-page overflow and device scaling; only alpha-composited contrast gets an
+absolute 0.05 ratio tolerance (opaque comparisons stay exact); the crowded-target
+fixture applies tiny treatment to every declared action slot and checks that its
+overlapping undersized pair has no adequately sized same-destination links.
+Legitimate remaining home-logo equivalents may retain their named exception.
+
+After repair, all 140 cases still collect, compilation and diff checks pass, and
+the local non-browser attempt still has 102 missing-vocabulary prerequisite errors
+with 38 browser cases deselected. The Validator's 121 passes are prior integrated
+evidence, not a rerun of this repair or the later `7692c96` additions. Repaired
+browser execution remains pending. Local logs:
+`/tmp/kinbase-tester-m1-repair-collection.log`, `/tmp/kinbase-tester-m1-repair.log`.
+
+Amendment 05 adds `test_m1_review_queue.py`: independently seeded opaque contrast
+violations and image/gradient reviews must each group to one finding across
+rendered pages and widths. Expected occurrence coordinates come from visible
+public preview slots, not from the report. A breakpoint changes the unresolved
+surface and requires separate groups; a different target remains separate even
+with the same surface. The workbench sequence now expects one grouped price
+violation and still compares its latest summary with deduplicated report counts.
+The shared report helper checks nonempty occurrence arrays, first-occurrence
+fields, every occurrence's page/width and decodable screenshot, and counts review
+rows rather than occurrences. Each distinct screenshot is decoded once.
+
+The native-control exclusion uses a language with no authored boundary treatment
+and compares visible checkbox/radio appearance with a plain native control in a
+separate real Chromium document. It requires an actual native control, then
+rejects non-text-contrast findings for those slots on the observed form page;
+other state depictions are not assumed to retain the same appearance. Existing
+keyboard, focus and target-size checks remain unchanged.
+
+After amendment 05, 145 tests collect; compilation and whitespace checks pass.
+The non-browser attempt still has 102 missing-vocabulary prerequisite errors,
+with 43 browser cases deselected. New rendered assertions await integrated
+execution. Logs: `/tmp/kinbase-tester-amendment05-collection.log` and
+`/tmp/kinbase-tester-amendment05.log`.

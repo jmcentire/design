@@ -76,9 +76,11 @@ class LibraryCase:
         else:
             assert_report_pointers(self.library, report)
         if accepted:
-            # These fixtures declare no exceptions. An accepted envelope cannot hide failures.
+            # These structural positive controls declare no covering exceptions.
+            # M1 clarifies that needs-review is retained without blocking acceptance;
+            # run_check independently checks its unresolved count and disposition.
             assert not [f for f in report["findings"] if f["type"] in
-                        {"violation", "missing", "needs-review"}], report
+                        {"violation", "missing"}], report
         return report
 
     def build(self, out, language="tidal"):

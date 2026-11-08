@@ -7,6 +7,7 @@ from ..config import (CHECK_TIMEOUT_MS, CHECK_VIEWPORT_HEIGHT, CHECK_PIXEL_TOLER
 from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
 from .evaluate import Evaluation
 from .math import color, contrast, effective_background
+from .grouping import group_rendered, observation_context
 from ..config import CHECK_NON_TEXT_CONTRAST
 
 log = logging.getLogger(__name__)
@@ -46,17 +47,20 @@ def decode_backgrounds(page):
 
 
 def observe(page):
-    return page.evaluate(Path(__file__).with_name('observe.js').read_text(),{
+    source = Path(__file__).with_name('observe.js').read_text().replace(
+        '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
+    return page.evaluate(source,{
         'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys())-{'surface'}),
         'tolerance':CHECK_PIXEL_TOLERANCE,'targetSize':CHECK_TARGET_SIZE})
 
 
 def focus_style(locator):
-    return locator.evaluate('''e=>{const s=getComputedStyle(e);return {
+    return locator.evaluate('''e=>{const nativeControl=__NATIVE_CONTROL__;const s=getComputedStyle(e);return {
+      nativeControl:nativeControl(e),
       outline:s.outline,outlineWidth:parseFloat(s.outlineWidth),outlineStyle:s.outlineStyle,
       outlineColor:s.outlineColor,shadow:s.boxShadow,border:s.border,borderColor:s.borderTopColor,background:s.backgroundColor,
       backgrounds:(()=>{const layers=[];for(let p=e.parentElement;p;p=p.parentElement){const c=getComputedStyle(p);layers.push({color:c.backgroundColor,image:c.backgroundImage,uncertain:parseFloat(c.opacity)<1});}return layers;})()
-    }}''')
+    }}'''.replace('__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text()))
 
 
 def keyboard(page, snapshot, evaluation, filename, width, output):
@@ -68,6 +72,7 @@ def keyboard(page, snapshot, evaluation, filename, width, output):
     page.evaluate("() => {document.body.tabIndex=-1;document.body.focus();document.body.removeAttribute('tabindex');}")
     visited=[]
     for expected in candidates:
+        evaluation.context=observation_context(expected)
         page.keyboard.press('Tab')
         actual=page.evaluate("() => document.activeElement?.getAttribute('data-kd-check')")
         index=int(actual) if actual is not None else None
@@ -81,7 +86,8 @@ def keyboard(page, snapshot, evaluation, filename, width, output):
         after=focus_style(locator)
         prior=before[index]
         indicator=(after['outlineWidth']>0 and after['outlineStyle'] not in {'none','hidden'} and after['outlineColor']!='rgba(0, 0, 0, 0)' and after['outline']!=prior['outline']) or any(after[k]!=prior[k] for k in ('shadow','border','background'))
-        if indicator:
+        if indicator and not after['nativeControl']:
+            evaluation.context=observation_context({'backgrounds':after['backgrounds']})
             foreground=color(after['outlineColor'] if after['outline']!=prior['outline'] and after['outlineWidth']>0 else after['background'] if after['background']!=prior['background'] else after['borderColor'] if after['border']!=prior['border'] else '')
             background=effective_background(after['backgrounds'])
             if foreground is None or background is None:
@@ -97,10 +103,11 @@ def keyboard(page, snapshot, evaluation, filename, width, output):
             evaluation.add('focus-visible',filename,width,expected['target'],criterion='WCAG 2.4.7',measured=after,threshold='visible change',expected='a measurable outline, shadow, border or background focus indicator')
     for node in candidates:
         if node['index'] not in visited:
-            evaluation.add('keyboard',filename,width,node['target'],measured='unreachable',threshold='reachable',expected='target reachable by Tab')
+            evaluation.add('keyboard',filename,width,node['target'],measured='unreachable',threshold='reachable',expected='target reachable by Tab',context=observation_context(node))
+    evaluation.context=None
 
 
-def axe_contrast(page, evaluation, filename, width):
+def axe_contrast(page, evaluation, filename, width, snapshot):
     page.add_script_tag(path=str(Path(__file__).parent/'vendor/axe.min.js'))
     result=page.evaluate('''async timeout => Promise.race([
       axe.run(document,{runOnly:{type:'rule',values:['color-contrast']}}),
@@ -111,12 +118,16 @@ def axe_contrast(page, evaluation, filename, width):
     for item in result.get('incomplete',[]):
         for node in item.get('nodes',[]):
             locator=page.locator(node['target'][0])
+            index=locator.get_attribute('data-kd-check') if locator.count() else None
+            evaluation.context=observation_context(snapshot['nodes'][int(index)]) if index is not None else None
             target=locator.evaluate("e=>e.closest('[data-kd-slot]')?.dataset.kdSlot||e.closest('[data-kd-construct]')?.dataset.kdConstruct||'page'") if locator.count() else 'page'
             if not any(f['rule']=='contrast' and f['type']=='needs-review' and f['page']==filename and f['width']==width and f['target']==target for f in evaluation.findings):
                 evaluation.add('contrast',filename,width,target,type='needs-review',criterion='WCAG 1.4.3',expected='review unresolved rendered contrast',message=node.get('failureSummary','Axe could not determine contrast'))
     for item in result.get('violations',[]):
         for node in item.get('nodes',[]):
             locator=page.locator(node['target'][0])
+            index=locator.get_attribute('data-kd-check') if locator.count() else None
+            evaluation.context=observation_context(snapshot['nodes'][int(index)]) if index is not None else None
             target=locator.evaluate("e=>e.closest('[data-kd-slot]')?.dataset.kdSlot||e.closest('[data-kd-construct]')?.dataset.kdConstruct||'page'") if locator.count() else 'page'
             if any(f['rule']=='contrast' and f['page']==filename and f['width']==width and f['target']==target for f in evaluation.findings):
                 continue
@@ -128,6 +139,7 @@ def axe_contrast(page, evaluation, filename, width):
             except (ValueError,TypeError): threshold=None
             evaluation.add('contrast',filename,width,target,criterion='WCAG 1.4.3',measured=round(float(ratio),2) if ratio is not None else None,threshold=threshold,
                            expected='rendered text contrast meets WCAG',message=node.get('failureSummary','Axe detected insufficient contrast'))
+    evaluation.context=None
 
 
 def inspect(document, vocabulary, preview, output, widths):
@@ -151,6 +163,7 @@ def inspect(document, vocabulary, preview, output, widths):
                 context.set_default_timeout(CHECK_TIMEOUT_MS)
                 try:
                     for filename in pages:
+                        evaluation.context=None
                         page=context.new_page()
                         try:
                             prepare(page,Path(preview)/filename)
@@ -169,7 +182,7 @@ def inspect(document, vocabulary, preview, output, widths):
                             else:
                                 full_text={name:' '.join(' '.join(n['directText'] for n in s['nodes'] if n['visible'] and not n['clipped']).split()) for name,s in snapshots.items()}
                                 evaluation.snapshot(filename,width,snapshot,full_text)
-                                axe_contrast(page,evaluation,filename,width)
+                                axe_contrast(page,evaluation,filename,width,snapshot)
                                 keyboard(page,snapshot,evaluation,filename,width,output)
                         except (Error,TimeoutError) as exc:
                             page.screenshot(path=str(Path(output)/(filename.removesuffix('.html')+f'@{width}.png')),full_page=True,timeout=CHECK_TIMEOUT_MS)
@@ -183,4 +196,4 @@ def inspect(document, vocabulary, preview, output, widths):
         browser.close()
         engine.stop()
     evaluation.coverage(pages,widths)
-    return evaluation.findings
+    return group_rendered(evaluation.findings)

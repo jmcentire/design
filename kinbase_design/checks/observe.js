@@ -13,6 +13,7 @@
     }
     return result;
   };
+  const nativeControl = __NATIVE_CONTROL__;
   const nodes=all.map((e,index) => {
     e.setAttribute('data-kd-check',String(index));
     const s=getComputedStyle(e),r=e.getBoundingClientRect(),root=e.closest('[data-kd-construct]');
@@ -53,8 +54,9 @@
       text,directText,visible:visible(e),box:rect(e),scroll:[e.scrollWidth,e.scrollHeight],
       css:Object.fromEntries(properties.map(p=>[p,s.getPropertyValue(p)])),fontSize,fontWeight,
       backgrounds:background(e),overImage,disabled,clipped,lineClamp:parseInt(s.webkitLineClamp)||0,
-      backgroundAsset,backgroundDecoded,image,decoded:image?e.complete&&e.naturalWidth>0&&e.naturalHeight>0:null,
-      meaningfulImage:image&&!!e.alt,control,boundary,interactive:interactive(e),inline,userAgent,equivalent,
+      backgroundAsset,backgroundDecoded,image,asset:image?e.closest('[data-kd-asset]').dataset.kdAsset:null,
+      imageURL:image?e.getAttribute('src'):null,decoded:image?e.complete&&e.naturalWidth>0&&e.naturalHeight>0:null,
+      meaningfulImage:image&&!!e.alt,control,nativeControl:control&&nativeControl(e),boundary,interactive:interactive(e),inline,userAgent,equivalent,
       scrollContainer:['auto','scroll'].includes(s.overflowX),
       fontReady:document.fonts.check(`${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`,text.trim()||'A')};
   });

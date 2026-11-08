@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from tests.m1_support import add_behavior, findings, remove_behaviors, run_check, slot_properties, token
+from tests.m1_support import add_behavior, assert_full_text_available, findings, remove_behaviors, run_check, slot_properties, token
 from tests.support import pointer_value
 
 pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(240)]
@@ -38,8 +38,8 @@ def test_clipping_requires_declared_truncation_and_available_full_content(librar
     assert covered and all(f["exception"] == pointer for f in covered), accepted
     site = library.build(tmp_path / "covered-preview", "lantern")
     page.goto((site / "listing.html").as_uri())
-    visible_text = " ".join(page.locator("body").inner_text().split())
-    assert all(title in visible_text for title in original_titles)
+    for title in original_titles:
+        assert_full_text_available(page, title)
 
 
 def test_page_overflow_is_confined_by_a_declared_horizontal_scroll_scope(library, lantern, vocabulary, tmp_path, page):
@@ -68,16 +68,37 @@ def test_page_overflow_is_confined_by_a_declared_horizontal_scroll_scope(library
     assert not [f for f in exempt if f["type"] == "violation" and f["exception"] is None]
 
 
-def test_crowded_small_targets_need_a_named_exception(library, language, tmp_path, page):
+def test_crowded_small_targets_need_a_named_exception(library, language, vocabulary, tmp_path, page):
     props = slot_properties(language, "nav", "links")
     props.update({"display": "flex", "flex-wrap": "nowrap", "font-size": token(language, "probe", "tiny", "dimension", "2px"),
                   "line-height": token(language, "probe", "tight", "number", 1),
                   "padding": token(language, "space", "zero", "dimension", "0px"), "gap": "{space.zero}"})
+    # Navigation links may carry their own action role rather than inherit the
+    # slot wrapper's type treatment; author the same tiny treatment at both levels.
+    for entry in language["roles"]["action"].values():
+        entry.update({"font-size": "{probe.tiny}", "line-height": "{probe.tight}", "padding": "{space.zero}"})
+    # Equivalent footer/page links could legitimately excuse a tiny navigation
+    # target. Apply the same treatment to every declared action slot as well.
+    for construct, contract in vocabulary["constructs"].items():
+        for slot in contract["slots"]:
+            if slot["kind"] == "action":
+                slot_properties(language, construct, slot["id"]).update(props)
     library.write(language)
     site = library.build(tmp_path / "tiny-targets")
+    page.set_viewport_size({"width": 320, "height": 900})
     page.goto((site / "index.html").as_uri())
     targets = page.locator('[data-kd-slot="nav.links"] a, a[data-kd-slot="nav.links"]')
-    boxes = [targets.nth(i).bounding_box() for i in range(targets.count()) if targets.nth(i).is_visible()]
+    equivalents = set()
+    all_links = page.locator('a[href]')
+    for i in range(all_links.count()):
+        link = all_links.nth(i)
+        box = link.bounding_box() if link.is_visible() else None
+        if box and box["width"] >= 24 and box["height"] >= 24:
+            equivalents.add(link.evaluate("e => e.href"))
+    # A logo can remain an adequate home-page equivalent. The violation oracle
+    # uses only targets without any adequately sized same-destination link.
+    boxes = [targets.nth(i).bounding_box() for i in range(targets.count())
+             if targets.nth(i).is_visible() and targets.nth(i).evaluate("e => e.href") not in equivalents]
     assert len(boxes) >= 2, "Fixture needs adjacent navigation targets"
     small = [b for b in boxes if b and b["width"] < 24 and b["height"] < 24]
     assert len(small) >= 2
@@ -92,7 +113,9 @@ def test_crowded_small_targets_need_a_named_exception(library, language, tmp_pat
     library.write(language)
     covered = run_check(library, tmp_path / "essential-report")
     cases = findings(covered, "target-size", "nav.links")
-    assert cases and all(f["exception"] in {pointer, "essential"} for f in cases), covered
+    assert cases and any(f["exception"] in {pointer, "essential"} for f in cases), covered
+    legitimate = {pointer, "essential"} | ({"equivalent"} if equivalents else set())
+    assert all(f["exception"] in legitimate for f in cases), covered
     assert pointer_value(language, pointer)["exception"] == "essential"
 
 

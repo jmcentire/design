@@ -3,6 +3,11 @@ from .resolver import parse_scope
 
 KINDS = {'truncate', 'horizontal-scroll', 'target-exception'}
 TARGET_EXCEPTIONS = {'inline', 'spacing', 'equivalent', 'user-agent', 'essential'}
+GOVERNED_PROPERTIES = {
+    'truncate': {'display', 'overflow', 'overflow-x', 'overflow-y', 'white-space',
+                 'text-overflow', 'line-clamp', '-webkit-line-clamp', '-webkit-box-orient'},
+    'horizontal-scroll': {'overflow', 'overflow-x', 'overflow-y'},
+}
 
 
 def matches(scope, target):
@@ -12,6 +17,15 @@ def matches(scope, target):
 def matching(document, kind, target):
     return [(f'/behaviors/{index}', behavior) for index, behavior in enumerate(document.get('behaviors', []))
             if behavior.get('kind') == kind and matches(behavior.get('scope', ''), target)]
+
+
+def property_exception(document, target, prop):
+    """Identify a declaration governing this property without waiving other styles."""
+    for index, behavior in enumerate(document.get('behaviors', [])):
+        if (prop in GOVERNED_PROPERTIES.get(behavior.get('kind'), ())
+                and matches(behavior.get('scope', ''), target)):
+            return f'/behaviors/{index}'
+    return None
 
 
 def validate_behaviors(document, vocabulary, issue):
