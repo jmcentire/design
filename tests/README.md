@@ -742,3 +742,15 @@ different inferred exponents. Non-browser execution remains blocked by absent
 vocabulary (109 setup errors, 82 browser cases deselected). Browser rerun awaits
 the Validator. Logs: `/tmp/kinbase-tester-type-scale-collection.log` and
 `/tmp/kinbase-tester-type-scale.log`.
+
+Validator run a3181487 (tester 31b531f, candidate 1cf5320) reported 190/191.
+Amendment 11c allows formality-driven text-transform changes on both label and
+caption roles, including hero eyebrows. Isolation now permits those two roles;
+title, subtitle and body text-transform changes remain rejected. Existing label
+threshold checks and all other dimension-isolation/perceptual checks remain intact.
+
+191 tests collect; compilation and whitespace checks pass. Local isolation-oracle
+diagnostics accept label/caption transforms and reject title/subtitle/body
+transforms. Non-browser execution remains blocked by absent vocabulary (109 setup
+errors, 82 browser cases deselected); browser rerun awaits the Validator. Logs:
+`/tmp/kinbase-tester-formality-collection.log`, `/tmp/kinbase-tester-formality.log`.

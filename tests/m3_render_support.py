@@ -124,7 +124,9 @@ def assert_isolated_styles(first, second, dimensions):
                     before["css"][prop] == old_attention and after["css"][prop] == new_attention
                 ), ("Whimsy changed paint unrelated to the attention color", before["slot"], prop)
             if prop == "text-transform":
-                assert before["role"] == "label", "Formality changed a non-label text transform"
+                # Amendment 11c includes small caption/eyebrow labelling text;
+                # title, subtitle and body transforms remain outside formality.
+                assert before["role"] in {"label", "caption"}, "Formality changed text-transform outside label/caption roles"
             if prop == "letter-spacing":
                 assert before["role"] == "title", "Formality changed non-title tracking"
     return changes
