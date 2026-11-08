@@ -433,3 +433,9 @@ naming its version and configured scope; **received** never implies **current**.
 from explain can be explicitly routed with `kinbase questions ask <id>`. No feedback action
 changes fixed inputs, validation outcomes or current direction on its own. There are no pushes,
 merges, deployments or automatic authority promotions.
+
+## Team setup and live Figma snapshots
+
+See [team setup](docs/TEAM-SETUP.md) for a pinned per-user installation, private shared
+library workflow, read-only Figma API snapshots, and the boundary to the existing Company
+Kinbase deployment. Live credentials and Company learning are not preconfigured.

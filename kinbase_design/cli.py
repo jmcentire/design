@@ -66,6 +66,10 @@ def parser():
         if name == 'serve':
             sub.add_argument('--host', choices=['127.0.0.1'], default='127.0.0.1')
             sub.add_argument('--port', type=int, default=8765)
+    figma = commands.add_parser('figma', parents=[common])
+    figma.add_argument('action', choices=['identity', 'pull'])
+    figma.add_argument('--file-key')
+    figma.add_argument('--version')
     generate = commands.add_parser('generate', parents=[common])
     actions = generate.add_subparsers(dest='generate_action', required=True)
     for name in ('start','interview','moodboard','pair','choose','settled','derive'):
@@ -93,7 +97,15 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'generate':
+        if args.command == 'figma':
+            from . import figma
+            if args.action == 'identity':
+                identity = figma.client().get('me')
+                output({k: identity.get(k) for k in ('id', 'handle', 'email')})
+            else:
+                if not args.file_key: raise ValueError('figma pull requires --file-key')
+                output(figma.snapshot(workspace, args.file_key, args.version))
+        elif args.command == 'generate':
             from . import generate
             action=args.generate_action
             if action=='start':result=generate.start(library,workspace,args.brief,args.artifact)
