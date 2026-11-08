@@ -13,6 +13,7 @@ from ..vocabulary import slot_map
 from .mapping import map_view
 from .provenance import values, source, complete
 from .quantize import measurements, hex_color, delta_e, px, scale, spacing_base, full_radius
+from .question_quality import role_sizes, size_choices, deduplicate
 
 
 def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
@@ -22,7 +23,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         tolerance=settings.radius_px if key=='radii' else settings.spacing_px if key=='spacing' else settings.type_size_px
         if not facts[key] and entries:facts[key]=list(dict.fromkeys(entries)) if key=='font_families' else scale(entries,tolerance)
     facts['spacing']=[v for v in facts['spacing'] if v>=0]
-    if not sources['views']:facts['spacing_base']=spacing_base(facts['spacing'])
+    if not sources['views']:facts['spacing_base']=spacing_base(facts['spacing'],settings.spacing_px)
     facts['type_scale_ratios']=[round(b/a,4) for a,b in zip(facts['type_scale'],facts['type_scale'][1:]) if a]
     document={'id':language_id,'name':language_id.replace('-',' ').title(),'vocabulary':vocabulary['version'],
               'style':{},'roles':{},'layout':{'variants':{}},'components':{},'overrides':[],'behaviors':[],'assets':{}}
@@ -151,7 +152,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
             if prop in style and style[prop] not in ordinary:
                 notes.append({'rule':'ingest-layout','message':f'{node["selector"]}: {prop}={style[prop]} is outside the closed property set; compare the captured layout'})
         return {k:v for k,v in result.items() if v is not None}
-    role_nodes={};role_surfaces={}
+    role_nodes={};role_surfaces={};sizes_by_role=role_sizes(sources['views'])
     for view in mappings:
         for item in view['instances']:
             slots=slot_map(vocabulary['constructs'][item['construct']])
@@ -179,13 +180,16 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
             treatment.update({k:v for k,v in properties(view,node).items() if k in {'color','font-family','font-size','font-weight','font-style','line-height','letter-spacing'}})
         document['roles'][role]={emphasis:deepcopy(treatment) for emphasis in vocabulary['emphasis']}
         construct=next(c for c,spec in vocabulary['constructs'].items() if any(s['role']==role for s in spec['slots']))
-        if role not in role_nodes and role!='media' and sources['views']:
+        observed_sizes=sizes_by_role.get(role,[])
+        if (role not in role_nodes or len(set(observed_sizes))>1) and role!='media' and sources['views']:
             name='size-'+role
-            document['style'].setdefault(group,{})[name]={'$type':'dimension','$value':f'{base_size:g}px'}
+            default_size,choices=size_choices(observed_sizes,base_size)
+            document['style'].setdefault(group,{})[name]={'$type':'dimension','$value':f'{default_size:g}px'}
             for emphasis in vocabulary['emphasis']:document['roles'][role][emphasis]['font-size']='{'+group+'.'+name+'}'
             questions.append({'pointer':pointer('style',group,name,'$value'),'construct':construct,'state':'default',
-                              'values':list(dict.fromkeys([f'{base_size:g}px','14px','20px','28px']))[:4],
-                              'role':role,'reason':'No mapped text establishes this role’s type size'})
+                              'values':[f'{size:g}px' for size in choices],
+                              'role':role,'property':'font-size','source_values':sorted(set(observed_sizes)),
+                              'reason':'Choose among captured role sizes' if observed_sizes else 'No captured text establishes this role’s type size'})
         observed=role_surfaces.get(role,{})
         if len(observed)==1:
             value,where=next(iter(observed.items()))
@@ -263,6 +267,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         document['layout']['variants']['listing-card']={'captured-side':{'template':template}}
         card=document['components'].setdefault('listing-card',{});card['variant']='captured-side'
         card.setdefault('parts',{})['content']={'display':'flex','flex-direction':'column'}
+    questions=deduplicate(document,questions)
     for index,q in enumerate(questions,1):
         q['id']='question-'+str(index)
         q['candidates']=[{'id':'candidate-'+str(n),'value':v} for n,v in enumerate(q.pop('values'),1)]

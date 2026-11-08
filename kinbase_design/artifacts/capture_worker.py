@@ -13,7 +13,7 @@ from ..storage import read_json
 from . import import_bytes
 from .capture import public_url, media_widths, anonymous_headers
 from .capture_output import publish_capture
-from .runtime import async_chromium, watch_parent
+from .runtime import async_chromium, watch_parent, read_job
 
 
 async def collect(job):
@@ -174,7 +174,7 @@ async def collect(job):
 
 def main():
     watch_parent()
-    try:print(json.dumps(asyncio.run(collect(read_json(Path(sys.argv[1]))))));return 0
+    try:print(json.dumps(asyncio.run(collect(read_job(Path(sys.argv[1]))))));return 0
     except Exception as exc:print(json.dumps({'error':str(exc)}));return 2
 
 

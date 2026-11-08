@@ -1,5 +1,21 @@
 """Deterministic semantic mapping. Captured text stays data in the private workspace."""
 from ..vocabulary import slot_map
+import re
+
+
+def semantic_role(node):
+    """Role evidence survives wrappers omitted by representative sampling."""
+    tag=node['tag'];attrs=node.get('attributes',{})
+    if tag in {'img','svg'}:return 'media'
+    if tag in {'input','textarea','select'}:return 'control'
+    if tag in {'a','button'}:return 'action'
+    headings=re.findall(r'(?:^| > )h([1-6])(?=:| > |$)',node.get('selector',''))
+    level=int(tag[1]) if re.fullmatch(r'h[1-6]',tag) else int(headings[-1]) if headings else None
+    if level:return 'title' if level<=2 else 'subtitle'
+    if attrs.get('role')=='heading':return 'title'
+    if tag=='label':return 'label'
+    if tag in {'figcaption','small'}:return 'caption'
+    return 'body'
 
 
 def construct_for(node):
@@ -44,7 +60,7 @@ def map_view(view,vocabulary,suggestions=()):
         slots=slot_map(vocabulary['constructs'][item['construct']])
         hint=' '.join(node.get('attributes',{}).values()).lower();tag=node['tag']
         preferred='price' if 'price' in hint else 'rating' if 'rating' in hint else 'location' if 'location' in hint else None
-        role='media' if tag in {'img','svg'} else 'title' if tag in {'h1','h2'} else 'subtitle' if tag in {'h3','h4','h5','h6'} else 'action' if tag in {'a','button'} else 'control' if tag in {'input','textarea','select'} else 'body'
+        role=semantic_role(node)
         slot=preferred if preferred in slots else next((name for name,s in slots.items() if s['role']==role),None)
         if proposal:slot=proposal['slot']
         if slot is None and role in {'title','subtitle','body'}:

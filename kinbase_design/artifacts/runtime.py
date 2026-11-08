@@ -9,13 +9,16 @@ import subprocess
 import sys
 import threading
 from tempfile import TemporaryDirectory
-from ..config import CAPTURE_TIMEOUT_MS, CAPTURE_TOTAL_SECONDS, WORKER_CLEANUP_SECONDS
-from ..storage import write_json
+from ..config import CAPTURE_TIMEOUT_MS, CAPTURE_TOTAL_SECONDS, WORKER_CLEANUP_SECONDS, INGEST_JSON_MAX_BYTES
+from ..storage import read_json, write_json
+
+
+def read_job(path):return read_json(path,max_bytes=INGEST_JSON_MAX_BYTES)
 
 
 def run_job(module, job, timeout=CAPTURE_TOTAL_SECONDS):
     with TemporaryDirectory(prefix='kinbase-job-') as temp:
-        path=Path(temp)/'job.json';write_json(path,job)
+        path=Path(temp)/'job.json';write_json(path,job,max_bytes=INGEST_JSON_MAX_BYTES)
         process=None;pipe=None;handlers={};environment=os.environ.copy()
         def stop():
             if process is None:return

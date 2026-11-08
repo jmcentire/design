@@ -32,8 +32,10 @@ def propose(document,vocabulary,sources):
             'vocabulary':vocabulary,'tokens':list(Tokens(document['style']).nodes),'captured':sources['views'],
             'output':'JSON array of {selector,construct,slot,role,emphasis?,token?}'}
     try:
-        result=subprocess.run(shlex.split(command),input=json.dumps(prompt),text=True,capture_output=True,timeout=INGEST_LLM_TIMEOUT_SECONDS)
-        if result.returncode or len(result.stdout)>MAX_JSON_BYTES:raise ValueError('Adapter failed or exceeded output bound')
+        payload=json.dumps(prompt)
+        if len(payload.encode('utf-8'))>MAX_JSON_BYTES:raise ValueError('Adapter input exceeds byte limit; heuristic mapping retained')
+        result=subprocess.run(shlex.split(command),input=payload,text=True,capture_output=True,timeout=INGEST_LLM_TIMEOUT_SECONDS)
+        if result.returncode or len(result.stdout.encode('utf-8'))>MAX_JSON_BYTES:raise ValueError('Adapter failed or exceeded output bound')
         proposal=json.loads(result.stdout)
         if not valid_mapping(proposal,vocabulary,document,selectors):raise ValueError('Adapter output contains an unknown id, reference or field')
         return proposal,None

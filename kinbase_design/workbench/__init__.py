@@ -154,10 +154,11 @@ def create_app(library: str | Path, workspace: str | Path):
                 latest = latest_report(library, language_id)
                 groups = {kind:[f for f in (latest or {}).get('findings',[]) if f['type']==kind] for kind in ('violation','missing','needs-review','coverage')}
                 from ..ingest.provenance import inspect_sources
+                from ..ingest.documents import read_document
                 provenance_entries=[]
                 if result['accepted']:
                     provenance_file=inside(library,'languages',language_id,'provenance',digest(load_language(library,language_id))+'.json')
-                    if provenance_file.exists():provenance_entries=inspect_sources(workspace,read_json(provenance_file))
+                    if provenance_file.exists():provenance_entries=inspect_sources(workspace,read_document(provenance_file))
                 body = html('viewer.html', provenance_entries=provenance_entries, latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
                             pages=pages, page=page, width=width, widths=VIEWPORTS,
                             annotations=query.get('annotations',['0'])[0]=='1', upload_mb=MAX_UPLOAD_BYTES//(1024*1024))

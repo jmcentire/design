@@ -197,6 +197,12 @@ Every selector must come from the capture and every semantic id from the vocabul
 output is discarded with a coverage finding. No command is run when unconfigured; no API keys
 are read and no model network client is built in. All browser and adapter operations are bounded.
 
+Generated ingest JSON (draft evidence, worker jobs and fidelity reports) has a shared
+100 MiB read/write limit in `config.py`. Original sampled design evidence is retained.
+This is separate from the 20 MiB upload limit and the 4 MiB working-language and
+adapter input/output limits. An oversized adapter prompt keeps heuristic mapping
+and reports the reason; it does not discard captured evidence.
+
 ## Local verification without sockets
 
 `kinbase_design.workbench.create_app(library, workspace)` returns a WSGI application. Call it

@@ -8,6 +8,7 @@ from ..assets import inspect_format
 from ..config import MAX_UPLOAD_BYTES,ingest_config
 from ..ingest import draft,summary,save_draft,promote_draft,questions,answer
 from ..ingest.fidelity import fidelity
+from ..ingest.documents import read_document
 from ..ingest.staging import folder,stage,load_draft
 from ..ingest.provenance import inspect_sources
 from ..language.versions import digest
@@ -73,7 +74,7 @@ def handle(library,workspace,environ,segments,query,html):
         if action is None and method=='GET':
             result=summary(library,workspace,draft_id)
             slots=[{'scope':c+'.'+s['id'],'kind':s['asset_kind']} for c,v in load(library)['constructs'].items() for s in v['slots'] if s.get('asset_kind')]
-            return page('draft.html',title='Draft '+draft_id,result=result,slots=slots,provenance_entries=inspect_sources(workspace,read_json(inside(root,'provenance.json'))))
+            return page('draft.html',title='Draft '+draft_id,result=result,slots=slots,provenance_entries=inspect_sources(workspace,read_document(inside(root,'provenance.json'))))
         if action=='preview' and method=='GET' and len(tail)>=4:
             with stage(library,workspace,draft_id) as staged:files=preview_files(staged,draft_id)
             name='/'.join(tail[3:])
@@ -87,7 +88,7 @@ def handle(library,workspace,environ,segments,query,html):
         if action=='fidelity':
             if method=='POST':fidelity(library,workspace,draft_id);return redirect('/ingest/drafts/'+draft_id+'/fidelity')
             if method=='GET':
-                path=inside(root,'fidelity','report.json');result=read_json(path) if path.exists() else None
+                path=inside(root,'fidelity','report.json');result=read_document(path) if path.exists() else None
                 return page('fidelity.html',title='Fidelity review',draft_id=draft_id,result=result,stale=bool(result and result['version']!=digest(load_draft(workspace,draft_id))))
         if action=='questions' and method=='GET':
             return page('questions.html',title='Visual questions',draft_id=draft_id,questions=questions(workspace,draft_id))

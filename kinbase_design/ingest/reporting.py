@@ -1,7 +1,7 @@
 """Public measured summaries, derived from the same extraction/comparison facts."""
 from ..config import INGEST_FULL_RADIUS_PX
 from ..language.tokens import Tokens
-from .quantize import delta_e
+from .quantize import delta_e,color_distance_key
 
 
 def type_ratio(sizes):
@@ -15,15 +15,16 @@ def measured(document,facts):
         try:kind,value=tokens.evaluate(name)
         except (ValueError,KeyError):continue  # Shared validation reports defective source tokens.
         if kind=='color':colors.append((name,value))
-    palette=[]
+    palette={}
     for entry in facts['palette']:
-        nearest=min(colors,key=lambda pair:delta_e(entry['value'],pair[1]),default=None)
+        nearest=min(colors,key=lambda pair:color_distance_key(entry['value'],pair[1]),default=None)
         if nearest is None:continue
         sources=[member['value'] for member in entry['members']]
-        palette.append({'token':nearest[0],'value':nearest[1],'sources':sources,
-                        'max_delta_e':round(max(delta_e(value,nearest[1]) for value in sources),6)})
+        item=palette.setdefault(nearest[0],{'token':nearest[0],'value':nearest[1],'sources':[],'max_delta_e':0})
+        item['sources']=list(dict.fromkeys(item['sources']+sources))
+        item['max_delta_e']=round(max(delta_e(value,nearest[1]) for value in item['sources']),6)
     sizes=facts['type_scale']
-    return {'palette':palette,'font_families':facts['font_families'],
+    return {'palette':list(palette.values()),'font_families':facts['font_families'],
             'type_scale':{'base_px':facts.get('type_base_px',sizes[0] if sizes else None),'ratio':type_ratio(sizes),'sizes_px':sizes},
             'spacing':{'base_px':facts['spacing_base'],'steps_px':facts['spacing']},
             'radii_px':[INGEST_FULL_RADIUS_PX if r=='full' else r for r in facts['radii']],

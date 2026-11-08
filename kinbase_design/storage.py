@@ -23,15 +23,16 @@ def inside(root, *parts):
     return path
 
 
-def read_json(path):
-    if path.stat().st_size > MAX_JSON_BYTES:
+def read_json(path, max_bytes=MAX_JSON_BYTES):
+    if path.stat().st_size > max_bytes:
         raise ValueError(f"JSON exceeds size limit: {path.name}")
     return json.loads(path.read_text(encoding="utf-8"), parse_constant=lambda x: (_ for _ in ()).throw(ValueError(f"Invalid JSON number {x}")))
 
 
-def write_json(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
+def write_json(path, value, max_bytes=MAX_JSON_BYTES):
     data = (json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n").encode()
+    if len(data)>max_bytes:raise ValueError(f"JSON exceeds size limit: {path.name}")
+    path.parent.mkdir(parents=True, exist_ok=True)
     fd, name = tempfile.mkstemp(dir=path.parent, prefix=".write-")
     try:
         with os.fdopen(fd, "wb") as stream:

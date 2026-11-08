@@ -5,7 +5,7 @@ import re
 from fractions import Fraction
 from ..checks.math import color
 from ..config import (INGEST_COLOR_DELTA_E, INGEST_TYPE_TOLERANCE_PX,
-                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig)
+                      INGEST_SPACE_TOLERANCE_PX, INGEST_SPACE_CANDIDATE_LIMIT, INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig)
 
 
 def hex_color(value):
@@ -79,6 +79,12 @@ def palette(values,tolerance=INGEST_COLOR_DELTA_E):
     return groups
 
 
+def color_distance_key(source,candidate):
+    """Preserve opacity when choosing among equally close sRGB colours."""
+    left,right=color(source),color(candidate)
+    return (abs(left[3]-right[3]),delta_e(source,candidate))
+
+
 def px(value):
     if isinstance(value,(float,int)):return float(value)
     try:return float(value[:-2]) if value.endswith('px') else None
@@ -92,7 +98,7 @@ def scale(values,tolerance=INGEST_TYPE_TOLERANCE_PX):
     return result
 
 
-def spacing_base(values):
+def spacing_base(values,tolerance=INGEST_SPACE_TOLERANCE_PX):
     values=sorted({v for v in values if v is not None and v>0})
     if not values:return INGEST_DEFAULT_SPACE
     unit=Fraction(str(values[0]))
@@ -100,7 +106,15 @@ def spacing_base(values):
         step=Fraction(str(value))
         unit=Fraction(math.gcd(unit.numerator*step.denominator,step.numerator*unit.denominator),
                       unit.denominator*step.denominator)
-    return float(unit)
+    exact=float(unit)
+    meaningful=[v for v in values if v>tolerance]
+    if not meaningful:return exact
+    smallest=min(meaningful)
+    candidates={exact,*[v for v in values if v<=smallest+tolerance]}
+    candidates.update(range(1,min(math.floor(smallest),INGEST_SPACE_CANDIDATE_LIMIT)+1))
+    # A base must explain every observed step, independent of its frequency.
+    # Tiny offsets within tolerance need not force the entire scale down to 1px.
+    return max(base for base in candidates if all(abs(v-round(v/base)*base)<=tolerance+1e-8 for v in values))
 
 
 def full_radius(value,box=()):
@@ -118,6 +132,6 @@ def measurements(views,extra_colors=(),settings=None):
     return {'palette':palette([s.get(p) for s in styles for p in ('color','background-color','border-top-color')]+list(extra_colors),settings.color_delta_e),
             'type_scale':sizes,'type_scale_ratios':[round(b/a,4) for a,b in zip(sizes,sizes[1:]) if a],
             'font_families':list(dict.fromkeys(s['font-family'] for s in styles if s.get('font-family'))),
-            'spacing':scale(spaces,settings.spacing_px),'spacing_base':spacing_base(spaces),
+            'spacing':scale(spaces,settings.spacing_px),'spacing_base':spacing_base(spaces,settings.spacing_px),
             'radii':scale([r for r,box in radii if not full_radius(r,box)],settings.radius_px)+(['full'] if any(full_radius(r,box) for r,box in radii) else []),
             'breakpoints':sorted({w for view in views for w in view.get('breakpoints',[])})}
