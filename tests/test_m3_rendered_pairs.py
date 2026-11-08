@@ -8,7 +8,7 @@ color/spacing/shape choices. No candidate implementation or resolver is the orac
 import shutil
 
 import pytest
-from tests.m3_perceptual_support import (PAIR_CHANGED_SHARE, assert_beach_paint, assert_neutral_default_copy,
+from tests.m3_perceptual_support import (PAIR_CHANGED_SHARE, PAGE_SHARE_DIMENSIONS, assert_beach_paint, assert_neutral_default_copy,
                                          assert_prominent_dimension_effects, changed_share, screenshot_image)
 from tests.m3_render_support import (assert_dimension_effects, assert_formality, assert_known_font_genres, hsl,
                                      paint_snapshot, primary)
@@ -93,7 +93,11 @@ def test_all_offered_pairs_render_same_screen_with_only_advertised_dimension_eff
                 unclassified_families.update(assert_known_font_genres(rows, current[side]["values"]["type-pairing"]))
         difference = changed_share(a_pixels, b_pixels)
         record_property("pair_" + str(current["round"]) + "_changed_share", difference)
-        assert difference >= PAIR_CHANGED_SHARE, ("A/B screens are perceptually too similar", current["dimensions"], difference)
+        # Shape/formality/whimsy can be plainly distinguishable on prominent
+        # elements while changing little total page area. Mixed pairs containing
+        # a broad paint/type/spacing dimension still meet the page-share floor.
+        if PAGE_SHARE_DIMENSIONS.intersection(current["dimensions"]):
+            assert difference >= PAIR_CHANGED_SHARE, ("A/B screens are perceptually too similar", current["dimensions"], difference)
         viewport = page.viewport_size
         assert_prominent_dimension_effects(a, b, current["dimensions"], viewport["width"] * viewport["height"], a_pixels, b_pixels)
         observed_dimensions.update(current["dimensions"])

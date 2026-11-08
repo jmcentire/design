@@ -754,3 +754,140 @@ diagnostics accept label/caption transforms and reject title/subtitle/body
 transforms. Non-browser execution remains blocked by absent vocabulary (109 setup
 errors, 82 browser cases deselected); browser rerun awaits the Validator. Logs:
 `/tmp/kinbase-tester-formality-collection.log`, `/tmp/kinbase-tester-formality.log`.
+
+M4's first checkpoint adds `test_m4_export.py`: real CLI exports for both adapters
+must preserve identical bytes across output locations and unchanged language
+versions (including display-name/serialization changes). Header identities use an
+independently computed language hash; JSON follows amendment 15. All fixture
+assets are bound through slots, a font family, or a background-image; every one
+must be packaged unchanged and referenced by exported CSS. The Tailwind adapter
+must expose its declared theme/light scope and leave no token-value aliases
+uncomputed. A real-browser generic consumer uses only exported CSS, independently
+authored role classes/hooks, known token values and resolver agreement at base/md.
+Its font must load from the export. No adapter variable-name convention is guessed.
+
+194 tests collect; compilation and whitespace checks pass. Non-browser execution
+remains blocked by absent vocabulary (111 setup errors, 83 browser cases
+deselected). Logs: `/tmp/kinbase-tester-m4-export-collection.log` and
+`/tmp/kinbase-tester-m4-export.log`. M4 is not complete: Tailwind browser consumption
+needs a public compilation/stylesheet contract before that oracle can be written;
+inventory, Apply and the Kinbase seam coverage remain to be authored.
+
+M4 amendment 16 adds `test_m4_inventory.py` and real temporary Git repository
+helpers. Complete role defaults treat a construct and its requested slots even
+without an explicit component declaration. Independently seeded unknown construct
+and slot requests each produce one missing finding. Equal-valued aliases in an
+explicit state remain missing; changing the state to a different authored color
+closes the gap. A justified scoped exception keeps its finding reported and
+accepted, while an empty reason does not. A packaged but unbound real font is
+missing until a font-family token binds it. Confirmed R2 violations block acceptance;
+an unused part's advisory coverage alone does not. Finding pointers are resolved
+against their reported repository-relative files and observed values.
+
+202 cases collect; compilation and whitespace checks pass. A local diagnostic
+initialized and committed the real Git fixture, verifying a clean main branch and
+no remotes. Non-browser execution still stops at absent candidate vocabulary
+(119 setup errors, 83 browser cases deselected). Logs:
+`/tmp/kinbase-tester-m4-inventory-collection.log`, `/tmp/kinbase-tester-m4-inventory.log`.
+M4 remains in progress. Explicit required-asset-variant inventory syntax is not
+specified by the kind-string array; variant-specific coverage awaits clarification.
+
+M4 amendment 17 makes the Tailwind export directly browser-consumable. The same
+independent consumer now verifies both adapters without a compiler. Tailwind's
+own build consumption of `@theme static` remains an explicit gap: verify it in
+the target design-system repository during Apply.
+
+`test_m4_apply.py` adds four real-browser Apply cases (both adapters, with/without
+`--branch`). Two independently authored pages carry different persistent paint
+markers and red card surfaces. The hand-off must retain each original screenshot
+and show the exported green surface in each injected preview; OCR is not used.
+TASK metadata, complete export bytes and inventory findings are checked. Disposable
+Git repositories have local identities and a local bare remote: original files
+and main remain unchanged, remote refs remain unchanged, and only the requested
+local branch may be created. Committed export bytes are read from that branch,
+without requiring Apply to leave it checked out. All processes have deadlines.
+
+207 cases collect; compilation and whitespace checks pass. Non-browser execution
+remains blocked by absent candidate vocabulary (119 setup errors, 88 browser
+cases deselected). Logs: `/tmp/kinbase-tester-m4-apply-collection.log` and
+`/tmp/kinbase-tester-m4-apply.log`. Browser assertions await the Validator; M4's
+workbench and Kinbase seam coverage remain in progress.
+
+M4's no-JS Apply case starts at `/apply`, selects a language/adapter, supplies a
+real temporary target repository and local page URL, and follows visible forms or
+links to the bundle. It checks the same independently authored screenshot effects,
+export bytes, task metadata and findings as the CLI cases. It permits a fixed UI
+target directory where no target-dir field is offered; CLI tests pin the explicit
+argument. A project-local workbench launcher makes test TOML settings effective.
+
+Two unavailable-Kinbase cases configure a nonexistent executable. Preview, both
+exports, capture/draft and generate/derive must still succeed. Grid and viewer
+must disclose unknown status with an unavailable reason. The no-JS feedback form
+must append author, versioned target, exact comment and timestamp locally, report
+"not sent (Kinbase unavailable)", and leave language bytes and validation unchanged.
+The available-adapter seam remains pending a public initialization/fact contract;
+stand-in executables will prove composition only, never real Kinbase behavior.
+BFF inventory drafting remains out of scope pending the user's BFF decision (D3).
+
+210 cases collect; compilation and whitespace checks pass. Local non-browser
+execution still reports 119 prerequisite errors (missing candidate vocabulary),
+with 91 browser cases deselected. Logs:
+`/tmp/kinbase-tester-m4-workbench-collection.log`, `/tmp/kinbase-tester-m4-workbench.log`.
+These browser assertions await the Validator; no local product pass is claimed.
+
+M4 amendment 19 pins inventory assets as `kind` or `kind:variant`. Two new cases
+verify a bare bound logo needs no on-dark variant, an explicit on-dark request is
+missing until that bound asset supplies it, and a separate unbound logo cannot
+satisfy it merely by being packaged. The existing primary binding stays unchanged:
+the amended contract asks whether the bound asset has the variant. A mixed request
+list independently checks exact missing members and prevents a same-named variant
+of another asset kind from satisfying the request. Removing only the unsupplied
+requirements restores acceptance. Asset-exception scope syntax remains unspecified
+by the construct/slot/state scope grammar; that case awaits clarification.
+
+212 cases collect; compilation and whitespace checks pass. The non-browser suite
+still cannot execute product assertions without candidate vocabulary (121 setup
+errors, 91 browser cases deselected). Logs:
+`/tmp/kinbase-tester-m4-variants-collection.log`, `/tmp/kinbase-tester-m4-variants.log`.
+
+M4 amendment 18 proposes a machine-applicable statement convention:
+`{"kinbase-design":{"values":{"<working-copy JSON pointer>":"<value>"}}}`.
+This convention awaits confirmation with the Kinbase owner (G2). It is not a
+claim that arbitrary Kinbase prose can be executed as a design rule. Authoritative
+free text must remain visible for manual application; lower standing remains a
+suggestion. Positive fixed-input tests still need the public initialized-repository
+fixture and exact source-provenance representation from the pending question.
+
+`fixtures/kinbase/seam.py` supplies real stand-in `kinbase`/`kin` executables at the
+explicitly authorized external seam. They append argv and return test-authored
+JSON for the existing explain/questions/submit commands, rejecting other commands.
+These prove adapter composition only, not real Kinbase behavior, authority
+resolution, persistence or publication. Both unavailable cases put these executables
+first on PATH so an erroneous submit cannot invoke the user's real Kinbase client.
+The missing-binary journey and feedback checks now also run with a working stand-in
+and a Git-only repository lacking Kinbase initialization. No submit may occur.
+A test-driver-only process-environment field carries this PATH through CLI calls
+and workbench startup; no product implementation is replaced or imported.
+
+214 cases collect; compilation and whitespace checks pass. Stand-in diagnostics
+launched the real executable, round-tripped a JSON design-fact response, verified
+argv logging and unsupported-command rejection, and checked TOML/PATH setup.
+Non-browser execution still stops at absent candidate vocabulary (121 setup errors,
+93 browser cases deselected). Logs: `/tmp/kinbase-tester-m4-seam-collection.log` and
+`/tmp/kinbase-tester-m4-seam.log`. Browser behavior remains unverified locally.
+
+Validator repair 2b01fa1a reported 190/191 against the M3 checkpoint: a clearly
+visible shape/formality pair changed 0.73% of the page, below the 1% floor. The
+whole-page threshold now applies only when a pair varies hue-family,
+value-contrast, saturation, type-pairing, type-scale or density. A pair containing
+only shape/formality/whimsy still records its pixel share, but acceptance relies
+on the existing per-dimension prominent-element paint and semantic-effect checks.
+Mixed pairs with any broad paint/type/spacing dimension retain the 1% floor.
+All per-dimension checks remain unchanged.
+
+214 tests collect; compilation and whitespace checks pass. Non-browser execution
+remains blocked by absent candidate vocabulary (121 prerequisite errors, 93 browser
+cases deselected). Logs: `/tmp/kinbase-tester-perceptual-repair-collection.log` and
+`/tmp/kinbase-tester-perceptual-repair.log`. The Validator must rerun the browser
+case. M4's pending initialization/provenance and asset-exception questions remain
+open; this checkpoint completes only the requested perceptual-test repair.

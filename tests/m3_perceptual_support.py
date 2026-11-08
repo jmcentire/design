@@ -1,8 +1,9 @@
 """Independent rendered visibility criteria from the Validator's beach-session review.
 
 The numerical cutoffs below are tester-chosen operational criteria, not WCAG
-thresholds. They reject localized/noisy changes while allowing type/shape choices
-that naturally change less paint than a new page background.
+thresholds. Whole-page share applies to broad paint, typography and spacing
+changes. Shape, formality and whimsy retain per-dimension prominent-element
+checks without a whole-page area requirement (Validator repair 2b01fa1a).
 """
 
 import colorsys
@@ -14,6 +15,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageOps
 from tests.m3_render_support import ALLOWED, assert_whimsy, numeric_values, rgba, pixels
 
 PAIR_CHANGED_SHARE = 0.01
+PAGE_SHARE_DIMENSIONS = {"hue-family", "value-contrast", "saturation", "type-pairing", "type-scale", "density"}
 MOOD_CHANGED_SHARE = 0.03
 
 

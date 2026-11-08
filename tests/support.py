@@ -18,12 +18,14 @@ PAGES = ("index.html", "search.html", "listing.html", "form.html", "states.html"
 class LibraryCase:
     def __init__(self, project, library, workspace):
         self.project, self.library, self.workspace = project, library, workspace
+        self.command_env = {}  # Explicit process environment for authorized external seams.
 
     def environment(self, extra=None):
         env = dict(os.environ)
         for key in ("KINBASE_DESIGN_LIBRARY", "KINBASE_DESIGN_WORKSPACE", "KINBASE_DESIGN_LLM_COMMAND"):
             env.pop(key, None)
         env["PYTHONPATH"] = str(ROOT)
+        env.update(self.command_env)
         env.update(extra or {})
         return env
 
