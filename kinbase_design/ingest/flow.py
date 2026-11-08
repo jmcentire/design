@@ -28,7 +28,7 @@ def split_flow(nodes,roots,owner):
         if item['construct'] in {'card','nav','footer','form','search-bar','gallery'}:continue
         owned=[n for n in nodes if original[n['selector']] is item]
         headings=[n for n in owned if level(n)]
-        if len(headings)<2:continue
+        if not headings and not any(n['tag'] in {'pre','img','svg'} for n in owned):continue
         stack=[];active=key;paragraphs={}
         item['flow']=True
         for node in owned:
@@ -44,7 +44,7 @@ def split_flow(nodes,roots,owner):
             target=active
             # Prose blocks remain in source order with the media between them.
             # They use the existing body slot instead of an alternate renderer.
-            if node['tag'] in {'p','li','blockquote','figcaption'} and node['selector']!=key:
+            if node['tag'] in {'p','li','blockquote','figcaption','pre'} and node['selector']!=key:
                 target=node['selector'];paragraphs[target]=target;parents[target]=active
                 root={'selector':target,'tag':'section','styles':{},'box':None}
                 roots[target]={'construct':'content-section','selector':target,'values':{},'media':{},'nodes':{},'root_node':root,'flow':True}
@@ -54,7 +54,7 @@ def split_flow(nodes,roots,owner):
             assigned[node['selector']]=target
     # Media without a media slot remains an ordered child construct.
     for node in nodes:
-        if node['tag']!='img' or not node.get('src'):continue
+        if node['tag'] not in {'img','svg'} or not node.get('src'):continue
         key=assigned.get(node['selector']);item=roots.get(key) if key else original[node['selector']]
         if not item or not (item['construct']=='content-section' or item.get('flow')):continue
         key=node['selector'];parents[key]=item['selector'];assigned[key]=key
@@ -75,7 +75,7 @@ def split_flow(nodes,roots,owner):
 def block(node,by):
     current=node
     while current:
-        if current['tag'] in {'p','li','blockquote','figcaption','h1','h2','h3','h4','h5','h6'}:return current['selector']
+        if current['tag'] in {'p','li','blockquote','figcaption','pre','h1','h2','h3','h4','h5','h6'}:return current['selector']
         current=by.get(current.get('parent'))
     return node.get('parent') or node['selector']
 
@@ -85,6 +85,6 @@ def inline_role(node,by):
     current=by.get(node.get('parent'))
     while current:
         if level(current):return 'title' if level(current)<=2 else 'subtitle'
-        if current['tag'] in {'p','li','blockquote','figcaption'} and (current.get('text') or visible_text(current)):return 'body'
+        if current['tag'] in {'p','li','blockquote','figcaption','pre'} and (current.get('text') or visible_text(current)):return 'body'
         current=by.get(current.get('parent'))
     return None

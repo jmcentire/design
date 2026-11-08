@@ -4,6 +4,10 @@ from ..checks.math import color,luminance
 from .quantize import px
 
 
+def literal_node(node):
+    return node.get('preformatted',False) or node['tag'] in {'pre','code','kbd','samp'} or bool(re.search(r'(?:^| > )(?:pre|code|kbd|samp)(?=:| > |$)',node['selector']))
+
+
 def visible_text(node):
     if re.search(r'(?:^| > )svg(?=:| > )',node['selector']):return ''
     if node['tag'] in {'input','select','textarea'}:return ''
@@ -40,7 +44,7 @@ def heading(node,by):
 def repeated_candidate(node,desc):
     if node['tag'] not in {'div','li','a','article','section'} or len(desc)>=150:return False
     text=[n for n in [node,*desc] if visible_text(n)]
-    media=any(n['tag']=='img' for n in desc)
+    media=any(n['tag'] in {'img','svg'} and n.get('src') for n in desc)
     titled=any(re.fullmatch('h[1-6]',n['tag']) or n.get('attributes',{}).get('role')=='heading' for n in desc)
     text_blocks=sum(n['tag'] in {'p','small','figcaption','dt','dd'} and bool(visible_text(n)) for n in desc)
     hierarchy=len({(size(n),weight(n)) for n in text})>1

@@ -7,7 +7,7 @@ from ..assets import inspect_format
 def image_format(data):
     try:
         return inspect_format(data, 'image')
-    except ValueError:
+    except (ValueError,OSError):
         # Modern sites negotiate AVIF and use animated GIF. These originals are
         # valid fidelity references even though the approved manifest is closed.
         try:

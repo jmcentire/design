@@ -116,7 +116,7 @@ def reconstruct(library,workspace,draft_id,settings=None):
         view=read_document(inside(root,entry['file']));instances=[]
         for original in view['instances']:
             item={k:deepcopy(original[k]) for k in ('construct','values')};item['media']={}
-            for key in ('selector','parent','box','treatment','hrefs','accessible_names','fragments','flow','heading_levels'):
+            for key in ('selector','parent','box','treatment','hrefs','accessible_names','fragments','flow','heading_levels','action_items'):
                 if key in original:item[key]=deepcopy(original[key])
             item['action_icons']={}
             for slot,icon in original.get('action_icons',{}).items():

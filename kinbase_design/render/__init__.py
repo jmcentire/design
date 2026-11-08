@@ -18,13 +18,13 @@ class InvalidLanguage(ValueError):
         super().__init__('Language has unresolved validation findings')
 
 
-def preview_files(library, language_id, compositions=None):
+def preview_files(library, language_id, compositions=None, vocabulary_version=None):
     document = load_language(library, language_id)
     result = validate(library, language_id, document)
     if not result['accepted']:
         raise InvalidLanguage(result)
-    vocabulary = load(library, document['vocabulary'])
-    sample_set = samples(library, document['vocabulary'])
+    vocabulary = load(library, vocabulary_version or document['vocabulary'])
+    sample_set = samples(library, vocabulary_version or document['vocabulary'])
     renderer = SampleRenderer(document, vocabulary, sample_set)
     if compositions is not None:
         compositions=deepcopy(compositions)

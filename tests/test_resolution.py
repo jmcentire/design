@@ -14,6 +14,10 @@ CSS_PROPERTIES = {
     "margin-block", "gap", "display", "flex-direction", "flex-wrap", "align-items",
     "justify-content", "text-align", "text-transform", "font-style", "text-decoration-line",
     "overflow", "text-overflow", "white-space", "background-image",
+    # design-examples amendment 02: closed layout grammar extension.
+    "grid-template-columns", "grid-column", "grid-row", "align-self", "justify-self",
+    "aspect-ratio", "object-fit", "object-position", "margin-inline", "box-shadow",
+    "column-gap", "row-gap",
 }
 
 

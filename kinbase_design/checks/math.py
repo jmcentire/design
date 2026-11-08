@@ -82,10 +82,63 @@ def spacing_exception(target, others):
     return True
 
 
-def css_equal(property, expected, observed, font_size, root_size):
+def css_equal(property, expected, observed, font_size, root_size, *, blockified=False):
+    if property=='display' and blockified:
+        # CSS computes inline outer display to block for flex/grid items and
+        # out-of-flow boxes. This is conditional on the observed layout context.
+        expected={'inline':'block','inline-block':'block','inline-flex':'flex','inline-grid':'grid'}.get(expected,expected)
+    if property=='box-shadow':
+        if expected==observed:return True
+        def shadow(value):
+            match=re.search(r'rgba?\([^)]*\)|#[0-9a-fA-F]{6,8}',value)
+            if not match:return None
+            channels=color(match[0]);rest=value[:match.start()]+value[match.end():]
+            lengths=re.findall(r'-?[\d.]+(?:px|rem)',rest)
+            if len(lengths)!=4:return None
+            numbers=[float(n[:-3])*root_size if n.endswith('rem') else float(n[:-2]) for n in lengths]
+            return channels,numbers
+        a,b=shadow(str(expected)),shadow(str(observed))
+        return bool(a and b and a[0] and b[0] and all(abs(x-y)<=CHECK_COLOR_TOLERANCE for x,y in zip(a[0],b[0])) and all(abs(x-y)<=CHECK_PIXEL_TOLERANCE for x,y in zip(a[1],b[1])))
+    if property in {'grid-template-columns','grid-template-rows'}:
+        if expected==observed:return True
+        compact = str(expected).replace(' ','')
+        repeat = re.fullmatch(r'repeat\((\d+),(.+)\)',compact)
+        if repeat:tracks = [repeat[2]]*int(repeat[1])
+        else:tracks = re.findall(r'minmax\([\d.]+(?:px|rem),[\d.]+fr\)|[\d.]+(?:px|rem|fr)|auto',compact)
+        pixels = observed.split()
+        if not tracks or any(not re.fullmatch(r'[\d.]+px',p) for p in pixels):return None
+        if len(tracks)!=len(pixels):return False
+        units = []
+        for track,actual in zip(tracks,pixels):
+            if track=='auto':return None
+            fraction = re.fullmatch(r'([\d.]+)fr',track)
+            minimum = re.fullmatch(r'minmax\(([\d.]+)(px|rem),([\d.]+)fr\)',track)
+            if minimum:
+                lower=float(minimum[1])*(root_size if minimum[2]=='rem' else 1)
+                if float(actual[:-2])+CHECK_PIXEL_TOLERANCE<lower:return False
+                if lower>0:return None
+                units.append(float(actual[:-2])/float(minimum[3]))
+            elif fraction:units.append(float(actual[:-2])/float(fraction[1]))
+            elif not css_equal('width',track,actual,font_size,root_size):return False
+        return not units or max(units)-min(units)<=CHECK_PIXEL_TOLERANCE
+    if property=='aspect-ratio':
+        if expected==observed:return True
+        try:
+            numerator,_,denominator = str(observed).partition('/')
+            a,_,b=str(expected).partition('/')
+            return abs(float(a)/float(b or 1)-float(numerator)/float(denominator or 1))<1e-6
+        except (ValueError,ZeroDivisionError):return False
+    if property=='object-position':
+        expected = {'center':'50% 50%','top':'50% 0%','bottom':'50% 100%','left':'0% 50%','right':'100% 50%'}.get(expected,expected)
+    if property in {'grid-column','grid-row'}:
+        expected = str(expected)
+        if re.fullmatch(r'(?:span )?\d+',expected):expected += ' / auto'
+        return expected.replace(' ','')==str(observed).replace(' ','') or expected=='auto' and observed=='auto / auto'
+    if expected=='auto' and property in {'margin-inline','width','height','min-width'} and observed!='auto':
+        return None  # Computed used sizes cannot establish an authored auto value.
     if property == 'background-image':
         return background_equal(expected, observed)
-    if property in {'color','background-color','border-color'}:
+    if property in {'color','background-color','border-color','outline-color'}:
         a,b = color(expected),color(observed)
         return a is not None and b is not None and all(abs(x-y)<=CHECK_COLOR_TOLERANCE for x,y in zip(a,b))
     if isinstance(expected,(int,float)) and property=='line-height':

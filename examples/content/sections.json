@@ -1,0 +1,42 @@
+[
+  {
+    "version": 1,
+    "type": "opening",
+    "heading": "Ideas take shape",
+    "summary": "A small collection of things to try."
+  },
+  {
+    "type": "entries",
+    "variant": "compact",
+    "heading": "Choose a beginning",
+    "entries": [
+      {
+        "name": "A first mark",
+        "description": "Start with a line.",
+        "link": {
+          "label": "Revisit the ideas",
+          "url": "#ideas"
+        }
+      },
+      {
+        "name": "A second look",
+        "description": "Find a new angle.",
+        "link": {
+          "label": "Choose again",
+          "url": "#ideas"
+        }
+      }
+    ],
+    "id": "ideas",
+    "subtitle": "This unmapped field is reported."
+  },
+  {
+    "type": "notes",
+    "heading": "Keep a notebook",
+    "content": "Write down one observation. Leave room for a new idea."
+  },
+  {
+    "type": "unmapped-example",
+    "heading": "This entire section should be reported."
+  }
+]

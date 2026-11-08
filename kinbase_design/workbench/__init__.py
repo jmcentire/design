@@ -99,7 +99,10 @@ def create_app(library: str | Path, workspace: str | Path):
                 raise RequestError('Unknown route', 404)
             query = parse_qs(environ.get('QUERY_STRING', ''), max_num_fields=20)
             segments = path.strip('/').split('/')
-            if segments[0] == 'ingest':
+            if segments[0] == 'content':
+                from .content import handle
+                code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif segments[0] == 'ingest':
                 from .ingest import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
             elif segments[0] == 'apply':

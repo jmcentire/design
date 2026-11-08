@@ -4,7 +4,7 @@ import logging
 import time
 from ..config import (CHECK_TIMEOUT_MS, CHECK_VIEWPORT_HEIGHT, CHECK_PIXEL_TOLERANCE,
                       CHECK_TARGET_SIZE, CHECK_MAX_TAB_STEPS)
-from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
+from ..language.properties import TOKEN_PROPERTIES, KEYWORDS, LAYOUT_PROPERTIES
 from .evaluate import Evaluation
 from .math import color, contrast, effective_background
 from .grouping import group_rendered, observation_context
@@ -51,9 +51,11 @@ def observe(page, vocabulary=None):
     source = Path(__file__).with_name('observe.js').read_text().replace(
         '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
     snapshot = page.evaluate(source,{
-        'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys())-{'surface'}),
+        'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys() | LAYOUT_PROPERTIES)-{'surface'}),
         'controlSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
                         for slot in contract['slots'] if slot['kind']=='control'],
+        'mediaSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
+                      for slot in contract['slots'] if slot['kind']=='media'],
         'tolerance':CHECK_PIXEL_TOLERANCE,'targetSize':CHECK_TARGET_SIZE})
     for node in snapshot['nodes']:
         node['nativeControl'] = unmodified_native(node.pop('nativeAppearance'))
@@ -181,7 +183,7 @@ def inspect(document, vocabulary, preview, output, widths):
                                 snapshots[filename]=snapshot
                                 page.screenshot(path=str(Path(output)/(filename.removesuffix('.html')+f'@{width}.png')),full_page=True,animations='disabled',timeout=CHECK_TIMEOUT_MS)
                                 linked={l['href'].split('#')[0].split('?')[0] for l in snapshot['links'] if l['visible']}
-                                if not snapshot['text'].strip() or not set(pages)<=linked:
+                                if not snapshot['text'].strip() or not snapshot.get('contentPage') and not set(pages)<=linked:
                                     evaluation.add('no-js',filename,width,measured={'text':bool(snapshot['text'].strip()),'links':sorted(linked)},threshold=pages,expected='page renders and links to every preview page without JavaScript')
                                 if filename=='states.html':
                                     expected={(c,s) for c,contract in vocabulary['constructs'].items() for s in contract['states']}

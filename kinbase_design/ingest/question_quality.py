@@ -5,12 +5,14 @@ import json
 from ..findings import location
 from .mapping import semantic_role
 from .quantize import px
+from .presentation import literal_node
 
 
 def role_sizes(views):
     result={}
     for view in views:
         for node in view.get('nodes',[]):
+            if literal_node(node):continue
             size=px(node.get('styles',{}).get('font-size'))
             if size is not None and size>0:result.setdefault(semantic_role(node),[]).append(size)
     # A captured heading is still stronger title evidence than a UA body size

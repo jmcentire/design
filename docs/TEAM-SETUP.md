@@ -110,3 +110,12 @@ For versioned node/render evidence, `updated_at` uses Figma's `lastModified` whe
 without source time use `capture-fallback`, which is not evidence of version freshness and must
 not automatically supersede an existing Company observation. Capture time does not make an
 older source version newer.
+
+Before writing an evidence export, every record is checked against the Company's publisher
+contract: the exact top-level/source field sets, 64-character lowercase hex identity, bounded
+source strings (256 characters), 1–16 nonempty evidence references (2048 characters each),
+full whitespace-flattened publisher text (fixed prefix, non-ASCII-preserving sorted source JSON,
+separator and statement) at most 16 KiB, and a valid timezone-qualified ISO timestamp.
+Any rejected record fails the entire export visibly before creating/replacing the output.
+Nothing is silently truncated to meet admission bounds. This validation does not add retraction:
+absent observations still cannot retract prior publisher state.

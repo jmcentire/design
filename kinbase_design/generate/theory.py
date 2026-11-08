@@ -95,6 +95,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     radius=put('shape','radius','dimension',f'{values["shape"]:g}px','shape')
     line_width=put('shape','line','dimension','1px')
     logo_width=put('shape','logo','dimension','96px')
+    page_width=put('shape','page-width','dimension','1200px')
     put('breakpoint','md','dimension','768px');put('breakpoint','lg','dimension','1200px')
     for role in vocabulary['roles']:
         doc['roles'][role]={}
@@ -128,6 +129,12 @@ def language(language_id,vocabulary,values,resources,preferences=None):
 
         if construct=='nav':treatment['properties'].update({'display':'flex','flex-wrap':'wrap','align-items':'center','justify-content':'space-between'})
         if construct in {'form','search-bar'}:treatment['properties']['display']='grid'
+        if construct=='page-shell':treatment['properties'].update({'max-width':page_width,'margin-inline':'auto'})
+        if construct=='collection':
+            treatment['slots']['items']={'properties':{'display':'grid','gap':spacing['double'],'grid-template-columns':'1fr'}}
+            for bp,count in [('md',2),('lg',3)]:
+                doc['overrides'].append({'scope':'collection.items@'+bp,'properties':{'grid-template-columns':f'repeat({count}, 1fr)'},
+                    'reason':'Inferred responsive collection layout; not a measured source claim.'})
         if construct in {'listing-card','card'}:treatment['properties'].update({'border-radius':radius,'border-color':border,'border-width':line_width,'border-style':'solid'})
         for slot in spec['slots']:
             props={}
@@ -141,6 +148,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
                 asset=resources.get('bindings',{}).get(slot['asset_kind'])
                 if asset:treatment.setdefault('assets',{})[slot['id']]=asset
                 if slot['asset_kind']=='logo':props={'width':logo_width}
+                elif slot['asset_kind']=='image':props.update({'aspect-ratio':'3 / 2','object-fit':'cover'})
             if props:treatment['slots'][slot['id']]={'properties':props}
         doc['components'][construct]=treatment
     # Make the attention and formality decisions visible on the common A/B screen.

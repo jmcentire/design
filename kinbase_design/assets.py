@@ -34,7 +34,8 @@ def inspect_format(data, kind):
     if data.lstrip().startswith((b'<svg', b'<?xml')):
         if b'<!DOCTYPE' in data.upper() or b'<!ENTITY' in data.upper():
             raise ValueError('SVG entities and external declarations are not supported')
-        root = ET.fromstring(data)
+        try:root = ET.fromstring(data)
+        except ET.ParseError as exc:raise ValueError('Malformed SVG XML: '+str(exc)) from exc
         if root.tag.split('}')[-1] != 'svg':
             raise ValueError('Expected SVG root')
         for node in root.iter():
@@ -44,12 +45,19 @@ def inspect_format(data, kind):
                 if key.lower().startswith('on') or (key.split('}')[-1] == 'href' and not value.startswith('#')) or 'url(' in value.lower():
                     raise ValueError('SVG must not execute code or fetch external resources')
         return 'svg'
-    with Image.open(BytesIO(data)) as image:
-        fmt = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}.get(image.format)
-        image.verify()
-        if not fmt:
-            raise ValueError('Unsupported image format')
+    try:
+        with Image.open(BytesIO(data)) as image:
+            fmt = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}.get(image.format)
+            image.verify()
+            if not fmt:
+                raise ValueError('Unsupported image format')
+        # Header verification alone accepts some truncated JPEG/WebP payloads.
+        # Decode before approving bytes that the browser must actually display.
+        with Image.open(BytesIO(data)) as image:
+            image.load()
         return fmt
+    except Image.DecompressionBombError as exc:
+        raise ValueError('Image exceeds the decoder pixel limit') from exc
 
 
 def promote(library, workspace, language_id, artifact_id, asset_id, kind, variant,
@@ -125,3 +133,20 @@ def package_files(library, language_id, document):
     return {f'assets/{asset}-{variant}.{detail["format"]}': asset_path(library, language_id, detail).read_bytes()
             for asset,entry in sorted(document.get('assets', {}).items())
             for variant,detail in sorted(entry['variants'].items())}
+
+
+def package_notices(library, language_id, document):
+    """Carry package-owned notices, independent of the upstream content's notices."""
+    notices = []
+    for asset, entry in sorted(document.get('assets', {}).items()):
+        declared = entry.get('meta', {}).get('notices', [])
+        if isinstance(declared,str):declared = [declared]
+        if not isinstance(declared,list) or any(not isinstance(n,str) for n in declared):
+            raise ValueError('Asset meta.notices must be strings')
+        notices.extend(declared)
+    paths = [inside(library,'languages',language_id,name) for name in ('LICENSE.txt','NOTICE.txt','ATTRIBUTION.txt')]
+    if any(e.get('kind')=='font' for e in document.get('assets',{}).values()):
+        paths.append(inside(library,'FONT-LICENSE.txt'))
+    for path in paths:
+        if path.is_file():notices.append(path.read_text(encoding='utf-8'))
+    return list(dict.fromkeys(notices))

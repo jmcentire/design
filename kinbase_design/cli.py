@@ -23,6 +23,7 @@ def parser():
         sub = commands.add_parser(name, parents=[common])
         if name in {'validate','resolve','build-preview','mint','promote','check','export','inventory-check','apply'}:
             sub.add_argument('language_id')
+        if name == 'vocabulary':sub.add_argument('--vocabulary')
         if name == 'resolve':
             sub.add_argument('scope')
             sub.add_argument('--state', default='default')
@@ -41,6 +42,7 @@ def parser():
         if name == 'check':
             sub.add_argument('--out')
             sub.add_argument('--widths')
+            sub.add_argument('--content')
         if name == 'import-artifact':
             sub.add_argument('--file', required=True)
             sub.add_argument('--kind', choices=['image','mock','wireframe','figma-export','dtcg','asset','brief'])
@@ -76,6 +78,16 @@ def parser():
     evidence = commands.add_parser('evidence-export', parents=[common])
     evidence.add_argument('--artifact', required=True)
     evidence.add_argument('--out', required=True)
+    page = commands.add_parser('render-page', parents=[common])
+    page.add_argument('language_id')
+    page.add_argument('--content', required=True)
+    page.add_argument('--out', required=True)
+    hooks = commands.add_parser('hooks', parents=[common])
+    hooks.add_argument('--vocabulary')
+    mapping = commands.add_parser('map-sections', parents=[common])
+    mapping.add_argument('--mapping', required=True)
+    mapping.add_argument('--sections', required=True)
+    mapping.add_argument('--out', required=True)
     generate = commands.add_parser('generate', parents=[common])
     actions = generate.add_subparsers(dest='generate_action', required=True)
     for name in ('start','interview','moodboard','pair','choose','settled','derive'):
@@ -103,7 +115,19 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'evidence-export':
+        if args.command == 'render-page':
+            from .content import render_page
+            result = render_page(library,args.language_id,args.content,args.out)
+            output(result)
+            return 0 if result['validated'] else 1
+        elif args.command == 'map-sections':
+            from .content.mapping import map_sections
+            result = map_sections(args.mapping,args.sections,args.out)
+            output({key:result[key] for key in ('out','blocks','unmapped','findings')})
+            return 0 if result['accepted'] else 1
+        elif args.command == 'hooks':
+            output(vocabulary.hook_contract(vocabulary.load(library,args.vocabulary)))
+        elif args.command == 'evidence-export':
             from .design_evidence import export
             output(export(workspace, args.artifact, args.out))
         elif args.command == 'figma':
@@ -127,7 +151,7 @@ def main(argv=None):
             output(result)
             if isinstance(result,dict) and result.get('accepted') is False:return 1
         elif args.command == 'vocabulary':
-            output(vocabulary.load(library))
+            output(vocabulary.load(library,args.vocabulary))
         elif args.command == 'validate':
             result = validate(library, args.language_id)
             output(result)
@@ -161,7 +185,7 @@ def main(argv=None):
             output(export(library, args.language_id, args.adapter, args.out))
         elif args.command == 'check':
             from .checks import check
-            result = check(library, args.language_id, args.out, args.widths)
+            result = check(library, args.language_id, args.out, args.widths,args.content)
             output(result)
             return 0 if result['accepted'] else 1
         elif args.command == 'mint':

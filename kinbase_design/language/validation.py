@@ -7,7 +7,7 @@ from ..assets import KINDS, FORMATS, HASH_FILE, asset_path, background_binding
 from ..findings import Finding, pointer, report, location
 from ..storage import ID, load_language
 from .tokens import Tokens, ALIAS, is_number, GradientError
-from .properties import TOKEN_PROPERTIES, SPACE_PROPERTIES, KEYWORDS
+from .properties import TOKEN_PROPERTIES, SPACE_PROPERTIES, KEYWORDS, OPTIONAL_KEYWORDS, LAYOUT_PROPERTIES, layout_value, LayoutValueError
 from .resolver import parse_scope, resolve, property_pointer
 from .variants import Template
 from .behaviors import validate_behaviors
@@ -46,6 +46,15 @@ class Validator:
             if key in KEYWORDS:
                 if not isinstance(value, str) or value not in KEYWORDS[key]:
                     self.issue('R2', p, value, 'a valid CSS keyword for ' + key)
+                elif key=='display' and value=='none' and self.content_bearing(path):
+                    self.issue('content-hidden',p,value,'content-bearing constructs, slots and parts must remain rendered')
+            elif key in OPTIONAL_KEYWORDS and isinstance(value,str) and value in OPTIONAL_KEYWORDS[key]:
+                continue
+            elif key in LAYOUT_PROPERTIES:
+                try:layout_value(self.tokens,key,value)
+                except (KeyError,ValueError,TypeError) as exc:
+                    suffix = pointer(*exc.parts) if isinstance(exc,LayoutValueError) else ''
+                    self.issue('R2',p+suffix,value,'a valid closed layout value backed by declared tokens',str(exc))
             elif key == 'background-image' and isinstance(value, str) and value.startswith('asset:'):
                 try:
                     background_binding(self.doc, value)
@@ -68,6 +77,22 @@ class Validator:
                     self.issue('R1', p, value, 'a resolvable, correctly typed token', str(exc))
             else:
                 self.issue('schema', p, value, 'a property from the closed property set')
+
+    def content_bearing(self,path):
+        parts=path.split('/')[1:];construct=part=None
+        if len(parts)>=4 and parts[0]=='components' and parts[2]=='parts':construct,part=parts[1],parts[3]
+        elif len(parts)>=2 and parts[0]=='overrides':
+            try:
+                scope=parse_scope(self.doc['overrides'][int(parts[1])]['scope'],self.vocab)
+                construct,part=scope.construct,scope.part
+            except (ValueError,KeyError,IndexError,TypeError):pass
+        if not part:return True
+        contract=self.vocab['constructs'].get(construct,{})
+        if part in contract.get('parts',{}):return contract['parts'][part].get('contains-content',True)
+        component=self.doc.get('components',{}).get(construct,{})
+        template=self.doc.get('layout',{}).get('variants',{}).get(construct,{}).get(component.get('variant'),{}).get('template')
+        try:return part in Template(template,contract).content_parts
+        except (ValueError,TypeError,KeyError):return True
 
     def states(self, states, path, contract):
         if not self.object(states, path):
@@ -121,7 +146,7 @@ class Validator:
             try:
                 self.tokens.evaluate(name)
             except GradientError as exc:
-                self.issue(exc.rule, p + pointer(*exc.parts), token['$value'], 'valid gradient color stops', str(exc))
+                self.issue(exc.rule, p + pointer(*exc.parts), token['$value'], 'valid shadow fields' if token['$type']=='shadow' else 'valid gradient color stops', str(exc))
             except KeyError as exc:
                 self.issue('R1', p, token['$value'], 'a declared token reference', str(exc))
             except ValueError as exc:
@@ -199,7 +224,7 @@ class Validator:
                 for name, props in parts.items():
                     if not ID.fullmatch(name):
                         self.issue('schema', p + pointer('parts', name), name, 'a kebab-case part id')
-                    if not declared or name not in declared.parts:
+                    if name not in contract.get('parts',{}) and (not declared or name not in declared.parts):
                         self.issue('R1', p + pointer('parts', name), name, 'a part in the selected template',
                                    'Part treatment is unused by the selected variant', type='coverage')
                     self.properties(props, p + pointer('parts', name))
@@ -227,6 +252,11 @@ class Validator:
             scope = override.get('scope')
             try:
                 parsed = parse_scope(scope, self.vocab)
+                if parsed.part:
+                    component = d['components'].get(parsed.construct,{})
+                    template = valid_templates.get((parsed.construct,component.get('variant','default')))
+                    if parsed.part not in self.vocab['constructs'][parsed.construct].get('parts',{}) and (not template or parsed.part not in template.parts):
+                        self.issue('R1',p+'/scope',scope,'a part declared by the vocabulary or selected variant')
                 if scope in scopes:
                     raise ValueError('Duplicate exact override scope')
                 scopes.add(scope)

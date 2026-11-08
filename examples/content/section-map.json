@@ -1,0 +1,64 @@
+{
+  "schema": "kinbase-section-map/1",
+  "page": {
+    "title": "A collection of ideas",
+    "lang": "en"
+  },
+  "site": {
+    "name": "Common Ground",
+    "nav": [
+      {
+        "text": "Ideas",
+        "href": "#ideas"
+      }
+    ]
+  },
+  "footer": {
+    "text": "Synthetic section mapping example",
+    "notices": [
+      "Example content is original synthetic material, licensed CC0-1.0."
+    ]
+  },
+  "sections": [
+    {
+      "match": {
+        "type": "opening"
+      },
+      "block": "hero",
+      "fields": {
+        "title": "/heading",
+        "body": "/summary"
+      }
+    },
+    {
+      "match": {
+        "type": "entries",
+        "variant": "compact"
+      },
+      "block": "collection",
+      "fields": {
+        "id": "/id",
+        "title": "/heading"
+      },
+      "items": {
+        "from": "/entries",
+        "fields": {
+          "title": "/name",
+          "body": "/description",
+          "action/text": "/link/label",
+          "action/href": "/link/url"
+        }
+      }
+    },
+    {
+      "match": {
+        "type": "notes"
+      },
+      "block": "section",
+      "fields": {
+        "title": "/heading",
+        "content": "/content"
+      }
+    }
+  ]
+}

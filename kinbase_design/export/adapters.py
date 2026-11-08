@@ -4,7 +4,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from ..language.tokens import ALIAS, Tokens
-from ..language.properties import property_value
+from ..language.properties import property_value, LAYOUT_PROPERTIES
 from ..render.styles import stylesheet
 
 
@@ -40,7 +40,7 @@ def role_styles(document, vocabulary, variables):
             for name, raw in sorted(properties.items()):
                 if name == 'surface':continue
                 alias = ALIAS.fullmatch(raw) if isinstance(raw, str) else None
-                value = 'var(' + variables[alias[1]] + ')' if alias else property_value(document, tokens, name, raw)
+                value = 'var(' + variables[alias[1]] + ')' if alias and name not in LAYOUT_PROPERTIES else property_value(document, tokens, name, raw)
                 declarations.append(f'{name}:{value}')
             classes.append(f'.kd-role-{role}-{emphasis}' + '{' + ';'.join(declarations) + '}')
     # Renderer identity includes the editable name. Export identity is only id/hash/adapter.
@@ -77,6 +77,15 @@ def computed_tokens(document):
                     color = computed_tokens(literal)['literal']['$value']
                 stops.append({'color': color, 'position': stop['position']})
             return stops
+        if kind == 'shadow':
+            result={}
+            for field,item in raw.items():
+                ref=ALIAS.fullmatch(item) if isinstance(item,str) else None
+                if ref:result[field]=value(ref[1])
+                else:
+                    literal={'style':{'literal':{'$type':'color' if field=='color' else 'dimension','$value':item}}}
+                    result[field]=computed_tokens(literal)['literal']['$value']
+            return result
         return normalized
 
     output = {}

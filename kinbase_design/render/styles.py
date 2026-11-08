@@ -4,7 +4,7 @@ from pathlib import Path
 from ..language.resolver import resolve, parse_scope, property_pointer
 from ..findings import location
 from ..language.tokens import ALIAS, Tokens
-from ..language.properties import property_value, CONTROL_BOX_PROPERTIES, CONTROL_TEXT_PROPERTIES
+from ..language.properties import property_value, CONTROL_BOX_PROPERTIES, CONTROL_TEXT_PROPERTIES, IMAGE_PROPERTIES, LAYOUT_PROPERTIES
 from ..language.versions import digest
 from ..vocabulary import slot_map
 
@@ -17,13 +17,17 @@ PSEUDOS = {'hover': ':hover', 'focus-visible': ':focus-visible', 'active': ':act
 
 
 def declaration(properties):
-    return ';'.join(f'{key}:{value["value"]}' for key, value in sorted(properties.items()) if key != 'surface')
+    result = ';'.join(f'{key}:{value["value"]}' for key, value in sorted(properties.items()) if key != 'surface')
+    if 'outline-color' in properties:
+        # The safety outline uses this resolved color on focused descendants too.
+        result += ';--kd-focus-color:' + str(properties['outline-color']['value'])
+    return result
 
 
-def selector(construct, slot=None, state=None, native=False):
+def selector(construct, slot=None, state=None, native=False, child=None):
     root = f'[data-kd-construct="{construct}"]'
-    child = f' [data-kd-slot="{construct}.{slot}"]' if slot else ''
-    control = ' :is(input,select,textarea,button)' if native else ''
+    if child is None:child = f' [data-kd-slot="{construct}.{slot}"]' if slot else ''
+    control = ' >img' if native == 'image' else ' :is(input,select,textarea,button)' if native else ''
     if state and state != 'default':
         static = root + f'[data-kd-state="{state}"]' + child + control
         pseudo = PSEUDOS.get(state)
@@ -36,14 +40,21 @@ def selector(construct, slot=None, state=None, native=False):
     return root + child + control
 
 
-def treatments(properties, control):
-    if not control:return (declaration(properties), '')
+def treatments(properties, control, media=False):
+    if media:return (declaration({k:v for k,v in properties.items() if k not in IMAGE_PROPERTIES}), '', declaration({k:v for k,v in properties.items() if k in IMAGE_PROPERTIES}))
+    if not control:return (declaration(properties), '', '')
     return (declaration({k:v for k,v in properties.items() if k not in CONTROL_BOX_PROPERTIES}),
-            declaration({k:v for k,v in properties.items() if k in CONTROL_BOX_PROPERTIES}))
+            declaration({k:v for k,v in properties.items() if k in CONTROL_BOX_PROPERTIES}), '')
 
 
 def stylesheet(document, vocabulary, variables=None):
     tokens = Tokens(document.get('style', {}))
+    def select(construct, slot=None, state=None, native=False):
+        target = selector(construct,slot,state,native)
+        if native == 'image' and slot:
+            # A hook may annotate the image itself or a figure/span containing it.
+            target += ',' + selector(construct,slot,state,child=f' img[data-kd-slot="{construct}.{slot}"]')
+        return target
 
     def resolved(scope, state='default', breakpoint=None):
         properties = resolve(document, vocabulary, scope, state, breakpoint)['properties']
@@ -51,11 +62,17 @@ def stylesheet(document, vocabulary, variables=None):
             for name, detail in properties.items():
                 _, raw = location(document, property_pointer(document, vocabulary, name, detail))
                 alias = ALIAS.fullmatch(raw) if isinstance(raw, str) else None
-                if alias:detail['value'] = 'var(' + variables[alias[1]] + ')'
+                if alias and name not in LAYOUT_PROPERTIES:detail['value'] = 'var(' + variables[alias[1]] + ')'
         return properties
     # JSON escapes user text, and escaping comment terminators keeps this inert.
     identity = json.dumps({'id':document['id'], 'name':document['name'], 'hash':digest(document)}, ensure_ascii=True).replace('*/', '*\\/')
-    rules = ['/* Kinbase Design ' + identity + ' */', Path(__file__).with_name('base.css').read_text()]
+    base = Path(__file__).with_name('base.css').read_text()
+    if vocabulary.get('content_pages'):
+        # All normal language declarations outrank presentation defaults, even
+        # when the default's selector is more specific. Keep v1's cascade intact.
+        base += Path(__file__).with_name('content.css').read_text()
+        base = '@layer kd-defaults {\n' + base + '\n}'
+    rules = ['/* Kinbase Design ' + identity + ' */', base]
     body = resolved('page-shell.body')
     inherited = {k:v for k,v in body.items() if k in {'color','font-family','font-size','font-weight','line-height'}}
     background = resolved('page-shell').get('background-color')
@@ -65,7 +82,7 @@ def stylesheet(document, vocabulary, variables=None):
     for construct,contract in vocabulary['constructs'].items():
         for slot in contract['slots']:
             if slot['kind']=='control':
-                rules.append(selector(construct,slot['id'],native=True)+'{'+declaration({p:{'value':'inherit'} for p in CONTROL_TEXT_PROPERTIES})+'}')
+                rules.append(select(construct,slot['id'],native=True)+'{'+declaration({p:{'value':'inherit'} for p in CONTROL_TEXT_PROPERTIES})+'}')
     for asset, entry in sorted(document.get('assets', {}).items()):
         if entry['kind'] != 'font':
             continue
@@ -86,34 +103,39 @@ def stylesheet(document, vocabulary, variables=None):
             for slot in [None] + list(slot_map(contract)):
                 scope = construct + ('.' + slot if slot else '')
                 control = slot is not None and slot_map(contract)[slot]['kind']=='control'
-                base = treatments(resolved(scope, 'default', bp),control)
+                media = slot is not None and slot_map(contract)[slot]['kind']=='media'
+                base = treatments(resolved(scope, 'default', bp),control,media)
                 for state in contract['states']:
-                    props = treatments(resolved(scope, state, bp),control)
+                    props = treatments(resolved(scope, state, bp),control,media)
                     key = (construct, slot, state)
                     if state != 'default' and props == base and key not in emitted:
                         continue
                     if any(props) and emitted.get(key) != props:
                         for native,values in enumerate(props):
-                            if values:block.append(selector(construct, slot, state, native=bool(native)) + '{' + values + '}')
+                            if values:block.append(select(construct, slot, state, native='image' if native==2 else bool(native)) + '{' + values + '}')
                         emitted[key] = props
+            parts = set(contract.get('parts',{})) | set(document.get('components',{}).get(construct,{}).get('parts',{}))
+            for override in document.get('overrides',[]):
+                target = parse_scope(override['scope'],vocabulary)
+                if target.construct==construct and target.part:parts.add(target.part)
+            for part in sorted(parts):
+                values = declaration(resolved(construct+'~'+part,breakpoint=bp))
+                key = (construct,'~'+part,'default')
+                if values and emitted.get(key)!=values:
+                    block.append(f'[data-kd-construct="{construct}"] [data-kd-part="{part}"]'+'{'+values+'}')
+                    emitted[key] = values
         if bp and block:
             rules.append(f'@media (min-width:{tokens.breakpoint(bp):g}px)' + '{\n' + '\n'.join(block) + '\n}')
         elif not bp:
             rules.extend(block)
-    for construct, component in sorted(document.get('components', {}).items()):
-        for part, props in sorted(component.get('parts', {}).items()):
-            values = {key:{'value':('var(' + variables[ALIAS.fullmatch(value)[1]] + ')'
-                                  if variables is not None and isinstance(value,str) and ALIAS.fullmatch(value)
-                                  else property_value(document, tokens, key, value))} for key,value in props.items()}
-            rules.append(f'[data-kd-construct="{construct}"] [data-kd-part="{part}"]' + '{' + declaration(values) + '}')
     for behavior in document.get('behaviors', []):
         scope = parse_scope(behavior['scope'], vocabulary)
-        target = selector(scope.construct, scope.slot)
+        target = select(scope.construct, scope.slot)
         if behavior['kind'] == 'truncate':
             rules.append(target + '{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:' + str(behavior['lines']) + ';overflow:hidden}')
         elif behavior['kind'] == 'horizontal-scroll':
             rules.append(target + '{overflow-x:auto;overscroll-behavior-x:contain}')
-            media = target if scope.slot else target + ' [data-kd-slot$=".media"]'
+            media = target if scope.slot else ','.join(s+' [data-kd-slot$=".media"]' for s in target.split(','))
             rules.append(media + '{display:flex;gap:inherit}')
-            rules.append(media + '>img{flex:0 0 100%;max-width:none}')
+            rules.append(','.join(s+'>img' for s in media.split(','))+'{flex:0 0 100%;max-width:none}')
     return '\n'.join(rules) + '\n'

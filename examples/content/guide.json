@@ -1,0 +1,11 @@
+{
+  "schema": "kinbase-content/1",
+  "page": {"title": "Notes on arranging shapes", "lang": "en", "description": "A synthetic illustrated guide."},
+  "site": {"name": "Common Ground", "nav": [{"text": "Preparation", "href": "#preparation"}, {"text": "Practice", "href": "#practice"}]},
+  "blocks": [
+    {"type": "section", "content": [{"paragraph": "Small experiments make room for new ideas. This notebook begins with an untitled introduction."}]},
+    {"type": "section", "id": "preparation", "title": "Prepare a page", "content": [{"paragraph": ["A blank page can be an invitation. Start with ", {"text": "one simple mark", "strong": true}, "."]}, {"list": {"ordered": false, "items": ["A piece of paper", "A pencil", "A little time"]}}, {"media": {"src": "shapes.svg", "alt": "Triangles and a circle on a pale blue background", "caption": "An arrangement of three shapes", "credit": "Original synthetic illustration"}}]},
+    {"type": "section", "id": "practice", "title": "Try another arrangement", "content": [{"paragraph": ["Repeat the exercise, leaving more space. Compare your two pages and ", {"text": "revisit preparation", "href": "#preparation"}, " when you need a fresh start."]}, {"quote": {"text": [{"text": "Looking again", "em": true}, " is part of making."], "cite": "An invented notebook entry"}}]}
+  ],
+  "footer": {"text": "Common Ground / Notebook", "notices": ["Example text and shapes.svg are original synthetic material, licensed CC0-1.0."]}
+}

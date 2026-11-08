@@ -2,8 +2,38 @@
 from datetime import datetime, timezone
 import hashlib
 import json
+import re
 from pathlib import Path
 from .artifacts.bundle import metadata, read_member
+
+
+def publisher_error(record):
+    """The publisher's admission bounds, checked before any export is written."""
+    fields = {'schema','id','source','statement','author_kind','updated_at','evidence_refs'}
+    if not isinstance(record,dict) or set(record)!=fields:return 'record must have exactly the publisher fields'
+    if record['schema']!='design-evidence/1':return 'unsupported schema'
+    if not isinstance(record['id'],str) or not re.fullmatch(r'[0-9a-f]{64}',record['id']):return 'id must be 64 lowercase hex characters'
+    if record['author_kind']!='agent':return 'exported observations require agent authorship'
+    source = record['source']
+    required = {'kind','file_key','version','digest','evidence_kind','time_basis'}
+    if not isinstance(source,dict) or not required<=source.keys() or source.keys()-required-{'node_id','comment_id'}:return 'invalid source fields'
+    if source['kind']!='figma':return 'source.kind must be figma'
+    if source['time_basis'] not in ('source-modified','observed','capture-fallback'):return 'invalid source.time_basis'
+    for key,value in source.items():
+        if key=='version' and value is None:continue
+        if not isinstance(value,str) or not value.strip() or len(value)>256:return 'source.'+key+' must be a nonempty string of at most 256 characters (version may be null)'
+    refs = record['evidence_refs']
+    if not isinstance(refs,list) or not 1<=len(refs)<=16 or any(not isinstance(ref,str) or not ref.strip() or len(ref)>2048 for ref in refs):return 'evidence_refs must contain 1–16 nonempty strings of at most 2048 characters'
+    statement = record['statement']
+    if not isinstance(statement,str) or not statement.strip():return 'statement must be nonempty text'
+    publisher_text = 'Machine design evidence (not approved direction), source ' + json.dumps(source,sort_keys=True,ensure_ascii=False) + ': ' + statement
+    if len(' '.join(publisher_text.split()).encode('utf-8'))>16*1024:return 'full publisher text exceeds 16 KiB'
+    stamp = record['updated_at']
+    if not isinstance(stamp,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})',stamp):return 'updated_at must be a timezone-qualified ISO timestamp'
+    try:
+        if datetime.fromisoformat(stamp).utcoffset() is None:return 'updated_at needs a timezone'
+    except ValueError:return 'updated_at is not a valid ISO timestamp'
+    return None
 
 
 def records(workspace, artifact):
@@ -27,7 +57,7 @@ def records(workspace, artifact):
         digest=hashlib.sha256(json.dumps(identity,sort_keys=True).encode()).hexdigest()
         result.append({'schema':'design-evidence/1','id':digest,**payload,
                        'updated_at':observed or modified or meta['created'],
-                       'evidence_refs':['figma:'+source['file_key']+':'+str(version or 'live')+('#'+node if node else ''),artifact]})
+                       'evidence_refs':['figma:'+str(source['file_key'])+':'+str(version or 'live')+('#'+str(node) if node else ''),artifact]})
     tokens=json.loads(read_member(workspace,artifact,'tokens.json'))
     for group in tokens.values():
         identity=group.get('$extensions',{}).get('figma',{})
@@ -59,7 +89,11 @@ def records(workspace, artifact):
 
 def export(workspace,artifact,destination):
     destination=Path(destination)
-    data=''.join(json.dumps(record,sort_keys=True,ensure_ascii=False)+'\n' for record in records(workspace,artifact))
+    observations = records(workspace,artifact)
+    for index,record in enumerate(observations):
+        reason = publisher_error(record)
+        if reason:raise ValueError(f'Evidence record {index} rejected by publisher contract: {reason}; no export written')
+    data=''.join(json.dumps(record,sort_keys=True,ensure_ascii=False)+'\n' for record in observations)
     # Refuse silent replacement of a different export; repeat runs are idempotent.
     destination.parent.mkdir(parents=True,exist_ok=True)
     if destination.exists():

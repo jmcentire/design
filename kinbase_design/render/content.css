@@ -1,0 +1,22 @@
+/* Content profile: safe semantic flow; language rules follow and own treatment. */
+:where([data-kd-content]) figure{margin:0}
+:where([data-kd-content]) :where([data-kd-construct="hero"],[data-kd-construct="content-section"],[data-kd-construct="collection"],[data-kd-construct="footer"]){display:grid;gap:1rem;min-width:0}
+:where([data-kd-content]) [data-kd-construct="page-shell"]{display:grid;gap:2rem}
+:where([data-kd-content]) [data-kd-construct="collection"]{padding:1.5rem}
+:where([data-kd-content]) [data-kd-slot="collection.items"]{display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr)}
+:where([data-kd-content]) [data-kd-slot="content-section.body"]{display:grid;gap:1rem}
+:where([data-kd-content]) [data-kd-slot$=".links"] ul{display:flex;flex-wrap:wrap;gap:1rem;list-style:none;padding:0;margin:0}
+:where([data-kd-content]) [data-kd-slot$=".actions"]{display:flex;flex-wrap:wrap;gap:1rem}
+:where([data-kd-content]) [data-kd-slot$=".actions"] a{display:inline-block;padding:.75rem 1rem;border:1px solid currentColor;text-decoration:none}
+:where([data-kd-content]) :where([data-kd-slot$=".links"],[data-kd-slot$=".logo"]) a{display:inline-block;padding:.25rem}
+:where([data-kd-content]) [data-kd-slot$=".logo"]{font-weight:bold;text-decoration:none;max-width:100%}
+:where([data-kd-content]) [data-kd-slot$=".logo"] img{max-height:5rem;width:auto}
+:where([data-kd-content]) figcaption{font-size:.875em;margin-block:.5rem}
+:where([data-kd-content]) blockquote{margin:0;padding-inline:1rem;border-inline-start:2px solid currentColor}
+:where([data-kd-content]) [data-kd-slot="card.meta"]{margin:0;display:grid;gap:.5rem}
+:where([data-kd-content]) [data-kd-slot="card.meta"]>div{display:flex;flex-wrap:wrap;gap:.5rem}
+:where([data-kd-content]) dd{margin:0}
+:where([data-kd-content]) :where(ul,ol){padding-inline-start:1.5rem;text-align:start}
+
+/* Native control usability also applies to ordinary v2 sample pages. */
+input:is([type="checkbox"],[type="radio"]){min-width:24px;min-height:24px}

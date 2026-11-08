@@ -1,7 +1,7 @@
 {
   "id": "harbor",
   "name": "Harbor",
-  "vocabulary": "v1",
+  "vocabulary": "v2",
   "description": "An open, coastal language with quiet greens and generous spacing.",
   "style": {
     "color": {
@@ -93,6 +93,18 @@
       },
       "xl": {
         "$value": "4rem"
+      },
+      "none": {
+        "$type": "dimension",
+        "$value": "0px"
+      },
+      "action-block": {
+        "$type": "dimension",
+        "$value": "0.75rem"
+      },
+      "action-inline": {
+        "$type": "dimension",
+        "$value": "1rem"
       }
     },
     "shape": {
@@ -108,6 +120,14 @@
       },
       "container": {
         "$value": "72rem"
+      },
+      "page": {
+        "$type": "dimension",
+        "$value": "1200px"
+      },
+      "prose": {
+        "$type": "dimension",
+        "$value": "720px"
       }
     },
     "line": {
@@ -449,7 +469,9 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}",
-        "background-color": "{color.paper}"
+        "background-color": "{color.paper}",
+        "max-width": "{shape.page}",
+        "margin-inline": "auto"
       }
     },
     "nav": {
@@ -618,15 +640,50 @@
       "variant": "default",
       "properties": {
         "padding": "{space.md}",
-        "gap": "{space.sm}",
+        "gap": "{space.md}",
         "padding-block": "{space.xl}",
-        "background-color": "{color.wash}"
+        "background-color": "{color.wash}",
+        "display": "grid"
       },
       "slots": {
         "title": {
           "properties": {
             "max-width": "{shape.container}"
           }
+        },
+        "media": {
+          "properties": {
+            "object-fit": "cover",
+            "aspect-ratio": "3 / 2"
+          }
+        },
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block"
+          }
+        },
+        "secondary-action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block"
+          }
+        }
+      },
+      "parts": {
+        "content": {
+          "display": "grid",
+          "gap": "{space.md}"
         }
       }
     },
@@ -635,10 +692,96 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block"
+          }
+        }
+      }
+    },
+    "collection": {
+      "properties": {
+        "padding": "{space.md}",
+        "gap": "{space.md}"
+      },
+      "slots": {
+        "items": {
+          "properties": {
+            "display": "grid",
+            "gap": "{space.md}",
+            "grid-template-columns": "1fr"
+          }
+        }
+      }
+    },
+    "card": {
+      "properties": {
+        "display": "grid",
+        "gap": "{space.sm}",
+        "padding": "{space.md}",
+        "border-style": "solid",
+        "border-width": "{shape.line}",
+        "background-color": "{color.white}",
+        "border-color": "{color.line}",
+        "border-radius": "{shape.radius}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.subtitle}"
+          }
+        },
+        "media": {
+          "properties": {
+            "object-fit": "cover",
+            "aspect-ratio": "3 / 2"
+          }
+        },
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block"
+          }
+        }
+      },
+      "parts": {
+        "content": {
+          "display": "grid",
+          "gap": "{space.sm}"
+        }
       }
     }
   },
-  "overrides": [],
+  "overrides": [
+    {
+      "scope": "collection.items@md",
+      "properties": {
+        "grid-template-columns": "repeat(3, minmax({space.none}, 1fr))"
+      },
+      "reason": "Three equal columns create a compact collection on wider screens."
+    },
+    {
+      "scope": "hero@md",
+      "properties": {
+        "grid-template-columns": "1fr 1fr",
+        "align-items": "center"
+      },
+      "reason": "Place the introduction beside its content image on wider screens."
+    }
+  ],
   "behaviors": [],
   "assets": {
     "harbor-mark": {

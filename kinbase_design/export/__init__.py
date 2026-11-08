@@ -1,12 +1,13 @@
 """Versioned exports shared by CLI, Apply and hand-off bundles."""
 from pathlib import Path
-from ..assets import package_files
+import json
+from ..assets import package_files, package_notices
 from ..language import validate
 from ..language.versions import digest, mint
 from ..render import InvalidLanguage
 from ..storage import inside, load_language
-from ..vocabulary import load
-from .adapters import ADAPTERS
+from ..vocabulary import load, hook_contract
+from .adapters import ADAPTERS, metadata
 
 
 def export_files(library, language_id, adapter_name):
@@ -16,8 +17,11 @@ def export_files(library, language_id, adapter_name):
     if not result['accepted']:raise InvalidLanguage(result)
     reference = language_id + '@' + digest(document)
     adapter = ADAPTERS[adapter_name]
-    files = adapter.files(document, load(library, document['vocabulary']), reference)
+    vocabulary = load(library,document['vocabulary'])
+    files = adapter.files(document, vocabulary, reference)
+    files['hooks.json'] = (json.dumps(hook_contract(vocabulary),ensure_ascii=False,indent=2)+'\n').encode()
     files.update(package_files(library, language_id, document))
+    files['ATTRIBUTION.txt'] = (metadata(reference,adapter_name+'@'+adapter.version)['$description']+'\n\n'+'\n\n'.join(package_notices(library,language_id,document))+'\n').encode()
     return files
 
 

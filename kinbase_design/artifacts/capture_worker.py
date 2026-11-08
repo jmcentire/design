@@ -5,20 +5,42 @@ import html
 import re
 from pathlib import Path
 import sys
+import shutil
+from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit, unquote, urljoin
 from ..config import (IngestConfig, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_REDIRECTS,
                       CAPTURE_MAX_ASSETS, ARTIFACT_MAX_BYTES, MAX_UPLOAD_BYTES, CHECK_VIEWPORT_HEIGHT, CAPTURE_MAX_REQUESTS)
-from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
+from ..language.properties import TOKEN_PROPERTIES, KEYWORDS, LAYOUT_PROPERTIES
 from ..storage import read_json
 from . import import_bytes
 from .capture import public_url, media_widths, anonymous_headers
 from .capture_output import publish_capture
 from .media_ready import prepare_media
 from .media import selected_responses
+from .media import image_format
 from .runtime import async_chromium, watch_parent, read_job
 
 
 async def collect(job):
+    workspace=Path(job['workspace']);workspace.mkdir(parents=True,exist_ok=True)
+    with TemporaryDirectory(prefix='.capture-stage-',dir=workspace) as temporary:
+        result=await _collect({**job,'workspace':temporary})
+        source=Path(temporary)/'artifacts';destination=workspace/'artifacts';destination.mkdir(exist_ok=True)
+        # Only complete captures publish their private source originals. Publish
+        # the capture descriptor last, after every referenced artifact exists.
+        published=[]
+        try:
+            for path in sorted(source.iterdir(),key=lambda p:p.name==result['artifact']):
+                target=destination/path.name
+                if not target.exists():
+                    shutil.move(str(path),str(target));published.append(target)
+        except OSError:
+            for path in reversed(published):shutil.rmtree(path)
+            raise
+        return result
+
+
+async def _collect(job):
     from playwright.async_api import Error
     settings=IngestConfig(**job.get('settings',{}));timeout_ms=settings.timeout_ms
     files={}; pages=[]; problems=[]; assets={}; asset_bytes=0
@@ -111,7 +133,7 @@ async def collect(job):
                     response=await page.goto(url,wait_until='domcontentloaded',timeout=timeout_ms)
                     if response and response.status>=400:problems.append({'page':page_id,'width':width,'message':f'HTTP {response.status}'})
                     readiness=await prepare_media(page,timeout_ms)
-                    properties=sorted((TOKEN_PROPERTIES.keys()|KEYWORDS.keys()|{'padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','border-top-width','border-top-color','border-top-left-radius','row-gap','column-gap','position','grid-template-columns','box-shadow'})-{'surface'})
+                    properties=sorted((TOKEN_PROPERTIES.keys()|KEYWORDS.keys()|LAYOUT_PROPERTIES|{'padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','border-top-width','border-top-color','border-top-left-radius','row-gap','column-gap','position','box-shadow'})-{'surface'})
                     data=await page.evaluate(Path(__file__).with_name('capture.js').read_text(),{'properties':properties,'maxNodes':CAPTURE_MAX_NODES,'maxText':CAPTURE_MAX_TEXT})
                     data['stats']['media_readiness']=readiness['stats']
                     data['notes'].extend(readiness['notes']);data['problems'].extend(readiness['problems'])
@@ -152,6 +174,10 @@ async def collect(job):
                         if candidate.get('inline') and candidate['url'] not in assets and len(assets)<CAPTURE_MAX_ASSETS:
                             raw=candidate['inline'].encode()
                             if len(raw)<=MAX_UPLOAD_BYTES and asset_bytes+len(raw)<=ARTIFACT_MAX_BYTES:
+                                try:image_format(raw)
+                                except (ValueError,OSError) as exc:
+                                    problems.append({'page':page_id,'width':width,'message':'Inline SVG '+candidate['selector']+': '+str(exc)[:200]})
+                                    continue
                                 name='inline-'+str(len(assets)+1)+'.svg';asset_bytes+=len(raw)
                                 artifact=import_bytes(job['workspace'],raw,name,'asset')
                                 assets[candidate['url']]={'artifact':artifact,'kind':candidate['kind'],'url':candidate['url'],'filename':name}

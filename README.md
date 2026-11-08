@@ -208,6 +208,17 @@ Captured compositions recover content and repeated groups from the saved DOM, le
 slots empty, and retain measured context as references to draft tokens. These contexts pass
 through the same validator and resolver. Responsive source-image substitutions are reported;
 saved inline SVGs pass the ordinary asset safety checks before private rendering.
+Ingest keeps measured text foregrounds with their composited surfaces. Reusable role defaults
+use a legible page pair; unresolved or unreadable contextual pairs use an explicitly questioned
+fallback. Code, preformatted text and keyboard/literal styling stay in captured fragments and
+do not seed caption/eyebrow roles. Unobserved interaction states retain their construct's surface.
+Measured image boxes supply bounded aspect ratios and fit. Missing media evidence produces a
+coverage note and neutral proportions (16:9 hero, 3:2 other media); default hero media is capped
+at 48rem. Bounded repeated-wrapper geometry supplements sampled styles for column measurement,
+and measured container insets carry to navigation. Navigation and action treatments add padding
+and line height where needed for the existing target-size rule. These inferred adjustments remain
+subject to the rendered checker; they do not constitute a browser pass.
+
 Captured originals are offered for promotion, never automatically approved. Saving copies the
 working language and approved assets into the library; shared provenance keeps opaque source
 ids and safe selectors/JSON pointers, with private URLs and filesystem locations removed.
@@ -439,3 +450,220 @@ merges, deployments or automatic authority promotions.
 See [team setup](docs/TEAM-SETUP.md) for a pinned per-user installation, private shared
 library workflow, read-only Figma API snapshots, and the boundary to the existing Company
 Kinbase deployment. Live credentials and Company learning are not preconfigured.
+
+## Real content pages (kinbase-content/1)
+
+```sh
+python -m kinbase_design render-page harbor --content examples/content/collection.json --out /tmp/collection-harbor
+python -m kinbase_design render-page lantern --content examples/content/collection.json --out /tmp/collection-lantern
+python -m kinbase_design render-page harbor --content examples/content/guide.json --out /tmp/guide-harbor
+python -m kinbase_design hooks --vocabulary v2
+```
+
+`render-page` is offline. Its JSON result includes `validated` (static language/content validity),
+`rendered_check` (`accepted`, `rejected`, or `unchecked`) and `accepted` (true only when both
+static validation and the latest rendered check passed). The rendered status belongs to exactly
+this language version; a missing check or a check of another version is `unchecked`. It reflects
+the latest completed `check` in the library, including checks written to custom output locations.
+`render-page` does not run Chromium. A statically valid bundle is written with exit 0 even when
+unchecked or rejected by rendered checks, so it can be inspected. Invalid input exits 1;
+usage/environment errors exit 2. The result also includes `out`, `language`, minted `version`,
+effective `vocabulary` and `findings`. A nonempty output directory is accepted
+only when it contains a previous content bundle and no unowned files. The shared application
+operations are `kinbase_design.content.page_files(library, language_id, content_path)` and
+`render_page(library, language_id, content_path, out)`; content validation needs no language.
+
+The two example documents and `shapes.svg` are original synthetic CC0-1.0 material. They are
+examples of a collection and a guide, with no external records or source captures. The document
+shape is illustrated completely in [collection.json](examples/content/collection.json) and
+[guide.json](examples/content/guide.json):
+
+- `schema` is `kinbase-content/1`. `page` requires `title`; `lang` (default `en`) and `description`
+  are optional. `site` requires `name`; `logo` and `nav` are optional.
+- `blocks` is a nonempty ordered array. `hero` carries `eyebrow`, `title`, `body`, `media`,
+  `actions`; `section` carries `eyebrow`, `title`, `content`; `collection` carries `title`,
+  `intro`, `items`; `cta` carries `title`, `body`, `actions`. Every block may have a unique
+  `id`, beginning with a letter, then letters, digits, `_`, `.`, `:`, or `-`.
+- Hero and CTA require `title`. A section may omit `title`; its content renders without a heading
+  and does not change heading levels. A present section title must be a nonempty string.
+  Collection items require `title` and optionally carry
+  `eyebrow`, `body`, `media`, `facts` (`label`/`value` strings) and `action`.
+- Section `content` contains objects with exactly one of `paragraph`, `list`, `media`, `quote`.
+  A list has `items` of inline text and optional boolean `ordered` (default false). A quote has
+  inline `text` and optional string `cite`. Heading order follows block order; collection item
+  titles sit one level below their collection title. The first hero is the sole h1; with no hero,
+  `page.title` is the h1. Later heroes use h2.
+- Inline text is a string or an array of strings and objects with required `text` and optional
+  `href`, `em: true`, `strong: true`. Body, intro, paragraphs, list items, quote text and footer
+  text accept inline text. Titles, eyebrows, captions and facts are plain strings.
+- Links/actions have `text` and `href`. Relative, fragment, HTTP(S), mailto and tel links are
+  accepted; executable schemes and embedded credentials are rejected. Outbound anchors remain
+  ordinary links. Nothing fetches them during rendering.
+- Media requires `src` and `alt`. Empty alt requires `decorative: true`. `caption` and `credit`
+  are optional strings. `src` is a local relative file inside the content document's directory;
+  absolute paths, parent traversal, URL schemes and escaping symlinks are rejected. Extensions `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg` must match their bytes. PNG, JPEG,
+  WebP and passive SVG are validated through the existing asset inspector, then copied unchanged
+  by hash. Unreadable or unsupported images produce findings at the source field.
+- Optional `footer` has inline `text`, `links` and string `notices`. Notices appear in the footer
+  and `ATTRIBUTION.txt`. Bundled language assets contribute `meta.notices` strings, package
+  `LICENSE.txt`/`NOTICE.txt`/`ATTRIBUTION.txt`, and the library's `FONT-LICENSE.txt` for fonts.
+
+Unknown fields and invalid types are rejected. Findings name the content file and an RFC 6901
+pointer to the actual value (or the nearest existing owner of a missing field). Text is escaped,
+never interpreted as HTML. Content words do not influence the construct mapping.
+
+The compiler uses `hero`, `content-section` (section and CTA), `collection` with `card` children,
+`site-header` with `nav`, `page-shell`, and `footer`. Rich slot values go through `SampleRenderer.reconstruction`
+and the existing construct renderer. Content-owned images/branding never use language media
+bindings. CSS defaults for content vocabularies live in a lower cascade layer, so any language
+declaration for the same element and property takes precedence. For content pages, vocabulary v2
+fixes the markup; language template variants apply only to ordinary sample/fidelity previews. An incompatible selected variant produces an advisory
+`content-variant` coverage finding naming its construct. Content pages require a vocabulary
+with a content-page contract (v2); v1 languages receive a `content-vocabulary` finding.
+Their validation, resolution and sample previews continue to use the unchanged v1 contract.
+`vocabulary` and `hooks` default to the newest version present in the configured library;
+`--vocabulary v1` selects v1 explicitly. Unknown versions exit 2.
+
+Bundles contain `index.html`, `language.css`, `hooks.json`, content images, packaged language
+assets and `ATTRIBUTION.txt`. All rendering resources are local relative URLs; copy the directory
+anywhere and open `index.html` from `file://` or a static host. The same content/vocabulary gives
+byte-identical HTML across languages, including languages with sample template variants.
+`hooks` emits `kinbase-hooks/1`, with `schema`, `vocabulary`, `attributes`, `constructs` and
+`content_pages`. Each construct has a root selector, slots with local selectors, element names
+and required flags, and parts with local selectors. `content_pages` identifies the header,
+footer, main and each block's construct (collection includes its container and item). Content
+slot values are construct-qualified (`card.title`), consistently with sample/fidelity pages.
+Slot dictionaries use bare keys (`title`); selectors apply within their owning construct.
+`element` declares the actual content tag, or an array of allowed tags for contextual headings.
+Contextual headings follow the content hierarchy. Required slots remain present even when empty. Fixed vocabulary wrappers
+carry `data-kd-part` hooks; languages style them without altering markup.
+
+Local checks cover content validation, hook round trips, resource packaging and HTML byte
+identity. Visual quality, contrast and viewport reflow require the Validator's real browser;
+Python-only checks do not establish those results.
+
+### Section mappings and renderer adoption
+
+```sh
+python -m kinbase_design map-sections --mapping examples/content/section-map.json --sections examples/content/sections.json --out /tmp/mapped-content.json
+python -m kinbase_design render-page harbor --content /tmp/mapped-content.json --out /tmp/mapped-page
+```
+
+A `kinbase-section-map/1` file contains `schema`, literal content `page` and `site`, optional
+literal `footer`, and a `sections` array. Each rule has `match: {type, variant?}`, `block`
+(`hero`, `section`, `collection`, `cta`) and `fields`. Exact variant rules take priority over
+type-only rules; the first matching rule at that specificity wins. `fields` maps slash-separated
+content paths to RFC 6901 source pointers, for example:
+
+```json
+{"match":{"type":"intro"},"block":"hero","fields":{
+  "title":"/heading", "media/src":"/image", "media/alt":"/description",
+  "actions/0/text":"/button/label", "actions/0/href":"/button/url"
+}}
+```
+
+Only collection rules accept `items`, with `from` pointing to a source array and `fields`
+mapping paths within each item. For example, `"items":{"from":"/entries","fields":{
+"title":"/name","body":"/summary","action/href":"/url","action/text":"/label"}}`.
+A section's mapped string `content` becomes one paragraph. The empty source pointer selects
+the whole record. `~0` and `~1` escape `~` and `/` in source keys. These are data mappings.
+
+Source input is an array or an object containing a `sections` array. Missing pointers leave
+fields unset; invalid mapped values are omitted with findings at their source pointers. Missing
+required fields are still reported. Text is never coerced. Required `page.title` and `site.name` can be literal or
+supplied by mapped `page/title` and `site/name` paths. Invalid mappings exit 1 and write nothing.
+Otherwise exit 0 means at least one block mapped, even if findings or unmapped content remain;
+exit 1 means none mapped, and exit 2 means a usage/environment error. Inspect the report before
+rendering: `render-page` applies the full content validation.
+
+Stdout includes `out`, `blocks`, `unmapped` and `findings`. Unmatched records report their
+pointer, type, variant (null if absent) and `no matching rule`. Matched records report top-level
+string, number and array fields no pointer reads, excluding `type`, `variant`, `version`,
+`theme`. The example reports `/1/subtitle` and the entire `/3` section while mapping three blocks.
+Media paths are copied verbatim; mapping does not fetch, copy or reject source URLs. Render-page
+rejects remote media. Arrange local media beside the output content document before rendering.
+
+For another site's renderer, keep its existing registry of section types. Author the private
+mapping as data, convert sections through `map_sections(mapping_path, sections_path, out)`, and
+use the content compiler's fixed structure or add the same attributes to equivalent semantic
+elements. Each export adapter now includes `hooks.json` and `ATTRIBUTION.txt`. Adopt the
+`data-kd-construct` root and construct-qualified `data-kd-slot` values shown in that contract;
+keep required slots, reading order and heading context. Load `tokens.css` then `roles.css` (generic), or
+`theme.css` (DTCG/Tailwind), and copy its adjacent assets. Content media stays in the site's own
+content pipeline. Language assets decorate through CSS; a site's brand/content images never
+come from another language's bindings. Existing source colour-surface enums do not define
+construct semantics and need a deliberate mapping or an explicit unmapped report.
+
+This is a concrete mapping/hook integration mechanism, not an installed integration with a
+private renderer. The repository contains only synthetic section records and mappings.
+
+### Closed responsive layout grammar
+
+These properties use the same validator, resolver, provenance and declared breakpoint overrides
+as existing properties. All strings are parsed against this closed grammar:
+
+| Property | Accepted values |
+| --- | --- |
+| `grid-template-columns` | 1–12 tracks: integer `1fr`–`12fr`, `auto`, a dimension token alias, or `minmax({dimension.token}, Nfr)`; alternatively `repeat(K, track)` (K 1–12), or `repeat(auto-fit, minmax({dimension.token}, 1fr))` / `auto-fill` |
+| `grid-column` | `auto`, `span N` (1–12), `1 / -1` |
+| `grid-row` | `auto`, `span N` (1–6) |
+| `aspect-ratio` | `auto` or `W / H` with integers 1–32 |
+| `object-fit` | contain, cover, fill, none, scale-down |
+| `object-position` | center, top, bottom, left, right |
+| `align-self`, `justify-self` | auto, start, end, center, stretch |
+| `row-gap`, `column-gap`, `margin-inline` | Dimension aliases under space.*; margin-inline also accepts auto |
+| `box-shadow` | none, or a DTCG shadow alias whose value has color, offsetX, offsetY, blur, spread |
+
+`outline-color` accepts a color-token alias and controls the safety focus outline, including
+focused descendants. Ingest selects its color against the surrounding surface, independently
+of the target's text/fill pair; the color remains visible in resolution and exports. V2 native
+checkboxes/radios have a 24px minimum box as a control-usability default.
+
+For content vocabularies, resolution expands overlapping padding/gap shorthands into effective
+block/inline or row/column axes. A derived axis carries `source_property` so findings and export
+aliases still refer to the original authored property. Browser conformance accounts for CSS
+blockification of inline display only when a measured flex/grid or out-of-flow context requires it.
+V1 retains its original resolution and preview contract.
+
+Existing properties retain their grammar. Image-specific aspect/fit/position on media slots
+applies to the hooked image itself or its child image; layout stays on its slot element. Overrides
+use normal scopes such as `collection.items@md`, plus `construct~part@md` for vocabulary or selected sample-template
+parts. For example, `collection.items@md` can set `grid-template-columns: "repeat(3, 1fr)"`.
+`display: none` on content-bearing constructs, slots and parts produces `content-hidden`;
+`display: contents` is allowed. `order`, `position`, `visibility`, `content`, `transform`,
+`clip-path`, `opacity` and `text-indent` remain unknown properties.
+
+Harbor's collection has three columns at md, with a split hero; Lantern has single-column
+editorial rows with square media, a centered Instrument Sans opening and a heading column beside prose.
+Both keep the exact same content DOM and return to one column below md. New drafts capture
+supported computed values and infer proportional grid tracks from measured widths, retaining
+that inference in provenance. Repeated card group measurements supply collection columns/gaps;
+the widest measured group in a page's widest capture supplies the reusable collection, retaining
+its identity at smaller widths. Narrow side thumbnails retain their measured maximum width.
+Unobserved layout is not represented as measured evidence. Generate uses declared, explicitly
+inferred responsive collection defaults. Immutable v1 language versions and v1 samples remain
+readable; new authored/generated/ingested documents use v2.
+
+Limits remain: no arbitrary selectors, raw CSS, pseudo-element generated content, transforms,
+absolute/sticky positioning, animation, named grid areas, nested minmax/calc expressions or
+arbitrary media queries. The grammar cannot reproduce every CSS Zen Garden design. Validate
+real content at the intended widths; invariant markup alone does not establish preservation.
+
+```sh
+python -m kinbase_design check harbor --content examples/content/collection.json --out /tmp/content-check --widths 375,1280
+```
+
+Content checks reuse the existing browser worker and require a private `--out` directory.
+Only their version and acceptance status enter the library; content and screenshots stay private. They
+check all content text, links, controls and images for visible, nonempty boxes and clipping to
+nothing, flag reversed visual order, and apply the existing contrast and CSS checks. Reports
+and screenshots stay in the selected output directory. This lane cannot run Chromium; the
+Validator must run these checks and inspect the results at real viewport widths.
+
+### Content pages in the workbench
+
+Open **Content pages** (`/content`). Place a content JSON file and its media beneath
+`workspace/content/` (subdirectories work). Choose the document and one or two languages, then
+choose 320, 375, 768 or 1280 CSS px. The server renders the same file map as `render-page` in the
+existing scrollable preview canvases. Forms, comparison and resource loading require no
+JavaScript. Private content stays in the workspace; no capture or network fetch is performed.

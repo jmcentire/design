@@ -12,12 +12,21 @@ class Scope:
     slot: str | None = None
     state: str | None = None
     breakpoint: str | None = None
+    part: str | None = None
 
 
 def parse_scope(value, vocabulary, tokens=None):
     if not isinstance(value, str) or value.count('@') > 1:
         raise ValueError('Malformed scope')
     base, _, bp = value.partition('@')
+    if '~' in base:
+        from ..storage import ID
+        if base.count('~')!=1:raise ValueError('Malformed part scope')
+        construct, part = base.split('~')
+        if construct not in vocabulary['constructs'] or not ID.fullmatch(part):raise ValueError('Unknown construct or malformed part')
+        if '@' in value and not bp:raise ValueError('Missing breakpoint')
+        if bp and tokens:tokens.breakpoint(bp)
+        return Scope(construct,breakpoint=bp or None,part=part)
     parts = base.split('.')
     construct = parts.pop(0)
     contract = vocabulary['constructs'].get(construct)
@@ -46,6 +55,8 @@ def resolve(document, vocabulary, scope, state='default', breakpoint=None):
     width = tokens.breakpoint(breakpoint) if breakpoint else None
     component = document.get('components', {}).get(target.construct, {})
     treatment = component.get('slots', {}).get(target.slot, {}) if target.slot else component
+    if target.part:
+        treatment = {'properties':component.get('parts',{}).get(target.part,{})}
     values = {}
 
     def apply(props, source):
@@ -68,7 +79,7 @@ def resolve(document, vocabulary, scope, state='default', breakpoint=None):
     matches = []
     for override in document.get('overrides', []):
         candidate = parse_scope(override['scope'], vocabulary, tokens)
-        if (candidate.construct, candidate.slot) != (target.construct, target.slot):
+        if (candidate.construct, candidate.slot, candidate.part) != (target.construct, target.slot, target.part):
             continue
         if candidate.state and candidate.state != state:
             continue
@@ -80,12 +91,20 @@ def resolve(document, vocabulary, scope, state='default', breakpoint=None):
         matches.append((rank, override))
     for _, override in sorted(matches, key=lambda pair: pair[0]):
         apply(override['properties'], 'override:' + override['scope'])
+    # Emit only effective, nonoverlapping axes when a shorthand and its logical
+    # longhands coexist. The renderer and checker consume this same result.
+    for shorthand,axes in (('padding',('padding-block','padding-inline')),('gap',('row-gap','column-gap'))):
+        if vocabulary.get('content_pages') and shorthand in values and any(axis in values for axis in axes):
+            detail=values.pop(shorthand)
+            for axis in axes:
+                values.setdefault(axis,{**detail,'source_property':shorthand})
     return {'language': document['id'], 'scope': scope, 'state': state,
             'breakpoint': breakpoint, 'properties': values}
 
 
 def property_pointer(document, vocabulary, property_name, resolved_property):
     """Locate the source member of a resolved property without copying its value."""
+    property_name = resolved_property.get('source_property',property_name)
     kind, source = resolved_property['source'].split(':', 1)
     if kind == 'role':
         role, emphasis = source.split('.')
@@ -95,6 +114,8 @@ def property_pointer(document, vocabulary, property_name, resolved_property):
         return pointer('overrides', index, 'properties', property_name)
     scope = parse_scope(source, vocabulary)
     parts = ['components', scope.construct]
+    if scope.part:
+        return pointer(*parts,'parts',scope.part,property_name)
     if scope.slot:
         parts.extend(['slots', scope.slot])
     if scope.state:

@@ -10,6 +10,7 @@ from .presentation import visible_text,chroma,repeated_candidate,card_slots,clip
 
 def semantic_role(node):
     tag=node['tag'];attrs=node.get('attributes',{})
+    if node.get('preformatted'):return 'body'
     if tag in {'img','svg'}:return 'media'
     if tag in {'input','textarea','select'}:return 'control'
     if tag in {'a','button'}:return 'action'
@@ -124,15 +125,26 @@ def map_view(view,vocabulary,suggestions=()):
             labels=item['values'].setdefault(slot,[])
             if text not in labels:labels.append(text)
         else:item['values'][slot]=(item['values'].get(slot,'')+' '+text).strip()
-        item['nodes'].setdefault(slot,node)
-        if chroma(node)>chroma(item['nodes'][slot]):item['nodes'][slot]=node
+        text_block=by.get(block(node,by),node)
+        representative=text_block if slot in {'body','title','meta'} and text_block['tag'] in {'p','pre','blockquote','h1','h2','h3','h4','h5','h6'} else node
+        item['nodes'].setdefault(slot,representative)
+        if slot in {'highlight','eyebrow','action'} and chroma(node)>chroma(item['nodes'][slot]):item['nodes'][slot]=node
+        if slot_map(vocabulary['constructs'][item['construct']])[slot]['kind']=='action' and slot!='links':
+            control=node
+            while control and control['tag'] not in {'a','button'}:control=by.get(control.get('parent'))
+            if control:
+                actions=item.setdefault('action_items',{}).setdefault(slot,[])
+                action=next((a for a in actions if a['selector']==control['selector']),None)
+                if action is None:
+                    action={'selector':control['selector'],'text':'','href':href_for(control),'element':control['tag']};actions.append(action)
+                action.setdefault('segments',[]).extend(node.get('text_segments') or [{'text':text,'order':order[node['selector']]}])
         if href:=href_for(node):
             if slot=='links':item.setdefault('hrefs',{}).setdefault(slot,{})[text]=href
             else:item.setdefault('hrefs',{})[slot]=href
         if slot!='links':
             segments=node.get('text_segments') or [{'text':text,'order':order[node['selector']]}]
             for segment in segments:
-                item.setdefault('fragments',{}).setdefault(slot,[]).append({**segment,'block':block(node,by),'href':href_for(node),'node':node})
+                item.setdefault('fragments',{}).setdefault(slot,[]).append({**segment,'block':block(node,by),'href':href_for(node),'node':node,'preformatted':node.get('preformatted',False)})
         spec=slot_map(vocabulary['constructs'][item['construct']])[slot]
         if re.fullmatch('h[1-6]',spec.get('element','')):
             source_heading=heading(node,by)
@@ -152,8 +164,8 @@ def map_view(view,vocabulary,suggestions=()):
         if re.search(r'(?:^| > )svg(?=:| > )',node['selector']) and node['tag']!='svg':continue
         if 'sr-only' in node.get('attributes',{}).get('class','').split():continue
         tag=node['tag'];slots=slot_map(vocabulary['constructs'][item['construct']]);text=visible_text(node)
-        if tag=='img' and node.get('src'):
-            if not node['src'].startswith(('http://','https://')):continue
+        if (tag=='img' or tag=='svg' and item['construct'] not in {'nav'} and not any(n['tag'] in {'a','button'} and node['selector'].startswith(n['selector']+' > ') for n in nodes)) and node.get('src'):
+            if not node['src'].startswith(('http://','https://','inline:')):continue
             if clipped_media(node,by):continue
             slot=next((s for s,d in slots.items() if d['kind']=='media'),None)
             image={'url':node['src'],'alt':node.get('attributes',{}).get('alt',''),'selector':node['selector']}
@@ -185,7 +197,11 @@ def map_view(view,vocabulary,suggestions=()):
                         if href:=href_for(control):item.setdefault('hrefs',{})['action']=href
             continue
         if not text:continue
-        role=inline_role(node,by) or semantic_role(node)
+        control=node
+        while control and control['tag'] not in {'a','button','p','li','pre'}:control=by.get(control.get('parent'))
+        style=control.get('styles',{}) if control else {}
+        explicit_action=control and (control['tag']=='button' or control['tag']=='a' and (style.get('display') in {'inline-block','inline-flex'} or control.get('attributes',{}).get('role')=='button'))
+        role='action' if explicit_action else inline_role(node,by) or semantic_role(node)
         slot=None
         if item['construct']=='card':
             slot=roles[item['selector']].get(node['selector'])
@@ -232,6 +248,9 @@ def map_view(view,vocabulary,suggestions=()):
                     if prior is not None and prior!=f['block']:parts.append(' ')
                     parts.append(f['text']);prior=f['block']
                 item['values'][slot]=' '.join(''.join(parts).split())
+    for item in ordered:
+        for actions in item.get('action_items',{}).values():
+            for action in actions:action['text']=''.join(s['text'] for s in sorted(action.pop('segments',[]),key=lambda s:s['order']))
     ordered.sort(key=lambda i:order.get(i['selector'],0))
     available={p['selector'] for p in ordered}
     for item in ordered:

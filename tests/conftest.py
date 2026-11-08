@@ -67,12 +67,16 @@ def library(tmp_path):
 
 @pytest.fixture
 def vocabulary(library):
-    return library.json("vocabulary")
+    # Amendment 04: the CLI default may advance, but this independent language
+    # fixture and its inherited expectations remain on their declared version.
+    version = json.loads((FIXTURES / "language.json").read_text())["vocabulary"]
+    return library.json("vocabulary", "--vocabulary", version)
 
 
 @pytest.fixture
 def language(library, vocabulary):
     document = json.loads((FIXTURES / "language.json").read_text())
+    assert vocabulary["version"] == document["vocabulary"]
     # Complete the hand-authored fixture using only vocabulary-declared ids/defaults.
     # Values remain independent constants from this test suite, never candidate output.
     for role in vocabulary["roles"]:
