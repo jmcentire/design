@@ -367,7 +367,8 @@
         "heading-levels": {
           "title": 2
         }
-      }
+      },
+      "focusable": true
     },
     "detail-header": {
       "slots": [
@@ -895,6 +896,8 @@
       "filter-group": {
         "title": "Find your setting"
       }
-    }
+    },
+    "gallery-images": 3,
+    "full-content-label": "Full listing titles"
   }
 }

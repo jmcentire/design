@@ -1,6 +1,7 @@
 """Independent M0 fixtures. Oracle: M0 public contract + amendment 01, normative."""
 
 import json
+import math
 from contextlib import nullcontext
 import queue
 import shutil
@@ -17,11 +18,16 @@ from tests.support import FIXTURES, ROOT, LibraryCase, package_asset
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "browser: requires real Chromium and optionally loopback HTTP")
+    config.addinivalue_line("markers", "browser_timeout(seconds): finite host phase budget for multi-render checks")
 
 
 def browser_phase_guard(item, phase):
     if item.get_closest_marker("browser"):
-        return browser_deadline(f"{item.nodeid} ({phase})")
+        budget = item.get_closest_marker("browser_timeout")
+        seconds = budget.args[0] if budget else 60
+        if not isinstance(seconds, (int, float)) or not math.isfinite(seconds) or seconds <= 0:
+            raise pytest.UsageError("browser_timeout must be a positive finite number")
+        return browser_deadline(f"{item.nodeid} ({phase})", seconds=seconds)
     return nullcontext()
 
 
@@ -92,6 +98,16 @@ def app(library, language):
     # Delayed import keeps collection possible before the candidate exists.
     from kinbase_design.workbench import create_app
     return create_app(library.library, library.workspace)
+
+
+@pytest.fixture
+def lantern(library):
+    # M1 explicitly designates this shipped language as the test subject. Expected
+    # design values come exclusively from the ratified brief, never from these files.
+    source = ROOT / "library" / "languages" / "lantern"
+    assert source.is_dir(), "M1 prerequisite missing: shipped lantern language"
+    shutil.copytree(source, library.path("lantern").parent)
+    return library.read("lantern")
 
 
 @pytest.fixture

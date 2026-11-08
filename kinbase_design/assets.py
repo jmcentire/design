@@ -96,3 +96,25 @@ def asset_path(library, language_id, detail):
     if not HASH_FILE.fullmatch(detail.get('file', '')):
         raise ValueError('Expected content-addressed asset file')
     return inside(library, 'languages', identifier(language_id), 'assets', detail['file'])
+
+
+def background_binding(document, value):
+    """Resolve the background-image asset syntax without touching source originals."""
+    parts = value.split(':') if isinstance(value, str) else []
+    if len(parts) != 3 or parts[0] != 'asset' or not all(parts[1:]):
+        raise ValueError('Expected asset:<asset-id>:<variant>')
+    asset, variant = parts[1:]
+    entry = document.get('assets', {}).get(asset)
+    if entry is None:
+        raise KeyError('Missing background image asset: ' + asset)
+    if not isinstance(entry, dict) or entry.get('kind') != 'image':
+        raise ValueError('Background binding must name an image asset')
+    variants = entry.get('variants', {})
+    if not isinstance(variants, dict):
+        raise ValueError('Asset variants must be an object')
+    if variant not in variants:
+        raise KeyError('Missing background image variant: ' + variant)
+    detail = variants[variant]
+    if not isinstance(detail, dict) or detail.get('format') not in ('svg','png','jpg','webp'):
+        raise ValueError('Background image needs a supported image format')
+    return asset, variant, detail

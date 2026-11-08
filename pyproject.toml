@@ -7,7 +7,7 @@ name = "kinbase-design"
 version = "0.1.0"
 description = "Local design language library and visual workbench"
 requires-python = ">=3.12"
-dependencies = ["jinja2", "rfc8785", "fonttools", "pillow"]
+dependencies = ["jinja2", "rfc8785", "fonttools", "pillow", "playwright"]
 
 [project.scripts]
 kinbase-design = "kinbase_design.cli:main"
@@ -16,4 +16,4 @@ kinbase-design = "kinbase_design.cli:main"
 include = ["kinbase_design*"]
 
 [tool.setuptools.package-data]
-kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css"]
+kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css", "checks/*.js", "checks/vendor/*"]

@@ -13,6 +13,7 @@ CSS_PROPERTIES = {
     "font-weight", "line-height", "padding", "padding-block", "padding-inline",
     "margin-block", "gap", "display", "flex-direction", "flex-wrap", "align-items",
     "justify-content", "text-align", "text-transform", "font-style", "text-decoration-line",
+    "overflow", "text-overflow", "white-space", "background-image",
 }
 
 

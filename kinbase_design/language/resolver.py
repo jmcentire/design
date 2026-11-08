@@ -3,7 +3,7 @@ from ..vocabulary import slot_map
 from dataclasses import dataclass
 from .tokens import Tokens
 from ..findings import pointer
-from .properties import KEYWORDS
+from .properties import property_value
 
 
 @dataclass(frozen=True)
@@ -52,7 +52,7 @@ def resolve(document, vocabulary, scope, state='default', breakpoint=None):
         for key, raw in props.items():
             if key == 'surface':
                 continue
-            value = raw if key in KEYWORDS else tokens.reference(raw)[1]
+            value = property_value(document, tokens, key, raw)
             values[key] = {'value': value, 'source': source}
 
     if target.slot:

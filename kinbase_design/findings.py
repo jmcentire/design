@@ -19,7 +19,8 @@ class Finding:
 
 def report(language, findings):
     return {"language": language,
-            "accepted": not any(f["type"] in {"missing", "violation", "needs-review"} for f in findings),
+            "accepted": not any(f["type"] in {"missing", "violation"} and not f.get("exception") for f in findings),
+            "needs_review": sum(f["type"] == "needs-review" for f in findings),
             "findings": findings}
 
 

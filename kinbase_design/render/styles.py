@@ -1,9 +1,9 @@
 """CSS is derived from the resolver; identity stays out of sample HTML."""
 import json
 from pathlib import Path
-from ..language.resolver import resolve
+from ..language.resolver import resolve, parse_scope
 from ..language.tokens import Tokens
-from ..language.properties import KEYWORDS
+from ..language.properties import property_value
 from ..language.versions import digest
 from ..vocabulary import slot_map
 
@@ -37,6 +37,12 @@ def stylesheet(document, vocabulary):
     # JSON escapes user text, and escaping comment terminators keeps this inert.
     identity = json.dumps({'id':document['id'], 'name':document['name'], 'hash':digest(document)}, ensure_ascii=True).replace('*/', '*\\/')
     rules = ['/* Kinbase Design ' + identity + ' */', Path(__file__).with_name('base.css').read_text()]
+    body = resolve(document, vocabulary, 'page-shell.body')['properties']
+    inherited = {k:v for k,v in body.items() if k in {'color','font-family','font-size','font-weight','line-height'}}
+    background = resolve(document,vocabulary,'page-shell')['properties'].get('background-color')
+    if background: inherited['background-color'] = background
+    focus = inherited.get('color', {}).get('value', 'currentColor')
+    rules.append('body{--kd-focus-color:' + str(focus) + ';' + declaration(inherited) + '}')
     for asset, entry in document.get('assets', {}).items():
         if entry['kind'] != 'font':
             continue
@@ -71,6 +77,16 @@ def stylesheet(document, vocabulary):
             rules.extend(block)
     for construct, component in document.get('components', {}).items():
         for part, props in component.get('parts', {}).items():
-            values = {key:{'value':value if key in KEYWORDS else tokens.reference(value)[1]} for key,value in props.items()}
+            values = {key:{'value':property_value(document, tokens, key, value)} for key,value in props.items()}
             rules.append(f'[data-kd-construct="{construct}"] [data-kd-part="{part}"]' + '{' + declaration(values) + '}')
+    for behavior in document.get('behaviors', []):
+        scope = parse_scope(behavior['scope'], vocabulary)
+        target = selector(scope.construct, scope.slot)
+        if behavior['kind'] == 'truncate':
+            rules.append(target + '{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:' + str(behavior['lines']) + ';overflow:hidden}')
+        elif behavior['kind'] == 'horizontal-scroll':
+            rules.append(target + '{overflow-x:auto;overscroll-behavior-x:contain}')
+            media = target if scope.slot else target + ' [data-kd-slot$=".media"]'
+            rules.append(media + '{display:flex;gap:inherit}')
+            rules.append(media + '>img{flex:0 0 100%;max-width:none}')
     return '\n'.join(rules) + '\n'

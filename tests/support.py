@@ -27,15 +27,16 @@ class LibraryCase:
         env.update(extra or {})
         return env
 
-    def cli(self, *args, code=0, configured=True, env=None, cwd=None):
+    def cli(self, *args, code=0, configured=True, env=None, cwd=None, timeout=30):
         command = [sys.executable, "-m", "kinbase_design", *map(str, args)]
         if configured:
             command += ["--library", str(self.library), "--workspace", str(self.workspace)]
         result = subprocess.run(
             command, cwd=cwd or ROOT, env=self.environment(env),
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, timeout=timeout,
         )
-        assert result.returncode == code, (
+        allowed_codes = {code} if isinstance(code, int) else set(code)
+        assert result.returncode in allowed_codes, (
             f"{command!r}: expected exit {code}, got {result.returncode}\n"
             f"stdout={result.stdout}\nstderr={result.stderr}"
         )

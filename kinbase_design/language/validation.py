@@ -3,13 +3,14 @@ from ..vocabulary import slot_map
 import hashlib
 import logging
 from .. import vocabulary as vocabulary_store
-from ..assets import KINDS, FORMATS, HASH_FILE, asset_path
+from ..assets import KINDS, FORMATS, HASH_FILE, asset_path, background_binding
 from ..findings import Finding, pointer, report, location
 from ..storage import ID, load_language
-from .tokens import Tokens, ALIAS, is_number
+from .tokens import Tokens, ALIAS, is_number, GradientError
 from .properties import TOKEN_PROPERTIES, SPACE_PROPERTIES, KEYWORDS
 from .resolver import parse_scope, resolve, property_pointer
 from .variants import Template
+from .behaviors import validate_behaviors
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +46,13 @@ class Validator:
             if key in KEYWORDS:
                 if not isinstance(value, str) or value not in KEYWORDS[key]:
                     self.issue('R2', p, value, 'a valid CSS keyword for ' + key)
+            elif key == 'background-image' and isinstance(value, str) and value.startswith('asset:'):
+                try:
+                    background_binding(self.doc, value)
+                except KeyError as exc:
+                    self.issue('R1', p, value, 'a declared image asset and variant', str(exc), type='missing')
+                except ValueError as exc:
+                    self.issue('R1', p, value, 'an image asset binding', str(exc))
             elif key in TOKEN_PROPERTIES and (roles or key != 'surface'):
                 alias = ALIAS.fullmatch(value) if isinstance(value, str) else None
                 if not alias:
@@ -112,6 +120,8 @@ class Validator:
                     self.issue('R4', p, token['$value'], 'a dimension token with a breakpoint id', str(exc))
             try:
                 self.tokens.evaluate(name)
+            except GradientError as exc:
+                self.issue(exc.rule, p + pointer(*exc.parts), token['$value'], 'valid gradient color stops', str(exc))
             except KeyError as exc:
                 self.issue('R1', p, token['$value'], 'a declared token reference', str(exc))
             except ValueError as exc:
@@ -229,18 +239,7 @@ class Validator:
             if 'properties' not in override:
                 self.issue('schema', p + '/properties', None, 'a required properties object')
             self.properties(override.get('properties', {}), p + '/properties')
-        for index, behavior in enumerate(d.get('behaviors', [])):
-            p = pointer('behaviors', index)
-            if not self.object(behavior, p):
-                continue
-            try:
-                parsed = parse_scope(behavior.get('scope'), self.vocab)
-                if parsed.state or parsed.breakpoint:
-                    raise ValueError('Behavior scope must target a construct or slot')
-            except (ValueError, TypeError) as exc:
-                self.issue('R1', p + '/scope', behavior.get('scope'), 'construct[.slot]', str(exc))
-            if not isinstance(behavior.get('kind'), str) or not ID.fullmatch(behavior.get('kind', '')):
-                self.issue('schema', p + '/kind', behavior.get('kind'), 'a behavior kind')
+        validate_behaviors(d, self.vocab, self.issue)
         self.assets()
         self.font_gaps()
 

@@ -1,4 +1,4 @@
-# Independent M0 acceptance tests
+# Independent M0 and M1 acceptance tests
 
 Authority: `docs/design/SPEC.md` B1–B3, B9, B15–B16; the run's M0 public
 contract; vocabulary contract amendment 01 (Q-0001-289a1e06d3c3) and
@@ -155,3 +155,27 @@ After this repair, all 108 cases still collect; compilation, whitespace and font
 fixture diagnostics pass. The local non-browser attempt still has 95 missing-
 vocabulary setup errors, with 13 browser cases deselected. The repaired browser
 suite still requires an integrated Validator run.
+
+M1 authoring uses the M1 public contract and amendment 04 (Q-0032-3ebdf42d7054).
+The M0 closed-property assertion now includes the four newly ratified properties.
+`test_m1_properties.py` validates those public inputs. `test_m1_contrast_assets.py`
+uses an independent WCAG luminance calculation and authored colors at both sides
+of the normal/large text thresholds, alpha composition, image/gradient review,
+and correctly hashed corrupt asset bytes. `test_m1_behaviors.py` seeds actual
+clipping, gallery overflow and crowded targets, checks declared exceptions,
+verifies full title availability, and exercises missing/coverage acceptance.
+
+The shipped Lantern package is an explicitly assigned test subject, copied at
+test time into an isolated library. Its values are never used as an expected
+design oracle. The design brief supplies those expected values, while its
+required accepted baseline supports isolated acceptance/exception sequences.
+No implementation or Coder tests are read. Each `check` subprocess has a 90-second
+limit; M1 browser phases have a finite 240-second budget for multiple full preview
+checks. M0 budgets remain unchanged. Rendered report fields, acceptance/counts,
+and actual readable PNG screenshot artifacts are checked by `m1_support.py`.
+
+First M1 checkpoint: 125 total cases collect. All 100 non-browser cases error at
+the absent candidate vocabulary prerequisite; 25 browser cases are deselected.
+Compilation and diff checks pass. These M1 checks have not been run against a
+candidate and remain evidence gaps. Lantern design/role agreement and the M1
+workbench report journey are still being authored.

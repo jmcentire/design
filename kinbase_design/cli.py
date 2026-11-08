@@ -19,9 +19,9 @@ def parser():
     common.add_argument('--workspace', default=argparse.SUPPRESS)
     p = argparse.ArgumentParser(prog='kinbase-design', parents=[common])
     commands = p.add_subparsers(dest='command', required=True)
-    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve'):
+    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check'):
         sub = commands.add_parser(name, parents=[common])
-        if name in {'validate','resolve','build-preview','mint','promote'}:
+        if name in {'validate','resolve','build-preview','mint','promote','check'}:
             sub.add_argument('language_id')
         if name == 'resolve':
             sub.add_argument('scope')
@@ -29,6 +29,9 @@ def parser():
             sub.add_argument('--breakpoint')
         if name == 'build-preview':
             sub.add_argument('--out', required=True)
+        if name == 'check':
+            sub.add_argument('--out')
+            sub.add_argument('--widths')
         if name == 'import-artifact':
             sub.add_argument('--file', required=True)
         if name == 'promote':
@@ -72,6 +75,11 @@ def main(argv=None):
                 from .render import build_preview
                 build_preview(library, args.language_id, args.out)
                 output({'language': args.language_id, 'built': True})
+        elif args.command == 'check':
+            from .checks import check
+            result = check(library, args.language_id, args.out, args.widths)
+            output(result)
+            return 0 if result['accepted'] else 1
         elif args.command == 'mint':
             result = mint(library, args.language_id)
             output(result)

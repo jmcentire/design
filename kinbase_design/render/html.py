@@ -49,7 +49,8 @@ class SampleRenderer:
                 attrs['href'] = definition['href']
                 attrs['aria-label'] = 'Home'
                 return element('a', attrs, image)
-            return element('span', attrs, image)
+            count = self.context.get('gallery-images',1) if construct == 'gallery' else 1
+            return element('span', attrs, image * count)
         if name == 'links':
             return element(tag, attrs, self.links())
         if name == 'options':
@@ -86,6 +87,8 @@ class SampleRenderer:
                  'aria-label':contract.get('accessible-name')}
         if state == 'loading':
             attrs['aria-busy'] = 'true'
+        if contract.get('focusable'):
+            attrs['tabindex'] = '0'
         if contract['root'] == 'form':
             attrs.update(action=contract['action'], method='get')
         component = self.document.get('components', {}).get(construct, {})
@@ -136,6 +139,9 @@ class SampleRenderer:
                 content = content[:shell_end] + content[shell_end + len('</main>'):] + '</main>'
             else:
                 content = element('main', {}, content)
+        if filename == 'listing.html':
+            texts = [self.context['construct-copy']['listing-card']['title']] + [self.context[s['context']] for s in self.samples['stress'] if s.get('construct') == 'listing-card' and s.get('slot') == 'title']
+            content += element('section', {'class':'kd-full-content','aria-label':self.context['full-content-label']}, ''.join(element('p',{},escape(text)) for text in texts))
         footer = self.construct('footer')
         env = Environment(autoescape=select_autoescape(default_for_string=True))
         return env.from_string(PAGE).render(title=self.context['pages'][filename], navigation=Markup(navigation), content=Markup(content), footer=Markup(footer)).encode('utf-8')

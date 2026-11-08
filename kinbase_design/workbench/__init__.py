@@ -12,8 +12,10 @@ from ..assets import promote
 from ..config import roots, MAX_UPLOAD_BYTES, VIEWPORTS, DEFAULT_VIEWPORT
 from ..kinbase import status as kinbase_status
 from ..language import validate
+from ..language.versions import digest
+from ..checks import check, latest_report, report_folder
 from ..language.tokens import Tokens
-from ..storage import identifier, inside, load_language
+from ..storage import identifier, inside, load_language, read_json
 from ..vocabulary import load as load_vocabulary
 
 log = logging.getLogger(__name__)
@@ -111,6 +113,8 @@ def create_app(library: str | Path, workspace: str | Path):
                         result = validate(library, language_id, doc)
                         if not isinstance(doc, dict):
                             raise ValueError('schema /: language must be an object')
+                        latest = latest_report(library, language_id)
+                        summary = latest or result
                         colors = []
                         if result['accepted']:
                             tokens = Tokens(doc.get('style', {}))
@@ -118,8 +122,8 @@ def create_app(library: str | Path, workspace: str | Path):
                         provenance = doc.get('provenance', {})
                         cards.append({'id':language_id, 'name':doc.get('name',language_id), 'description':doc.get('description',''),
                                       'provenance':provenance.get('method','Not recorded') if isinstance(provenance,dict) else 'Not recorded',
-                                      'counts':{t:Counter(f['type'] for f in result['findings'])[t] for t in ('violation','missing','needs-review','coverage')},
-                                      'colors':colors, 'kinbase':kinbase_status()})
+                                      'counts':{t:Counter(f['type'] for f in summary['findings'])[t] for t in ('violation','missing','needs-review','coverage')},
+                                      'colors':colors, 'kinbase':kinbase_status(), 'latest':latest, 'stale':bool(latest and latest.get('version') != digest(doc))})
                     except (OSError, ValueError) as exc:
                         cards.append({'id':folder.name,'name':folder.name,'description':str(exc),'provenance':'Unknown', 'colors':[], 'counts':{'violation':1}})
                 body = html('grid.html', title='Library', cards=cards)
@@ -142,10 +146,17 @@ def create_app(library: str | Path, workspace: str | Path):
                             display_assets[name] = {**entry, 'variants':{k:v for k,v in entry['variants'].items() if isinstance(v,dict)}}
                 doc = {**doc, 'id':language_id, 'name':doc.get('name',language_id), 'assets':display_assets}
                 page, width = parameters(query, pages)
-                gaps = [f for f in result['findings'] if f['type']=='missing' and (f['rule']=='asset-font' or '/assets' in f['pointer'] or '$extensions' in f['pointer'])]
-                body = html('viewer.html', title=doc['name'], language=doc, report=result, gaps=gaps,
+                gaps = [f for f in result['findings'] if f['type']=='missing' and (f['rule']=='asset-font' or '/assets' in f['pointer'] or '$extensions' in f['pointer'] or (isinstance(f['observed'],str) and f['observed'].startswith('asset:')))]
+                latest = latest_report(library, language_id)
+                groups = {kind:[f for f in (latest or {}).get('findings',[]) if f['type']==kind] for kind in ('violation','missing','needs-review','coverage')}
+                body = html('viewer.html', latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
                             pages=pages, page=page, width=width, widths=VIEWPORTS,
                             annotations=query.get('annotations',['0'])[0]=='1', upload_mb=MAX_UPLOAD_BYTES//(1024*1024))
+            elif method == 'POST' and len(segments) == 3 and segments[0] == 'languages' and segments[2] == 'check':
+                language_id = identifier(segments[1])
+                check(library, language_id)
+                code, body = 303, b''
+                headers.append(('Location','/languages/' + language_id))
             elif method == 'POST' and len(segments) == 3 and segments[0] == 'languages' and segments[2] == 'assets':
                 language_id = identifier(segments[1])
                 load_language(library, language_id)
@@ -167,6 +178,19 @@ def create_app(library: str | Path, workspace: str | Path):
                 page, width = parameters(query, pages)
                 body = html('compare.html', title='Compare', a=a, b=b, ra=validate(library,a['id'],a), rb=validate(library,b['id'],b),
                             page=page, width=width, pages=pages, widths=VIEWPORTS)
+            elif method == 'GET' and len(segments) == 4 and segments[0] == 'checks':
+                language_id = identifier(segments[1])
+                folder = report_folder(library, language_id, segments[2])
+                result = read_json(inside(folder,'report.json'))
+                allowed = {page.removesuffix('.html') + f'@{width}.png' for page in result['checked']['pages'] for width in result['checked']['widths']}
+                allowed.update(f['screenshot'] for f in result['findings'] if f.get('screenshot'))
+                if segments[3] == 'report.json':
+                    content_type = 'application/json; charset=utf-8'
+                elif segments[3] in allowed:
+                    content_type = 'image/png'
+                else:
+                    raise RequestError('Unknown check artifact',404)
+                body = inside(folder,segments[3]).read_bytes()
             elif method == 'GET' and len(segments) >= 3 and segments[0] == 'preview':
                 from ..render import preview_files, InvalidLanguage
                 language_id = identifier(segments[1])

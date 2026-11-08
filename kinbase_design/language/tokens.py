@@ -5,7 +5,13 @@ from ..config import REM_PX
 
 ALIAS = re.compile(r"^\{([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)\}$")
 DIMENSION = re.compile(r"^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem)$")
-TYPES = {"color", "dimension", "fontFamily", "fontWeight", "number", "duration"}
+TYPES = {"color", "dimension", "fontFamily", "fontWeight", "number", "duration", "gradient"}
+
+
+class GradientError(ValueError):
+    def __init__(self, rule, parts, message):
+        self.rule, self.parts = rule, parts
+        super().__init__(message)
 
 
 def is_number(value):
@@ -91,7 +97,33 @@ class Tokens:
             if target_kind != kind:
                 raise ValueError("Alias type differs from target type")
             return kind, result
+        if kind == 'gradient':
+            return kind, self.gradient(value, (*trail, path))
         return kind, normalize(kind, value)
+
+    def gradient(self, value, trail):
+        if not isinstance(value, list) or len(value) < 2:
+            raise GradientError('R2', (), 'A gradient needs at least two color stops')
+        stops = []
+        for index, stop in enumerate(value):
+            if not isinstance(stop, dict):
+                raise GradientError('R2', (index,), 'A gradient stop must be an object')
+            position = stop.get('position')
+            if not is_number(position) or not 0 <= position <= 1:
+                raise GradientError('R2', (index,'position'), 'Gradient position must be between 0 and 1')
+            raw = stop.get('color')
+            alias = ALIAS.fullmatch(raw) if isinstance(raw, str) else None
+            try:
+                if alias:
+                    kind, result = self.evaluate(alias[1], trail)
+                    if kind != 'color':
+                        raise ValueError('Gradient color alias must name a color token')
+                else:
+                    result = normalize('color', raw)
+            except (KeyError, ValueError) as exc:
+                raise GradientError('R1' if alias else 'R2', (index,'color'), str(exc)) from exc
+            stops.append(result + ' ' + number_text(position * 100) + '%')
+        return 'linear-gradient(180deg, ' + ', '.join(stops) + ')'
 
     def reference(self, value):
         alias = ALIAS.fullmatch(value) if isinstance(value, str) else None
