@@ -143,6 +143,7 @@ def generate_config(path=None):
 # Apply subprocess bounds. Browser work shares the capture worker's total bound.
 APPLY_GIT_TIMEOUT_SECONDS = 30
 APPLY_DEFAULT_TARGET_DIR = 'kinbase-design'
+FACTORY_TIMEOUT_SECONDS = 3600
 
 KINBASE_TIMEOUT_SECONDS = 10
 KINBASE_OUTPUT_BYTES = 1024 * 1024

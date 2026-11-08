@@ -384,6 +384,45 @@ alone. It uses an isolated temporary worktree and never pushes, merges, opens re
 deploys. An existing branch with that name is reported rather than overwritten. Uncovered
 inventory findings stay in the hand-off for the implementer; a hand-off is not deployment approval.
 
+To send that committed Apply branch to Factory's normal task interface:
+
+```sh
+python -m kinbase_design factory-task HANDOFF_ID --run site-theme-01 --dry-run
+python -m kinbase_design factory-task HANDOFF_ID --run site-theme-01 --factory /path/to/harness/factory.sh --runs /path/to/runs --budget 20
+```
+
+Common `--library` and `--workspace` options select the existing language and hand-off.
+`--factory` takes an executable file path and defaults to `KINBASE_DESIGN_FACTORY` when omitted.
+`--runs` and `--budget` are passed to Factory only when supplied. The run id must be 1–64
+characters matching `[a-z0-9][a-z0-9._-]*`; Factory itself refuses an existing run id.
+
+`factory-task` requires an Apply hand-off created with `--branch`. It refuses a changed language
+version, deleted or moved branch, and missing or changed export bytes at the recorded commit.
+Refusals exit 1 with one reason on stderr and invoke nothing. Existing Apply behavior is unchanged.
+
+The command writes a deterministic `directive.md` with a `kinbase-design-directive/1` JSON block:
+language and adapter versions, vocabulary, pinned branch and commit, repository-relative hook and
+export paths with SHA-256 hashes, finding counts, constraints and acceptance criteria. Factory is
+instructed to add the generic hooks to maintained components, load the exported stylesheets,
+preserve content and reading order, report unmatched components and findings, and validate the real
+site build. Export files must stay unchanged. The directive includes no Design workspace/library
+paths or source captures and authorizes no push, merge, remote PR or deployment.
+
+`--dry-run` needs no Factory executable, creates no worktree and invokes nothing. Otherwise Design
+creates `handoffs/HANDOFF_ID/factory-repo` as a linked worktree with the Apply branch checked out,
+then invokes `[FACTORY, RUN_ID, directive.md, --repo, WORKTREE]` as arguments without a shell.
+An existing `factory-repo` path is refused. Git hooks are disabled for these Git operations.
+The invocation is bounded by `FACTORY_TIMEOUT_SECONDS` in `config.py` (3600 seconds).
+
+Both modes write `factory-submission.json` and print the same JSON, including the directive hash,
+pinned commit, worktree path (null for dry-run), invocation status, exit code and last 2000 stderr
+characters. Dry-run and Factory exit 0 return 0. Factory failure or timeout returns 1 and still writes
+the record; timeout has `exit: null` and `timeout: true`. Factory stdout is not interpreted or relayed.
+The worktree remains in place on success, failure or timeout for Factory and operator inspection;
+use Git's worktree tools to relocate or remove it before another `factory-task` invocation.
+This is a one-way command-line dependency: Factory receives an ordinary task file and needs no
+Design-specific code or additional orchestrator.
+
 ## Kinbase adapter (M4)
 
 The library and viewer display the adapter's direction/standards state. All journeys remain

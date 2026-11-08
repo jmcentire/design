@@ -1274,3 +1274,58 @@ computed grid treatment, and still rejects actual grid/color treatment changes.
 This diagnostic verifies the assertion logic only, not browser extraction or
 product sensitivity. The repaired integrated results remain **gap** pending rerun;
 previous source-free failures and the reported 330 passes are preserved above.
+
+## Design-to-Factory — amendment 08
+
+`test_factory_task.py` adds 28 cases using real Apply, CLI subprocesses, disposable
+Git repositories, commits, and linked worktrees. `factory_task_support.py` supplies
+a local executable recorder at the expressly authorized Factory entrypoint seam.
+No real Factory is invoked. The recorder captures the received argv, task bytes,
+and repository HEAD/branch/root at invocation time; it does not claim to simulate
+Factory's agents, orchestration, authority or eventual task execution.
+
+The tests cover deterministic dry-run output without invocation or worktree
+creation; generic and dtcg-tailwind directive metadata; accepted and rejected
+inventory review summaries; sorted file manifests and independently calculated
+SHA-256 digests; first line and designated JSON fence; heading identification;
+finding rule/location data; workspace/library path and synthetic private-input
+exclusion; and matching persisted/stdout submission records. Prose instructions,
+constraints and acceptance semantics are retained for human/Validator review via
+`directive_markdown_for_semantic_review`, not judged by a word-inventory test.
+Using `--junitxml=/tmp/factory-task.xml` retains that property for review.
+
+Submission cases exercise explicit entrypoint selection, environment fallback,
+flag precedence, optional runs/budget arguments, literal spaces/metacharacters,
+verbatim task bytes matching directive_sha256, and the real linked worktree at the
+hand-off's commit containing every export file. The original repository HEAD and
+tracked work stay unchanged. A harmless repository post-checkout hook must not
+run. A recorder exit of 7 produces CLI exit 1, an accurate bounded stderr tail,
+and a retained worktree and submission record.
+
+Refusals cover hand-offs created without --branch, an unknown hand-off, stale
+language, moved/deleted branch, altered/missing/extra export copies, absent/unset/
+nonexecutable/directory entrypoints, existing worktree files/directories, and
+invalid run ids (including empty, uppercase, traversal, newline and overlength).
+Valid run ids exercise both 1 and 64 characters and permitted punctuation. Each
+refusal must return 1 with a single-line reason and no recorder receipt; existing
+user-work sentinels must survive. Q-0043-3da4cc0164b5 authorizes changing the
+hand-off copy to isolate byte mismatch while both the branch tip and recorded
+local_branch.commit remain unchanged. Moved-branch tests change only the branch
+tip with a real new commit. Most negative cases first run a valid dry-run control.
+
+Local results: all 370 tests collect; compilation and whitespace checks pass.
+Standalone recorder/parser diagnostics also passed with real temporary Git and a
+linked worktree, literal argument paths, exact task bytes, and exits 0/7. Those are
+fixture diagnostics, not product results. `python -m pytest tests/test_factory_task.py
+-x -q --tb=short` stops at the missing kinbase_design module while requesting v1
+vocabulary (one setup error). All new product claims remain **gap** pending the
+Validator's integrated `python -m pytest tests/test_factory_task.py -q` run. Existing
+Apply tests and behavior expectations are unchanged.
+
+Limitations: literal argv tests detect interpolation/argument corruption but do
+not prove the absence of a perfectly quoted intermediary shell; the Validator's
+implementation review must establish the no-shell rule. Timeout forcing is not
+run: the contract specifies an internal bounded constant but no public test-time
+configuration, and these tests never leave an intentionally hanging child behind.
+Generic directive prose, absence of unseeded secrets, and real Factory behavior
+are not claimed from the recorder. No semantic mutation success is claimed.

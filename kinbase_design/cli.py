@@ -84,6 +84,13 @@ def parser():
     page.add_argument('--out', required=True)
     hooks = commands.add_parser('hooks', parents=[common])
     hooks.add_argument('--vocabulary')
+    factory = commands.add_parser('factory-task', parents=[common])
+    factory.add_argument('handoff_id')
+    factory.add_argument('--run', required=True)
+    factory.add_argument('--factory')
+    factory.add_argument('--runs')
+    factory.add_argument('--budget')
+    factory.add_argument('--dry-run', action='store_true')
     mapping = commands.add_parser('map-sections', parents=[common])
     mapping.add_argument('--mapping', required=True)
     mapping.add_argument('--sections', required=True)
@@ -115,7 +122,12 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'render-page':
+        if args.command == 'factory-task':
+            from .export.factory import submit
+            result = submit(library,workspace,args.handoff_id,args.run,args.factory,args.runs,args.budget,args.dry_run)
+            output(result)
+            return 0 if args.dry_run or result['exit']==0 else 1
+        elif args.command == 'render-page':
             from .content import render_page
             result = render_page(library,args.language_id,args.content,args.out)
             output(result)
@@ -221,6 +233,9 @@ def main(argv=None):
                 server.serve_forever()
         return 0
     except (ValueError, OSError, KeyError) as exc:
+        if args.command == 'factory-task':
+            print(' '.join(str(exc).split()), file=sys.stderr)
+            return 1
         output({'error': str(exc)})
         logging.getLogger(__name__).error('operation_failed command=%s language=%s error=%s', args.command, getattr(args,'language_id','-'), str(exc)[:300])
         return 2
