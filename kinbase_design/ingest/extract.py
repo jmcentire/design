@@ -1,6 +1,7 @@
 """Pure draft derivation from captured data and unchanged source token trees."""
 from collections import Counter
 from copy import deepcopy
+from decimal import Decimal
 import json
 import re
 from ..config import INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig
@@ -238,10 +239,11 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         for construct,spec in vocabulary['constructs'].items():
             if construct not in seen and construct!='page-shell':
                 name='space-'+construct
-                document['style'].setdefault('space',{})[name]={'$type':'dimension','$value':f'{facts["spacing_base"]:g}px'}
+                spacing_value=format(Decimal(str(facts['spacing_base'])).normalize(),'f')+'px'
+                document['style'].setdefault('space',{})[name]={'$type':'dimension','$value':spacing_value}
                 document['components'].setdefault(construct,{}).setdefault('properties',{})['padding']='{space.'+name+'}'
                 questions.append({'pointer':pointer('style','space',name,'$value'),'construct':construct,'state':'default',
-                                  'values':list(dict.fromkeys([f'{facts["spacing_base"]:g}px','8px','16px','24px']))[:4],
+                                  'values':list(dict.fromkeys([spacing_value,'8px','16px','24px']))[:4],
                                   'reason':'Construct not established by the capture; choose its inferred spacing'})
         for state in vocabulary['states']:
             if state=='default':continue

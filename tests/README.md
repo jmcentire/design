@@ -415,3 +415,24 @@ execution still has 108 missing-vocabulary setup errors, with 63 browser cases
 deselected. The Validator reports its M2 run blocked on the product's loopback
 capture fix; these additions have no integrated pass claim. Logs:
 `/tmp/kinbase-tester-m2-large-collection.log`, `/tmp/kinbase-tester-m2-large.log`.
+
+The Validator subsequently reports 168/171 passing on candidate `5c008af`
+(endgame `f8e222fd`). The remaining spacing-base, clean-large-capture and visible
+promotion-control failures are accepted product defects; their assertions stand.
+
+`test_m2_concurrent_capture.py` exercises a real local page with 48 subresources:
+36 images, six stylesheets and six font files. Each resource response has a
+deliberate 200ms boundary delay. Completion must capture both configured widths,
+request all resources with overlap, and finish within 30s against a 40s capture
+bound. A second case holds resource responses while terminating only the public
+CLI, then requires its observed descendants to exit within five seconds. Numeric
+process ancestry and birth times identify this test's processes; macOS kqueue
+exit events bound the wait. Forced process-group cleanup occurs after observation,
+so cleanup cannot satisfy the cancellation assertion.
+
+173 cases collect; compilation and whitespace checks pass. Non-browser execution
+still reports 108 absent-vocabulary setup errors, with 65 browser cases deselected.
+A local diagnostic confirms the exit watcher rejects a living child and detects
+its exit. The sandbox denies `ps`, so process-tree inspection and the two new
+browser cases await the Validator; no integrated pass is claimed for them. Logs:
+`/tmp/kinbase-tester-fanout-collection.log`, `/tmp/kinbase-tester-fanout.log`.

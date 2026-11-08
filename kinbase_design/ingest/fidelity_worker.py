@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 import sys
-from ..artifacts.runtime import chromium
+from ..artifacts.runtime import chromium, watch_parent
 from ..checks.browser import prepare
 from ..config import IngestConfig,CHECK_VIEWPORT_HEIGHT,CAPTURE_MAX_NODES,CAPTURE_MAX_TEXT
 from ..language.properties import TOKEN_PROPERTIES,KEYWORDS
@@ -40,6 +40,7 @@ def render(job):
 
 
 def main():
+    watch_parent()
     try:print(json.dumps(render(read_json(Path(sys.argv[1])))));return 0
     except Exception as exc:print(json.dumps({'error':str(exc)}));return 2
 

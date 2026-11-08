@@ -2,9 +2,10 @@
 from collections import Counter
 import math
 import re
+from fractions import Fraction
 from ..checks.math import color
 from ..config import (INGEST_COLOR_DELTA_E, INGEST_TYPE_TOLERANCE_PX,
-                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_SPACE_SUPPORT, INGEST_FULL_RADIUS_PX, IngestConfig)
+                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig)
 
 
 def hex_color(value):
@@ -92,13 +93,14 @@ def scale(values,tolerance=INGEST_TYPE_TOLERANCE_PX):
 
 
 def spacing_base(values):
-    values=[v for v in values if v is not None and v>0]
+    values=sorted({v for v in values if v is not None and v>0})
     if not values:return INGEST_DEFAULT_SPACE
-    candidates=[v/4 for v in range(4,65)]
-    # Infer a rhythm from the dominant exact steps, rather than letting one
-    # incidental offset force every step onto a tiny common divisor.
-    valid=[base for base in candidates if sum(abs(v-round(v/base)*base)<1e-6 and round(v/base)>0 for v in values)/len(values)>=INGEST_SPACE_SUPPORT]
-    return max(valid,default=INGEST_DEFAULT_SPACE)
+    unit=Fraction(str(values[0]))
+    for value in values[1:]:
+        step=Fraction(str(value))
+        unit=Fraction(math.gcd(unit.numerator*step.denominator,step.numerator*unit.denominator),
+                      unit.denominator*step.denominator)
+    return float(unit)
 
 
 def full_radius(value,box=()):

@@ -22,11 +22,11 @@
   }
   spread(all.filter(e=>!selected.has(e)),args.maxNodes-selected.size);
   const sampled=all.filter(e=>selected.has(e));
-  const queries=[],faces=[],problems=[];
+  const queries=[],faces=[],problems=[],notes=[];
   const rules=list=>{for(const rule of list){if(rule.media)queries.push(rule.conditionText||rule.media.mediaText);if(rule.type===CSSRule.FONT_FACE_RULE)faces.push({family:rule.style.fontFamily,weight:rule.style.fontWeight,style:rule.style.fontStyle,src:rule.style.src});if(rule.cssRules)rules(rule.cssRules);}};
   for(const sheet of document.styleSheets){try{rules(sheet.cssRules);}catch{problems.push('Cross-origin stylesheet rules unavailable: '+(sheet.href||'inline'));}}
   for(const face of document.fonts)faces.push({family:face.family,weight:face.weight,style:face.style,src:'',status:face.status});
-  if(all.some(e=>(e.textContent||'').length>args.maxText))problems.push('Some captured text exceeds the per-element text bound; the DOM original retains it');
+  if(all.some(e=>(e.textContent||'').length>args.maxText))notes.push('Some captured text exceeds the per-element text bound; the DOM original retains it');
   const nodes=sampled.map(e=>{const s=styles.get(e),r=e.getBoundingClientRect(),backgrounds=[];
     for(let parent=e;parent;parent=parent.parentElement){const style=getComputedStyle(parent);backgrounds.push({color:srgb(style.backgroundColor),image:style.backgroundImage});}
     return {
@@ -39,5 +39,6 @@
   return {title:document.title,nodes,media_queries:[...new Set(queries)],font_faces:faces,
     candidates:[...[...document.images].map(e=>({url:e.currentSrc,alt:e.alt,selector:selector(e),kind:/logo|brand/i.test(e.alt+' '+e.className+' '+e.src)?'logo':'image'})),
       ...[...document.querySelectorAll('svg')].filter(visible).map(e=>({url:'inline:'+location.href+'#'+selector(e),inline:e.outerHTML,selector:selector(e),kind:e.closest('nav')?'logo':'image'}))],
-    problems:[...problems,...(all.length>args.maxNodes?['Element sampling limit reached; '+(all.length-args.maxNodes)+' elements unsampled']:[])]};
+    problems,notes:[...notes,...(all.length>args.maxNodes?['Element sampling limit reached; '+(all.length-sampled.length)+' elements unsampled']:[])],
+    stats:{elements_visible:all.length,elements_sampled:sampled.length,elements_unsampled:all.length-sampled.length}};
 }

@@ -33,6 +33,11 @@ def png(path):
 def capture(library, urls):
     args = [arg for url in urls for arg in ("--url", url)]
     output = library.json("capture", *args, cwd=library.project, timeout=90)
+    return captured_artifact(library, urls, output)
+
+
+def captured_artifact(library, urls, output):
+    """Inspect the public result independently of how the real CLI was supervised."""
     artifact = output["artifact"]
     root = library.workspace / "artifacts" / artifact
     assert root.resolve().is_relative_to(library.workspace.resolve())

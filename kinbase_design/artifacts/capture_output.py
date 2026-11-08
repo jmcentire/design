@@ -10,7 +10,7 @@ def publish_capture(workspace,files,pages,problems,assets):
     urls={page['id']:page['url'] for page in pages}
     problems=group_problems([{**item,'url':item.get('url',urls.get(item.get('page'),''))} for item in problems])
     for item in problems:item['width']=item['widths'][0] if item['widths'] else None
-    captured=[];queries=set();fonts={};public_assets=[]
+    captured=[];queries=set();fonts={};public_assets=[];notes=[];stats=[]
     for page in pages:
         if not page['views']:continue
         widths={}
@@ -22,6 +22,8 @@ def publish_capture(workspace,files,pages,problems,assets):
                 if old!=paths[field]:files[paths[field]]=files.pop(old)
                 view[source]=paths[field]
             data=json.loads(files[paths['styles']]);queries.update(data.get('media_queries',[]))
+            notes.extend({'url':page['url'],'page':page['id'],'width':view['width'],'message':note} for note in data.get('notes',[]))
+            if data.get('stats'):stats.append({'page':page['id'],'width':view['width'],**data['stats']})
             for face in data.get('font_faces',[]):
                 face={**dict.fromkeys(('family','weight','style','src'),''),**face}
                 fonts[json.dumps(face,sort_keys=True)]=face
@@ -38,10 +40,10 @@ def publish_capture(workspace,files,pages,problems,assets):
         filename='assets/'+meta['sha256']+'.'+extension;files[filename]=data
         public_assets.append({**asset,'src':asset.get('url',''),'file':filename})
     document={'kind':'capture','pages':captured,'media_queries':sorted(queries),
-              'fonts':list(fonts.values()),'assets':public_assets,'problems':problems}
+              'fonts':list(fonts.values()),'assets':public_assets,'problems':problems,'notes':group_problems(notes),'stats':stats}
     files['capture.json']=json.dumps(document,ensure_ascii=False).encode()
     # Internal details retain font originals and view references for the same
     # extraction path; capture.json is the pinned public projection of that data.
-    details={'pages':captured,'problems':problems,'assets':assets}
+    details={'pages':captured,'problems':problems,'assets':assets,'notes':document['notes'],'stats':stats}
     artifact=import_bundle(workspace,files,'capture',details)
     return {'artifact':artifact,'pages':[page['name'] for page in captured],'problems':problems}

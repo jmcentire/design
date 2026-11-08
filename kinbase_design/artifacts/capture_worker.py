@@ -1,25 +1,26 @@
 """Isolated, bounded browser capture; no state is published until capture completes."""
 import json
+import asyncio
 import html
 import re
 from pathlib import Path
 import sys
 from urllib.parse import urlsplit, unquote, urljoin
 from ..config import (IngestConfig, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_REDIRECTS,
-                      CAPTURE_MAX_ASSETS, ARTIFACT_MAX_BYTES, MAX_UPLOAD_BYTES, CHECK_VIEWPORT_HEIGHT)
+                      CAPTURE_MAX_ASSETS, ARTIFACT_MAX_BYTES, MAX_UPLOAD_BYTES, CHECK_VIEWPORT_HEIGHT, CAPTURE_MAX_REQUESTS)
 from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
 from ..storage import read_json
 from . import import_bytes
 from .capture import public_url, media_widths, anonymous_headers
 from .capture_output import publish_capture
-from .runtime import chromium
+from .runtime import async_chromium, watch_parent
 
 
-def collect(job):
-    from playwright.sync_api import Error
+async def collect(job):
+    from playwright.async_api import Error
     settings=IngestConfig(**job.get('settings',{}));timeout_ms=settings.timeout_ms
     files={}; pages=[]; problems=[]; assets={}; asset_bytes=0
-    with chromium(with_requests=True,timeout_ms=timeout_ms) as (browser,requests):
+    async with async_chromium(timeout_ms) as (browser,requests):
         for number,url in enumerate(job['urls'],1):
             page_id=f'page-{number}'; record={'id':page_id,'url':url,'views':[]};pages.append(record)
             pending=list(job['widths']);done=set()
@@ -27,17 +28,17 @@ def collect(job):
                 width=pending.pop(0)
                 if width in done:continue
                 done.add(width)
-                context=browser.new_context(viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},service_workers='block',accept_downloads=False)
+                context=await browser.new_context(viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},service_workers='block',accept_downloads=False)
                 context.set_default_timeout(timeout_ms)
                 def problem(message):
                     finding={'page':page_id,'width':width,'message':message}
                     if finding not in problems:problems.append(finding)
-                def route(request_route):
+                async def route(request_route):
                     request=request_route.request
                     try:
                         if request.method not in {'GET','HEAD'}:raise ValueError('Non-read request blocked')
                         public_url(request.url)
-                        original_headers=request.all_headers()
+                        original_headers=await request.all_headers()
                         headers=anonymous_headers(original_headers)
                         if len(headers)!=len(original_headers):
                             problem('Credentials refused: cookie and authorization headers were not sent')
@@ -48,9 +49,9 @@ def collect(job):
                         # until their destination has passed the same URL checks.
                         destination=request.url
                         for hop in range(CAPTURE_MAX_REDIRECTS+1):
-                            fetcher=requests.new_context(timeout=timeout_ms)
+                            fetcher=await requests.new_context(timeout=timeout_ms)
                             try:
-                                response=fetcher.fetch(destination,method=request.method,headers=headers,
+                                response=await fetcher.fetch(destination,method=request.method,headers=headers,
                                                    timeout=timeout_ms,max_redirects=0,max_retries=0)
                                 response_headers=response.headers;status=response.status
                                 if status in {301,302,303,307,308} and response_headers.get('location'):
@@ -59,10 +60,10 @@ def collect(job):
                                     continue
                                 if int(response_headers.get('content-length','0'))>MAX_UPLOAD_BYTES:
                                     raise ValueError('Response exceeds capture byte limit')
-                                body=response.body()
+                                body=await response.body()
                                 if len(body)>MAX_UPLOAD_BYTES:raise ValueError('Response exceeds capture byte limit')
                                 break
-                            finally:fetcher.dispose()
+                            finally:await fetcher.dispose()
                         if destination!=request.url:
                             # Never forward a 3xx: Chromium bypasses the route handler
                             # for that chain. Preserve relative document resources using
@@ -81,36 +82,46 @@ def collect(job):
                             elif request.resource_type=='stylesheet':
                                 problem('Redirected stylesheet may resolve relative resources differently: '+destination)
                         if status in {401,403}:problem('Authentication is unavailable; HTTP '+str(status))
-                        request_route.fulfill(status=status,body=body,headers={
+                        await request_route.fulfill(status=status,body=body,headers={
                                 key:value for key,value in response_headers.items()
                                 if key.lower() not in {'set-cookie','set-cookie2','content-encoding','content-length','transfer-encoding'}})
                     except (ValueError,LookupError,OSError,Error) as exc:
                         problem('Request blocked: '+str(exc)[:300])
-                        request_route.abort()
-                context.route('**/*',route)
-                def websocket(socket_route):
+                        await request_route.abort()
+                pending_routes=set();slots=asyncio.Semaphore(CAPTURE_MAX_REQUESTS);closing=False
+                async def bounded_route(request_route):
+                    task=asyncio.current_task();pending_routes.add(task)
+                    try:
+                        async with slots:
+                            if closing:await request_route.abort()
+                            else:await route(request_route)
+                    except Error:
+                        if not closing:raise
+                    finally:pending_routes.discard(task)
+                await context.route('**/*',bounded_route)
+                async def websocket(socket_route):
                     problem('WebSocket request refused: capture only permits unauthenticated HTTP(S)')
-                    socket_route.close(code=1008,reason='Capture only permits HTTP(S)')
-                context.route_web_socket('**/*',websocket)
-                page=context.new_page();responses=[]
+                    await socket_route.close(code=1008,reason='Capture only permits HTTP(S)')
+                await context.route_web_socket('**/*',websocket)
+                page=await context.new_page();responses=[]
                 page.on('response',lambda response:responses.append(response) if response.request.resource_type in {'font','image','stylesheet'} else None)
                 try:
-                    response=page.goto(url,wait_until='domcontentloaded',timeout=timeout_ms)
+                    response=await page.goto(url,wait_until='domcontentloaded',timeout=timeout_ms)
                     if response and response.status>=400:problems.append({'page':page_id,'width':width,'message':f'HTTP {response.status}'})
-                    page.evaluate('''async timeout=>{for(const image of document.images)image.loading='eager';await Promise.race([Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]),new Promise(resolve=>setTimeout(resolve,timeout))]);}''',timeout_ms)
+                    await page.evaluate('''async timeout=>{for(const image of document.images)image.loading='eager';await Promise.race([Promise.all([document.fonts.ready,...[...document.images].map(i=>i.decode().catch(()=>{}))]),new Promise(resolve=>setTimeout(resolve,timeout))]);}''',timeout_ms)
                     properties=sorted((TOKEN_PROPERTIES.keys()|KEYWORDS.keys()|{'padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','border-top-width','border-top-color','border-top-left-radius','row-gap','column-gap','position','grid-template-columns','box-shadow'})-{'surface'})
-                    data=page.evaluate(Path(__file__).with_name('capture.js').read_text(),{'properties':properties,'maxNodes':CAPTURE_MAX_NODES,'maxText':CAPTURE_MAX_TEXT})
+                    data=await page.evaluate(Path(__file__).with_name('capture.js').read_text(),{'properties':properties,'maxNodes':CAPTURE_MAX_NODES,'maxText':CAPTURE_MAX_TEXT})
                     prefix=f'{page_id}/{width}'
-                    dom=page.content().encode()
+                    dom=(await page.content()).encode()
                     if len(dom)>MAX_UPLOAD_BYTES:
                         problems.append({'page':page_id,'width':width,'message':'DOM exceeds artifact size bound'});dom=dom[:MAX_UPLOAD_BYTES]
                     files[prefix+'.html']=dom
-                    files[prefix+'.png']=page.screenshot(full_page=True,animations='disabled',timeout=timeout_ms)
+                    files[prefix+'.png']=await page.screenshot(full_page=True,animations='disabled',timeout=timeout_ms)
                     for response in responses:
                         if len(assets)>=CAPTURE_MAX_ASSETS:break
                         try:
                             if not response.ok:continue
-                            body=response.body()
+                            body=await response.body()
                             if not body or len(body)>MAX_UPLOAD_BYTES:continue
                             if response.request.resource_type=='stylesheet':
                                 css=body.decode('utf-8',errors='replace')
@@ -152,12 +163,18 @@ def collect(job):
                     if sum(map(len,files.values()))>ARTIFACT_MAX_BYTES:raise ValueError('Capture exceeds artifact size bound')
                 except Error as exc:
                     problems.append({'page':page_id,'width':width,'message':str(exc)[:500]})
-                finally:context.close()
+                finally:
+                    closing=True
+                    tasks=list(pending_routes)
+                    for task in tasks:task.cancel()
+                    if tasks:await asyncio.gather(*tasks,return_exceptions=True)
+                    await context.close()
     return publish_capture(job['workspace'],files,pages,problems,list(assets.values()))
 
 
 def main():
-    try:print(json.dumps(collect(read_json(Path(sys.argv[1])))));return 0
+    watch_parent()
+    try:print(json.dumps(asyncio.run(collect(read_json(Path(sys.argv[1]))))));return 0
     except Exception as exc:print(json.dumps({'error':str(exc)}));return 2
 
 
