@@ -89,14 +89,31 @@ def computed_tokens(document):
 
 
 def tailwind_name(path, node):
-    """Tailwind v4 namespaces used by the pinned design-system generator."""
-    kind = node['$type']; group = path.split('.')[0]
+    """Replace recognized token groups with their Tailwind namespace once."""
+    kind = node['$type']; parts = path.split('.'); group = parts[0]
     prefix = {'color':'color', 'fontFamily':'font', 'fontWeight':'font-weight'}.get(kind)
     if kind == 'dimension':
         prefix = {'breakpoint':'breakpoint', 'space':'spacing', 'spacing':'spacing',
-                  'size':'text', 'font-size':'text', 'radius':'radius'}.get(group, 'spacing')
-    # Full paths avoid collisions between arbitrary DTCG groups.
-    return '--' + (prefix or 'kd-token') + '-' + custom_property(path).removeprefix('--kd-')
+                  'size':'text', 'font-size':'text', 'type':'text', 'text':'text',
+                  'radius':'radius'}.get(group, 'spacing')
+    groups = {'color':{'color'}, 'font':{'font','fontFamily','font-family'},
+              'font-weight':{'font','fontWeight','font-weight'}, 'breakpoint':{'breakpoint'},
+              'spacing':{'space','spacing'}, 'text':{'size','font-size','type','text'}, 'radius':{'radius'}}
+    if len(parts)>1 and group in groups.get(prefix,set()):parts=parts[1:]
+    return '--' + (prefix or 'kd-token') + '-' + custom_property('.'.join(parts)).removeprefix('--kd-')
+
+
+def tailwind_variables(tokens):
+    variables={name:tailwind_name(name,node) for name,node in tokens.nodes.items()}
+    paths={}
+    for name,variable in variables.items():paths.setdefault(variable,[]).append(name)
+    for variable,names in paths.items():
+        if len(names)<2:continue
+        # Group aliases or ungrouped tokens can share a short name. The reserved
+        # _path marker cannot occur in escaped segments; retain every token.
+        for name in names:
+            variables[name]=variable+'-_path-'+custom_property(name).removeprefix('--kd-')
+    return variables
 
 
 @dataclass(frozen=True)
@@ -114,8 +131,9 @@ class Adapter:
         if self.name == 'generic':
             return {'tokens.css': (prefix + ':root{\n' + declarations + '}\n').encode(),
                     'roles.css': (prefix + roles).encode()}
-        theme = '\n'.join(f'  {tailwind_name(name,node)}: {tokens.evaluate(name)[1]};'
-                          for name,node in sorted(tokens.nodes.items()))
+        theme_variables=tailwind_variables(tokens)
+        theme = '\n'.join(f'  {theme_variables[name]}: {tokens.evaluate(name)[1]};'
+                          for name in sorted(tokens.nodes))
         # Match the design-system's top-level @theme plus explicit light overrides.
         # Ordinary declarations also work when inspected directly without Tailwind compilation.
         css = prefix + '@theme static {\n' + theme + '\n}\n'
@@ -125,4 +143,4 @@ class Adapter:
                 'theme.css': css.encode()}
 
 
-ADAPTERS = {name:Adapter(name) for name in ('generic','dtcg-tailwind')}
+ADAPTERS = {'generic':Adapter('generic'), 'dtcg-tailwind':Adapter('dtcg-tailwind','2')}

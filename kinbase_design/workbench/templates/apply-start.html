@@ -10,5 +10,7 @@
 <label>Page URLs for before/after screenshots (optional, one per line)<textarea name="page_urls" rows="4"></textarea></label>
 <label><input type="checkbox" name="branch" value="yes"> Create a local branch with the export committed</label>
 <p>Before/after screenshots show an injected stylesheet preview. Local branches stay local.</p>
-<button>Review inventory findings</button>
+<button name="action" value="handoff">Create hand-off</button>
+<button name="action" value="review">Review inventory findings first</button>
+<p>Creating the hand-off includes the findings, export and requested screenshots. Captures may take a while.</p>
 </form>{% endblock %}

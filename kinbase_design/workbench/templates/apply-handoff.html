@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block content %}
 <h1>Hand-off ready</h1><p>{{ record.language }} · {{ record.adapter }}</p>
 <p>Target {{ record.site }} / {{ record.target_dir }}</p>
+{% with report=record.findings %}{% include 'apply-findings.html' %}{% endwith %}
 {% if record.local_branch %}<p>Local branch {{ record.local_branch.branch }} · commit {{ record.local_branch.commit }}</p>{% else %}<p>Proposed branch {{ record.branch }} (not created).</p>{% endif %}
 <p><a href="/apply/handoffs/{{ record.id }}/TASK.md">Factory task</a> · <a href="/apply/handoffs/{{ record.id }}/findings.json">Findings report</a> · <a href="/apply/handoffs/{{ record.id }}/handoff.json">Bundle manifest</a></p>
 {% if record.adapter.startswith('dtcg-tailwind@') %}<p>Verification gap: Tailwind consumption of <code>@theme</code> is unverified. Verify it in the target design-system repository; browser inspection needs no compiler.</p>{% endif %}

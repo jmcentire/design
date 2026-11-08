@@ -312,9 +312,12 @@ Export a versioned language with `python -m kinbase_design export harbor --adapt
 properties, role classes (`.kd-role-title-neutral`), and the normal `data-kd-*` treatments.
 `--adapter dtcg-tailwind` produces computed DTCG `tokens.json` and `theme.css` for Tailwind v4:
 `@theme static` registers theme variables and `[data-theme='light']` declares light overrides,
-following the pinned design-system generator. Theme namespaces use the complete token path to
-avoid group collisions (`color.brand` → `--color-color-brand`); generic properties use `--kd-`
-plus the token path (`--kd-color-brand`). Token segments escape hyphens as `_h` and underscores as `_u` to distinguish
+following the pinned design-system generator. The `dtcg-tailwind@2` adapter replaces recognized
+groups with one Tailwind namespace: `color.brand` → `--color-brand`, `breakpoint.lg` →
+`--breakpoint-lg`, `font.body` → `--font-body`, `space.base` → `--spacing-base`,
+`type.title` → `--text-title`, and `radius.card` → `--radius-card`. Custom groups retain their
+path; colliding short names gain a reserved `_path` suffix with the full path so no token is lost.
+Generic properties use `--kd-` plus the token path (`--kd-color-brand`). Token segments escape hyphens as `_h` and underscores as `_u` to distinguish
 `a-b.c` from `a.b-c` without collisions. Both adapters include all bound asset bytes and native-control, breakpoint,
 state and behavior treatments from the preview renderer. Export mints the language version;
 CSS comments and DTCG metadata identify that version and adapter version. Identical version and
@@ -338,12 +341,18 @@ exception scopes remain supported for existing inventories.
 Findings use `inventory-construct`, `inventory-slot`, `inventory-state`, and `inventory-asset`;
 an exception names that rule (or `missing` for missing findings), its reported scope, and a nonempty reason. An exception on a
 construct also covers its slots/states for that rule. Covered findings remain in the report.
-Pointers refer to the site's inventory, relative to its repository root. Drafting inventories
+The same report also includes the language's validation findings, including coverage advisories;
+acceptance covers both sets. Inventory pointers refer to the site's inventory relative to its
+repository root; language findings retain their library-relative file and pointer. Drafting inventories
 from a BFF contract is deferred until the target BFF is decided (D3).
+If the inventory file is absent, Apply and inventory-check stop with a message identifying the
+file to create and the requirements it should list. Site findings remain unknown until it exists.
 
 
-Open `/apply` to choose a language and a local Git repository, review the inventory findings,
-build an export, and create a hand-off without JavaScript. Equivalent command:
+Open `/apply` to choose a language and a local Git repository. **Create hand-off** builds and
+shows the bundle, findings, export and requested screenshots without JavaScript, through the same
+operation as the CLI. **Review inventory findings first** retains the step-by-step review/export
+path. Equivalent command:
 
 ```sh
 python -m kinbase_design apply harbor --site /path/to/site --adapter generic --target-dir theme --page-url http://localhost:3000/

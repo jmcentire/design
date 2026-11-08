@@ -1002,3 +1002,41 @@ tests collect. Non-browser execution remains blocked by absent candidate
 vocabulary (130 prerequisite errors, 101 browser cases deselected). Logs:
 `/tmp/kinbase-tester-attention-11e-collection.log`, `/tmp/kinbase-tester-attention-11e.log`.
 Browser verification awaits the Validator.
+
+Validator run 1462f53c (tester dbcbe13, candidate d7b76da) reported 227/231.
+The feedback driver now accepts a labelled flag/question checkbox, clearing it
+for the comment case and checking it for the question case. Labelled radio and
+select choices are also accepted without requiring their form values to be the
+literal kind names. A visible control can override a hidden default kind, and
+semantic buttons remain supported. The external argv still must submit the
+requested concept/question kind, retain the instruction-like feedback text, and
+report the receipt while fixed inputs and validation remain unchanged.
+The two omitted-language-findings inventory failures and the missing Apply bundle
+are product-side per the review; those assertions remain unchanged.
+
+231 tests collect; Python compilation and whitespace checks pass. Non-browser
+execution remains blocked at absent candidate vocabulary (130 prerequisite errors,
+101 browser cases deselected). Logs:
+`/tmp/kinbase-tester-feedback-control-collection.log`, `/tmp/kinbase-tester-feedback-control.log`.
+The repaired real-browser feedback case awaits the Validator's rerun.
+
+The Validator's hands-on M4 gaps add two checks. Tailwind exports must declare
+color and breakpoint variables inside `@theme static` with one namespace prefix,
+rejecting names such as `--color-color-ink` and `--breakpoint-breakpoint-md`.
+The parser isolates theme blocks, ignores quoted/commented braces and declarations,
+and does not credit the separate browser-ready `:root` rules. This checks the
+published naming requirement; actual Tailwind compiler integration remains a gap.
+
+Both adapters now exercise Apply on a real Git repository with no inventory and
+no page URLs. Success requires a complete hand-off/export and an accepted report
+retaining an absent-inventory coverage advisory. Failure must name the inventory
+file and provide an actionable explanation; an uncaught OS traceback fails.
+Neither outcome may silently invent an inventory or modify the target repository.
+The test accepts either documented handling policy rather than choosing one.
+
+233 cases collect; compilation and whitespace checks pass. Local parser/message
+diagnostics accept valid names and reject duplicate prefixes, missing theme
+namespaces and declarations found only outside the theme. Non-browser execution
+remains blocked by absent candidate vocabulary (132 prerequisite errors, 101
+browser cases deselected). Logs: `/tmp/kinbase-tester-m4-final-gaps-collection.log`
+and `/tmp/kinbase-tester-m4-final-gaps.log`. Integrated verification awaits the Validator.

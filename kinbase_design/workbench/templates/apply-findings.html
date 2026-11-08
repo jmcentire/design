@@ -1,0 +1,8 @@
+<section aria-label="Apply findings">
+<p>Inventory and static validation: {{ 'accepted' if report.accepted else 'findings remain' }}. Unresolved review items: {{ report.needs_review }}.</p>
+{% for finding in report.findings %}<article>
+<h2>{{ finding.type }} · {{ finding.rule }}</h2><p>{{ finding.message }}</p>
+<p>{{ finding.file }}#{{ finding.pointer }} · Expected: {{ finding.expected }}</p>
+{% if finding.exception %}<p>Covered by justified exception {{ finding.exception }}</p>{% endif %}
+</article>{% else %}<p>No inventory or static validation findings.</p>{% endfor %}
+</section>

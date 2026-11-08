@@ -45,20 +45,39 @@ def feedback(page, text, kind):
     for form, textbox in candidates:
         hidden_kinds = set(form.locator('input[type="hidden"]').evaluate_all(
             "els => els.map(e => e.value).filter(v => ['concept','question'].includes(v))"))
-        if hidden_kinds and kind not in hidden_kinds:
-            continue
         explicit_kind = kind in hidden_kinds
+        kind_label = re.compile(r"\b(?:flag|question)\b" if kind == "question" else r"\b(?:comment|concept)\b", re.I)
+        # A flag checkbox marks the same operation as a dedicated question
+        # button or type selector. Clear it for the comment control case too.
+        for checkbox in visible(form.get_by_role("checkbox", name=re.compile(r"\b(?:flag|question)\b", re.I))):
+            checkbox.set_checked(kind == "question")
+            explicit_kind = True
         for select in visible(form.locator("select")):
-            options = select.locator("option").evaluate_all("els => els.map(e => e.value)")
-            if kind in options:
-                select.select_option(kind)
+            options = select.locator("option").evaluate_all(
+                "els => els.filter(e => !e.disabled).map(e => ({value:e.value, label:e.label}))")
+            requested = [option for option in options if option["value"] == kind]
+            if not requested:
+                # Option values are form data, not pinned UI semantics. A
+                # labelled comment/question choice may use unrelated values.
+                labels = [option["label"] for option in options]
+                if any(re.search(r"\b(?:flag|question)\b", label, re.I) for label in labels) and any(
+                        re.search(r"\b(?:comment|concept)\b", label, re.I) for label in labels):
+                    requested = [option for option in options if kind_label.search(option["label"])]
+            if requested:
+                select.select_option(requested[0]["value"])
                 explicit_kind = True
-        for radio in visible(form.get_by_role("radio")):
-            if radio.input_value() == kind:
-                radio.check()
-                explicit_kind = True
-        buttons = visible(form.get_by_role("button", name=re.compile(
+        radios = visible(form.get_by_role("radio", name=kind_label)) or [
+            radio for radio in visible(form.get_by_role("radio")) if radio.input_value() == kind]
+        if radios:
+            radios[0].check()
+            explicit_kind = True
+        semantic_buttons = visible(form.get_by_role("button", name=kind_label))
+        buttons = semantic_buttons or visible(form.get_by_role("button", name=re.compile(
             r"flag|question" if kind == "question" else r"comment|(?:record|send|submit) feedback|^submit$|^send$", re.I)))
+        # A visible flag/type control may override a hidden default kind. A
+        # form with only a different hidden kind remains the wrong operation.
+        if hidden_kinds and kind not in hidden_kinds and not explicit_kind and not semantic_buttons:
+            continue
         if kind == "question" and not explicit_kind and not buttons:
             continue
         if kind == "concept" and not explicit_kind and not buttons and visible(

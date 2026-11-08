@@ -6,7 +6,7 @@ from .assets import asset_path
 from .findings import Finding, location, pointer, report
 from .language.resolver import resolve, property_pointer
 from .language.tokens import Tokens
-from .language.validation import Validator
+from .language.validation import Validator, validate
 from .storage import load_language, read_json
 from .vocabulary import load, slot_map
 
@@ -119,13 +119,24 @@ class Treatment:
 
 def inventory_check(library, language_id, inventory_path):
     path=Path(inventory_path).expanduser().resolve()
-    inventory=read_json(path)
+    try:inventory=read_json(path)
+    except FileNotFoundError:
+        raise ValueError(f'Site inventory absent — findings unknown. Create {path} with the site pages, constructs, states and asset requirements, then retry Apply or inventory-check.') from None
     root=next((p for p in path.parents if (p/'.git').exists()),path.parent)
     file=path.relative_to(root).as_posix()
     document=load_language(library,language_id)
-    vocabulary=load(library,document['vocabulary'])
-    treatment=Treatment(library,language_id,document,vocabulary)
-    findings=[]
+    # Retain language findings with their library-relative files and pointers.
+    # Site exceptions cover inventory requirements, not defects in the language.
+    validation=validate(library,language_id,document)
+    findings=list(validation['findings'])
+    try:
+        vocabulary=load(library,document['vocabulary'])
+        treatment=Treatment(library,language_id,document,vocabulary)
+    except (KeyError,ValueError,TypeError,OSError):
+        # An unresolvable vocabulary/token tree still returns its validation
+        # findings, rather than turning a language failure into a usage error.
+        if not validation['accepted']:return report(language_id,findings)
+        raise
     exceptions=inventory.get('exceptions',[]) if isinstance(inventory,dict) else []
 
     def issue(kind, rule, at, expected, message, scope=None):

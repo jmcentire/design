@@ -2,7 +2,8 @@
 
 Oracle: public filenames/classes/hooks, independently canonicalized language hash,
 our own token/asset inputs and agreement with the public resolver. No adapter
-implementation, variable naming convention or generated baseline is consulted.
+implementation or generated baseline is consulted. Namespace checks use the
+public Tailwind-prefix requirement, without prescribing the remaining suffix.
 """
 
 import json
@@ -23,6 +24,39 @@ def export(library, identity, adapter, output):
     library.cli("export", identity, "--adapter", adapter, "--out", output, timeout=30)
     assert all((output / name).is_file() for name in FILES[adapter])
     return {str(file.relative_to(output)): file.read_bytes() for file in output.rglob("*") if file.is_file()}
+
+
+def theme_variable_names(css):
+    """Read declarations only inside @theme, not browser-ready :root rules.
+
+    Ignore strings/comments before balancing braces so a quoted font name or a
+    header cannot fake a block boundary. Nested blocks stay within their theme.
+    """
+    stripped = re.sub(r"/\*.*?\*/|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'", "", css, flags=re.S)
+    names = set()
+    blocks = list(re.finditer(r"@theme\s+static\s*\{", stripped))
+    assert blocks, "Export has no @theme static block"
+    for block in blocks:
+        depth, end = 1, block.end()
+        while end < len(stripped) and depth:
+            depth += (stripped[end] == "{") - (stripped[end] == "}")
+            end += 1
+        assert depth == 0, "Unclosed @theme block"
+        names.update(re.findall(r"(--[A-Za-z0-9_-]+)\s*:", stripped[block.end():end - 1]))
+    return names
+
+
+def assert_theme_namespaces(css):
+    names = theme_variable_names(css)
+    # These namespaces correspond to independently authored color/breakpoint
+    # groups in language.json. Their prefixes cannot be duplicated by retaining
+    # the same namespace as a token-path prefix (e.g. --color-color-ink).
+    for namespace in ("color", "breakpoint"):
+        members = {name for name in names if name.startswith("--" + namespace + "-")}
+        assert members, ("Missing fixture token namespace in @theme", namespace, names)
+        assert not any(name.startswith("--" + namespace + "-" + namespace + "-") for name in members), members
+    # Apply the same no-repeat rule to every single-segment namespace present.
+    assert not {name for name in names if re.match(r"^--([a-z][a-z0-9]*)-\1(?:-|$)", name)}, names
 
 
 def export_headers(files, reference, adapter):
@@ -83,7 +117,7 @@ def test_export_is_deterministic_versioned_and_packages_bound_originals(library,
     assert "@font-face" in css
     if adapter == "dtcg-tailwind":
         theme = first["theme.css"].decode()
-        assert re.search(r"@theme\s+static\s*\{", theme)
+        assert_theme_namespaces(theme)
         assert re.search(r"\[data-theme\s*=\s*['\"]light['\"]\s*\]", theme)
         tokens = list(token_values(json.loads(first["tokens.json"])))
         assert tokens

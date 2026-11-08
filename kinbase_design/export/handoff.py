@@ -5,9 +5,7 @@ from pathlib import Path,PurePosixPath
 import subprocess
 from uuid import uuid4
 from ..config import APPLY_GIT_TIMEOUT_SECONDS,APPLY_DEFAULT_TARGET_DIR
-from ..findings import report
 from ..inventory import INVENTORY_FILE,inventory_check
-from ..language import validate
 from ..language.versions import digest
 from ..storage import inside,load_language,read_json,write_json,identifier
 from . import export,export_files
@@ -41,11 +39,7 @@ def target_directory(value):
 
 def review(library,language_id,site):
     site=target_repository(site)
-    result=inventory_check(library,language_id,site/INVENTORY_FILE)
-    validation=validate(library,language_id)
-    # Keep each report's existing file base explicit; acceptance uses one rule.
-    combined=report(language_id,[*result['findings'],*validation['findings']])
-    return {'site':str(site),'inventory':result,'validation':validation,**combined}
+    return {'site':str(site),**inventory_check(library,language_id,site/INVENTORY_FILE)}
 
 
 def write_generated_json(path,value,reference,adapter):
