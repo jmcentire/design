@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import shutil
 from ..assets import promote
-from ..findings import Finding,location,report
+from ..findings import Finding,location,report,pointer
 from ..language import validate
 from ..language.versions import digest
 from ..storage import identifier,inside,read_json,write_json,save_language,load_language
@@ -76,6 +76,7 @@ def save_draft(library,workspace,draft_id):
     if assets.exists():shutil.copytree(assets,inside(target,'assets'),dirs_exist_ok=True)
     save_language(library,draft_id,document)
     provenance=complete(document,read_json(inside(root,'provenance.json')),[])
+    write_json(inside(root,'provenance.json'),provenance)
     version=digest(document)
     write_json(inside(target,'provenance',version+'.json'),shared(provenance))
     state=read_json(inside(root,'state.json'));state['saved']=version;write_json(inside(root,'state.json'),state)
@@ -105,5 +106,8 @@ def promote_draft(library,workspace,draft_id,artifact_id,asset_id,kind,variant,w
         shutil.copytree(inside(staged,'languages',draft_id,'assets'),inside(root,'assets'),dirs_exist_ok=True)
         write_draft(workspace,draft_id,document)
     provenance=read_json(inside(root,'provenance.json'))
+    provenance[pointer('assets',asset_id)]={'kind':'inferred','method':'Explicit artifact promotion','inputs':[artifact_id]}
+    if scope:
+        provenance[pointer('components',parsed.construct,'assets',parsed.slot)]={'kind':'inferred','method':'Explicit media binding','inputs':[artifact_id]}
     write_json(inside(root,'provenance.json'),complete(document,provenance,[artifact_id]))
     return entry

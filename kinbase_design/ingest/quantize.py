@@ -1,13 +1,36 @@
 """Pure perceptual colour and scale measurements over captured values."""
 from collections import Counter
 import math
+import re
 from ..checks.math import color
 from ..config import (INGEST_COLOR_DELTA_E, INGEST_TYPE_TOLERANCE_PX,
-                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE)
+                      INGEST_SPACE_TOLERANCE_PX, INGEST_DEFAULT_SPACE, INGEST_SPACE_SUPPORT, INGEST_FULL_RADIUS_PX)
 
 
 def hex_color(value):
     rgba=color(value)
+    if rgba is None and isinstance(value,str):
+        match=re.fullmatch(r'(oklch|oklab|color)\((.*?)\)',value)
+        if match:
+            try:
+                kind,body=match.groups();parts=re.split(r'\s*/\s*',body)
+                alpha=float(parts[1].rstrip('%'))/(100 if parts[1].endswith('%') else 1) if len(parts)>1 else 1
+                channels=parts[0].split()
+                if kind=='color' and channels.pop(0)!='srgb':return None
+                values=[float(v.rstrip('%'))/(100 if v.endswith('%') else 1) for v in channels]
+                if len(values)!=3:return None
+                if kind!='color':
+                    light,a,b=values
+                    if kind=='oklch':a,b=a*math.cos(math.radians(b)),a*math.sin(math.radians(b))
+                    l=(light+.3963377774*a+.2158037573*b)**3
+                    m=(light-.1055613458*a-.0638541728*b)**3
+                    s=(light-.0894841775*a-1.291485548*b)**3
+                    linear=(4.0767416621*l-3.3077115913*m+.2309699292*s,
+                            -1.2684380046*l+2.6097574011*m-.3413193965*s,
+                            -.0041960863*l-.7034186147*m+1.707614701*s)
+                    values=[12.92*v if v<=.0031308 else 1.055*v**(1/2.4)-.055 for v in linear]
+                rgba=tuple(max(0,min(1,v)) for v in [*values,alpha])
+            except (ValueError,IndexError):return None
     if rgba is None:return None
     return '#' + ''.join(f'{round(v*255):02x}' for v in (rgba if rgba[3]<1 else rgba[:3]))
 
@@ -72,18 +95,26 @@ def spacing_base(values):
     values=[v for v in values if v is not None and v>0]
     if not values:return INGEST_DEFAULT_SPACE
     candidates=[v/4 for v in range(4,65)]
-    valid=[base for base in candidates if all(abs(v-round(v/base)*base)<=INGEST_SPACE_TOLERANCE_PX and round(v/base)>0 for v in values)]
-    return max(valid,default=min(values))
+    # Infer a rhythm from the dominant exact steps, rather than letting one
+    # incidental offset force every step onto a tiny common divisor.
+    valid=[base for base in candidates if sum(abs(v-round(v/base)*base)<1e-6 and round(v/base)>0 for v in values)/len(values)>=INGEST_SPACE_SUPPORT]
+    return max(valid,default=INGEST_DEFAULT_SPACE)
+
+
+def full_radius(value,box=()):
+    size=min(box[2:4]) if len(box)>=4 else 0
+    return value is not None and value>0 and (value>=INGEST_FULL_RADIUS_PX or size>0 and value>=size/2)
 
 
 def measurements(views,extra_colors=()):
     nodes=[n for view in views for n in view.get('nodes',[])]
-    styles=[n.get('styles',{}) for n in nodes]
+    styles=[{**n.get('styles',{}),**n.get('normalized_colors',{})} for n in nodes]
     sizes=scale([px(s.get('font-size')) for s in styles])
-    spaces=[px(s.get(p)) for s in styles for p in ('padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','row-gap','column-gap')]
+    spaces=[n for s in styles for p in ('padding-top','padding-right','padding-bottom','padding-left','margin-top','margin-bottom','row-gap','column-gap') if (n:=px(s.get(p))) is not None and n>=0]
+    radii=[(px(n.get('styles',{}).get('border-top-left-radius')),n.get('box',())) for n in nodes]
     return {'palette':palette([s.get(p) for s in styles for p in ('color','background-color','border-top-color')]+list(extra_colors)),
             'type_scale':sizes,'type_scale_ratios':[round(b/a,4) for a,b in zip(sizes,sizes[1:]) if a],
             'font_families':list(dict.fromkeys(s['font-family'] for s in styles if s.get('font-family'))),
             'spacing':scale(spaces,INGEST_SPACE_TOLERANCE_PX),'spacing_base':spacing_base(spaces),
-            'radii':scale([px(s.get('border-top-left-radius')) for s in styles]),
+            'radii':scale([r for r,box in radii if not full_radius(r,box)])+(['full'] if any(full_radius(r,box) for r,box in radii) else []),
             'breakpoints':sorted({w for view in views for w in view.get('breakpoints',[])})}

@@ -8,7 +8,13 @@ TOKEN_PROPERTIES = {
     'line-height': {'number', 'dimension'},
 }
 SPACE_PROPERTIES = {'padding', 'padding-block', 'padding-inline', 'margin-block', 'gap'}
+CONTROL_BOX_PROPERTIES = {'background-color', 'border-color', 'border-width', 'border-style',
+                          'border-radius', 'padding', 'padding-block', 'padding-inline', 'width', 'max-width'}
+CONTROL_TEXT_PROPERTIES = {'color', 'font-family', 'font-size', 'font-weight', 'font-style',
+                           'line-height', 'letter-spacing', 'text-align', 'text-transform',
+                           'text-decoration-line', 'text-overflow'}
 KEYWORDS = {
+    'border-style': {'none','solid','dashed','dotted','double'},
     'overflow': {'visible','hidden','clip','auto','scroll'},
     'text-overflow': {'clip','ellipsis'},
     'white-space': {'normal','nowrap','pre-wrap'},

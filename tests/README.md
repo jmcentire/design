@@ -357,3 +357,61 @@ still stops at 102 missing-vocabulary prerequisite errors; 56 browser cases are
 deselected. Logs: `/tmp/kinbase-tester-amendment08-collection.log` and
 `/tmp/kinbase-tester-amendment08.log`. The provenance map/granularity clarification
 is still pending; no provenance coverage semantics have been guessed.
+
+M2 completion follows amendment 09: provenance is a direct pointer map, with the
+nearest ancestor record covering a design leaf and the stated metadata excluded.
+`test_m2_imports.py` checks all import-kind originals, unchanged DTCG values and
+source attribution through save, and Figma variables/images/fonts after deletion
+of the external export folder. Retained Figma originals are reimported through the
+existing public file-import operation for promotion; no unpinned directory-member
+selector is assumed. Shared provenance uses the hash independently calculated by
+the M0 oracle. Library bytes/data are inspected for source URLs and private paths;
+provenance pointer keys and permitted selector/JSON-pointer locations are treated
+as data rather than mistaken for filesystem paths.
+
+`test_m2_questions.py` captures a sparse source, verifies 2–4 distinct rendered
+candidates, answers a different value, supersedes it, and checks effective `chosen`
+provenance and the final saved value. Candidate paths may be absolute in the
+workspace, workspace-relative or draft-relative (the contract does not pin a
+relative base); no matching path outside the workspace is accepted. Image evidence
+proves decodable, distinct candidate paint; HTML previews also expose the relevant
+construct hook. Capture originals and source provenance remain local and unchanged.
+
+`test_m2_workbench.py` drives visible no-JS forms and links through URL entry,
+capture review, draft/listing, fidelity, a question and library save. Intermediate
+routes are discovered from the page, not guessed. POSTs must redirect, and each
+operation is corroborated by its persisted public artifact. A real refused TCP
+connection supplements the HTTP failure and missing-Chromium cases. The text-as-
+data relation compares resolved token values and role mappings without pinning
+incidental token names; font-stack quoting and DTCG color-object representations
+are normalized when comparing design facts, while imported token values stay exact.
+
+At this checkpoint 169 cases collect. Syntax/whitespace checks and diagnostic
+nearest-ancestor/metadata/missing-coverage examples pass. Local non-browser runs
+have 108 absent-candidate-vocabulary setup errors, with 61 browser cases deselected.
+No M2 candidate pass is claimed; all rendered execution remains an evidence gap
+for the Validator. The previously reported M1 143 passes precede amendment 06 and
+the new M2 work. Logs: `/tmp/kinbase-tester-m2-journey-collection.log` and
+`/tmp/kinbase-tester-m2-journey.log`.
+
+M2 real-site regressions add a static large-page template expanded into 5,000
+neutral elements before four distinctive late colors. Browser preconditions
+verify DOM position and below-screen geometry; both measured palette and actual
+draft tokens must retain the authored colors within ΔE tolerance. A separate
+fixture supplies negative margins, ordinary spacing, an 8px card radius and a
+9999px pill. Its measured spacing and spacing tokens must be nonnegative, and
+reported/used radii cannot exceed the source's largest radius plus tolerance;
+geometric pill normalization is permitted.
+
+The shared draft driver now validates an isolated copy through the public
+`validate` command, including any packaged draft assets, before returning it.
+This does not save or mutate the original draft. The sparse-source question case
+also requires successful fidelity and its screenshot pairs before answering any
+question; fidelity may add further questions without invalidating the initial
+draft's reported question count.
+
+171 cases collect; compilation and whitespace checks pass. Local non-browser
+execution still has 108 missing-vocabulary setup errors, with 63 browser cases
+deselected. The Validator reports its M2 run blocked on the product's loopback
+capture fix; these additions have no integrated pass claim. Logs:
+`/tmp/kinbase-tester-m2-large-collection.log`, `/tmp/kinbase-tester-m2-large.log`.

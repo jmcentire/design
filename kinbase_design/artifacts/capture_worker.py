@@ -1,33 +1,24 @@
 """Isolated, bounded browser capture; no state is published until capture completes."""
-import ipaddress
 import json
+import html
+import re
 from pathlib import Path
-import socket
 import sys
 from urllib.parse import urlsplit, unquote, urljoin
-from ..config import (CAPTURE_TIMEOUT_MS, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS,
+from ..config import (CAPTURE_TIMEOUT_MS, CAPTURE_MAX_NODES, CAPTURE_MAX_TEXT, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_REDIRECTS,
                       CAPTURE_MAX_ASSETS, ARTIFACT_MAX_BYTES, MAX_UPLOAD_BYTES, CHECK_VIEWPORT_HEIGHT)
 from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
 from ..storage import read_json
 from . import import_bytes
 from .bundle import import_bundle
-from .capture import public_url, media_widths
+from .capture import public_url, media_widths, anonymous_headers, group_problems
 from .runtime import chromium
 
 
 def collect(job):
     from playwright.sync_api import Error
-    files={}; pages=[]; problems=[]; assets={}; dns={}; asset_bytes=0
-    def allowed(url):
-        if url.startswith(('data:','blob:')):return True
-        public_url(url)
-        host=urlsplit(url).hostname
-        if host not in dns:
-            addresses=socket.getaddrinfo(host,None,type=socket.SOCK_STREAM)
-            dns[host]=bool(addresses) and all(ipaddress.ip_address(a[4][0]).is_global for a in addresses)
-        if not dns[host]:raise ValueError('Non-public network destination blocked')
-        return True
-    with chromium() as browser:
+    files={}; pages=[]; problems=[]; assets={}; asset_bytes=0
+    with chromium(with_requests=True) as (browser,requests):
         for number,url in enumerate(job['urls'],1):
             page_id=f'page-{number}'; record={'id':page_id,'url':url,'views':[]};pages.append(record)
             pending=list(job['widths']);done=set()
@@ -37,15 +28,69 @@ def collect(job):
                 done.add(width)
                 context=browser.new_context(viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},service_workers='block',accept_downloads=False)
                 context.set_default_timeout(CAPTURE_TIMEOUT_MS)
+                def problem(message):
+                    finding={'page':page_id,'width':width,'message':message}
+                    if finding not in problems:problems.append(finding)
                 def route(request_route):
                     request=request_route.request
                     try:
                         if request.method not in {'GET','HEAD'}:raise ValueError('Non-read request blocked')
-                        allowed(request.url)
-                        headers={k:v for k,v in request.headers.items() if k.lower() not in {'cookie','authorization','proxy-authorization'}}
-                        request_route.continue_(headers=headers)
-                    except (ValueError,OSError):request_route.abort()
+                        public_url(request.url)
+                        original_headers=request.all_headers()
+                        headers=anonymous_headers(original_headers)
+                        if len(headers)!=len(original_headers):
+                            problem('Credentials refused: cookie and authorization headers were not sent')
+                        headers={key:value for key,value in headers.items()
+                                 if key.lower() not in {'host','content-length','connection'}}
+                        # Cookie is a forbidden override in route.continue_. Fetch in
+                        # a separate empty cookie jar instead, and do not follow redirects
+                        # until their destination has passed the same URL checks.
+                        destination=request.url
+                        for hop in range(CAPTURE_MAX_REDIRECTS+1):
+                            fetcher=requests.new_context(timeout=CAPTURE_TIMEOUT_MS)
+                            try:
+                                response=fetcher.fetch(destination,method=request.method,headers=headers,
+                                                   timeout=CAPTURE_TIMEOUT_MS,max_redirects=0,max_retries=0)
+                                response_headers=response.headers;status=response.status
+                                if status in {301,302,303,307,308} and response_headers.get('location'):
+                                    destination=public_url(urljoin(response.url,response_headers['location']))
+                                    if hop==CAPTURE_MAX_REDIRECTS:raise ValueError('Capture redirect limit reached')
+                                    continue
+                                if int(response_headers.get('content-length','0'))>MAX_UPLOAD_BYTES:
+                                    raise ValueError('Response exceeds capture byte limit')
+                                body=response.body()
+                                if len(body)>MAX_UPLOAD_BYTES:raise ValueError('Response exceeds capture byte limit')
+                                break
+                            finally:fetcher.dispose()
+                        if destination!=request.url:
+                            # Never forward a 3xx: Chromium bypasses the route handler
+                            # for that chain. Preserve relative document resources using
+                            # the final URL, and expose the remaining location limitation.
+                            if request.resource_type=='document' and 'text/html' in response_headers.get('content-type',''):
+                                encoding=re.search(r'charset=([^;\s]+)',response_headers.get('content-type',''))
+                                markup=body.decode(encoding.group(1).strip('"\'') if encoding else 'utf-8',errors='replace')
+                                base=re.search(r'<base\b[^>]*\bhref\s*=\s*(["\'])(.*?)\1',markup,re.I)
+                                base_url=urljoin(destination,html.unescape(base.group(2))) if base else destination
+                                tag='<base href="'+html.escape(base_url,quote=True)+'">'
+                                head=re.search(r'<head\b[^>]*>',markup,re.I)
+                                position=head.end() if head else 0
+                                body=(markup[:position]+tag+markup[position:]).encode()
+                                response_headers['content-type']='text/html; charset=utf-8'
+                                problem('Redirect captured at '+destination+'; document resources use that base, while script location retains the requested URL')
+                            elif request.resource_type=='stylesheet':
+                                problem('Redirected stylesheet may resolve relative resources differently: '+destination)
+                        if status in {401,403}:problem('Authentication is unavailable; HTTP '+str(status))
+                        request_route.fulfill(status=status,body=body,headers={
+                                key:value for key,value in response_headers.items()
+                                if key.lower() not in {'set-cookie','set-cookie2','content-encoding','content-length','transfer-encoding'}})
+                    except (ValueError,LookupError,OSError,Error) as exc:
+                        problem('Request blocked: '+str(exc)[:300])
+                        request_route.abort()
                 context.route('**/*',route)
+                def websocket(socket_route):
+                    problem('WebSocket request refused: capture only permits unauthenticated HTTP(S)')
+                    socket_route.close(code=1008,reason='Capture only permits HTTP(S)')
+                context.route_web_socket('**/*',websocket)
                 page=context.new_page();responses=[]
                 page.on('response',lambda response:responses.append(response) if response.request.resource_type in {'font','image','stylesheet'} else None)
                 try:
@@ -67,7 +112,6 @@ def collect(job):
                             body=response.body()
                             if not body or len(body)>MAX_UPLOAD_BYTES:continue
                             if response.request.resource_type=='stylesheet':
-                                import re
                                 css=body.decode('utf-8',errors='replace')
                                 data['media_queries']+=re.findall(r'@media\s+([^{}]+)',css)
                                 for block in re.findall(r'@font-face\s*\{([^{}]+)\}',css):
@@ -100,7 +144,7 @@ def collect(job):
                     for candidate in media_widths(data['media_queries']):
                         if candidate not in done and candidate not in pending:
                             if len(done)+len(pending)<CAPTURE_MAX_WIDTHS:pending.append(candidate)
-                            else:problems.append({'page':page_id,'message':f'Breakpoint {candidate}px exceeds capture width bound'})
+                            else:problems.append({'page':page_id,'width':width,'message':f'Breakpoint {candidate}px exceeds capture width bound'})
                     files[prefix+'.json']=json.dumps(data,ensure_ascii=False).encode()
                     record['views'].append({'width':width,'dom':prefix+'.html','data':prefix+'.json','screenshot':prefix+'.png'})
                     problems.extend({'page':page_id,'width':width,'message':p} for p in data['problems'])
@@ -108,7 +152,7 @@ def collect(job):
                 except Error as exc:
                     problems.append({'page':page_id,'width':width,'message':str(exc)[:500]})
                 finally:context.close()
-    details={'pages':pages,'problems':problems,'assets':list(assets.values())}
+    details={'pages':pages,'problems':group_problems(problems),'assets':list(assets.values())}
     artifact=import_bundle(job['workspace'],files,'capture',details)
     return {'artifact':artifact,**details}
 

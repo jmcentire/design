@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from ..language.resolver import resolve, parse_scope
 from ..language.tokens import Tokens
-from ..language.properties import property_value
+from ..language.properties import property_value, CONTROL_BOX_PROPERTIES, CONTROL_TEXT_PROPERTIES
 from ..language.versions import digest
 from ..vocabulary import slot_map
 
@@ -19,17 +19,26 @@ def declaration(properties):
     return ';'.join(f'{key}:{value["value"]}' for key, value in sorted(properties.items()) if key != 'surface')
 
 
-def selector(construct, slot=None, state=None):
+def selector(construct, slot=None, state=None, native=False):
     root = f'[data-kd-construct="{construct}"]'
     child = f' [data-kd-slot="{construct}.{slot}"]' if slot else ''
+    control = ' :is(input,select,textarea,button)' if native else ''
     if state and state != 'default':
-        static = root + f'[data-kd-state="{state}"]' + child
+        static = root + f'[data-kd-state="{state}"]' + child + control
         pseudo = PSEUDOS.get(state)
-        interaction = ',' + root + child + pseudo if pseudo else ''
+        interaction = ',' + root + child + control + pseudo if pseudo else ''
+        if native and pseudo:
+            interaction += ',' + root + child + pseudo + control
         if state in {'focus-visible', 'disabled'}:
-            interaction += ',' + root + child + ':has(' + pseudo + ')'
+            interaction += ',' + root + child + ':has(' + pseudo + ')' + control
         return static + interaction
-    return root + child
+    return root + child + control
+
+
+def treatments(properties, control):
+    if not control:return (declaration(properties), '')
+    return (declaration({k:v for k,v in properties.items() if k not in CONTROL_BOX_PROPERTIES}),
+            declaration({k:v for k,v in properties.items() if k in CONTROL_BOX_PROPERTIES}))
 
 
 def stylesheet(document, vocabulary):
@@ -43,6 +52,10 @@ def stylesheet(document, vocabulary):
     if background: inherited['background-color'] = background
     focus = inherited.get('color', {}).get('value', 'currentColor')
     rules.append('body{--kd-focus-color:' + str(focus) + ';' + declaration(inherited) + '}')
+    for construct,contract in vocabulary['constructs'].items():
+        for slot in contract['slots']:
+            if slot['kind']=='control':
+                rules.append(selector(construct,slot['id'],native=True)+'{'+declaration({p:{'value':'inherit'} for p in CONTROL_TEXT_PROPERTIES})+'}')
     for asset, entry in document.get('assets', {}).items():
         if entry['kind'] != 'font':
             continue
@@ -62,14 +75,16 @@ def stylesheet(document, vocabulary):
         for construct, contract in vocabulary['constructs'].items():
             for slot in [None] + list(slot_map(contract)):
                 scope = construct + ('.' + slot if slot else '')
-                base = declaration(resolve(document, vocabulary, scope, 'default', bp)['properties'])
+                control = slot is not None and slot_map(contract)[slot]['kind']=='control'
+                base = treatments(resolve(document, vocabulary, scope, 'default', bp)['properties'],control)
                 for state in contract['states']:
-                    props = declaration(resolve(document, vocabulary, scope, state, bp)['properties'])
+                    props = treatments(resolve(document, vocabulary, scope, state, bp)['properties'],control)
                     key = (construct, slot, state)
                     if state != 'default' and props == base and key not in emitted:
                         continue
-                    if props and emitted.get(key) != props:
-                        block.append(selector(construct, slot, state) + '{' + props + '}')
+                    if any(props) and emitted.get(key) != props:
+                        for native,values in enumerate(props):
+                            if values:block.append(selector(construct, slot, state, native=bool(native)) + '{' + values + '}')
                         emitted[key] = props
         if bp and block:
             rules.append(f'@media (min-width:{tokens.breakpoint(bp):g}px)' + '{\n' + '\n'.join(block) + '\n}')

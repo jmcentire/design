@@ -28,6 +28,10 @@ def map_view(view,vocabulary,suggestions=()):
         while current:
             if current['selector'] in roots:return roots[current['selector']]
             current=by_selector.get(current.get('parent'))
+        # Representative sampling can omit intermediate wrappers. Captured full
+        # selectors retain ancestry without forcing all ancestors into the sample.
+        ancestors=[key for key in roots if node['selector'].startswith(key+' > ')]
+        if ancestors:return roots[max(ancestors,key=len)]
         if fallback not in instances:instances.append(fallback)
         return fallback
     for node in nodes:

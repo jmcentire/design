@@ -3,8 +3,13 @@
 import json
 import math
 from pathlib import Path
+import re
+import shutil
 
 from PIL import Image
+
+from tests.support import LibraryCase, pointer_value
+
 
 def read_json(path):
     return json.loads(path.read_text())
@@ -56,7 +61,19 @@ def draft(library, artifacts, name):
     assert summary["draft"] == name and summary["mapping"] == "heuristic"
     document = read_json(root / "working.json")
     assert document["id"] == name
+    assert_valid_draft(library, document, root)
     return root, document, summary
+
+
+def assert_valid_draft(library, document, root):
+    """Run the same public validator against an isolated copy, without saving the draft."""
+    validation_root = library.project / "draft-validation" / document["id"]
+    shutil.copytree(library.library / "vocabulary", validation_root / "vocabulary", dirs_exist_ok=True)
+    case = LibraryCase(library.project, validation_root, library.workspace)
+    case.write(document)
+    if (root / "assets").is_dir():
+        shutil.copytree(root / "assets", case.path(document["id"]).parent / "assets", dirs_exist_ok=True)
+    case.validate(document["id"], accepted=True)
 
 
 def token_values(style, prefix=(), inherited=None):
@@ -100,6 +117,85 @@ def scalar_leaves(value, pointer=""):
             yield from scalar_leaves(child, pointer + f"/{index}")
     else:
         yield pointer, value
+
+
+def provenance_at(records, pointer):
+    """Amendment 09: an exact record wins, otherwise use the nearest ancestor."""
+    while pointer not in records:
+        assert pointer, "Design value has no provenance"
+        pointer = pointer.rsplit("/", 1)[0]
+    return records[pointer]
+
+
+def design_pointers(document):
+    for name, _, value in token_values(document.get("style", {})):
+        pointer = "/style/" + "/".join(part.replace("~", "~0").replace("/", "~1") for part in name.split(".")) + "/$value"
+        for leaf, _ in scalar_leaves(value, pointer):
+            yield leaf
+    for section in ("roles", "layout", "components", "overrides", "behaviors", "assets"):
+        for pointer, _ in scalar_leaves(document.get(section, {}), "/" + section):
+            segments = pointer.split("/")
+            if any(part in {"$type", "$description", "$extensions", "description"} for part in segments):
+                continue
+            if section in {"overrides", "behaviors"} and segments[-1] == "reason":
+                continue
+            yield pointer
+
+
+def assert_provenance(document, records, shared=False):
+    assert isinstance(records, dict)
+    for pointer, record in records.items():
+        pointer_value(document, pointer)
+        assert record["kind"] in {"source", "inferred", "chosen"}
+        if shared:
+            assert set(record) <= {"kind", "artifact", "location", "method"}, record
+        if record["kind"] == "source":
+            assert isinstance(record["artifact"], str) and record["artifact"]
+            assert isinstance(record["location"], str) and record["location"]
+        elif record["kind"] == "inferred":
+            assert isinstance(record["method"], str) and record["method"]
+            if not shared:
+                assert isinstance(record["inputs"], list)
+        elif not shared:
+            assert isinstance(record["choice"], str) and record["choice"]
+    pointers = list(design_pointers(document))
+    assert pointers
+    for pointer in pointers:
+        assert provenance_at(records, pointer)["kind"] in {"source", "inferred", "chosen"}
+
+
+def assert_shared_privacy(library):
+    """Inspect delivered bytes/data; provenance keys/locations may be real JSON pointers."""
+    private = (str(library.workspace), str(library.project), str(library.workspace.parent))
+    for path in library.library.rglob("*"):
+        if not path.is_file():
+            continue
+        data = path.read_bytes()
+        assert not any(value.encode() in data for value in private), path
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        assert not re.search(r"(?:https?|file)://", text, re.I), path
+        if path.suffix != ".json":
+            continue
+        document = json.loads(text)
+        records = path.parent.name == "provenance"
+        if records:
+            working = read_json(path.parent.parent / "working.json")
+            for pointer in document:
+                pointer_value(working, pointer)  # These keys are not filesystem paths.
+        for pointer, value in scalar_leaves(document):
+            if not isinstance(value, str):
+                continue
+            assert not re.search(r"(?:^|\s)[A-Za-z]:[\\/]", value), (path, value)
+            if not value.startswith("/"):
+                continue
+            # Only provenance locations may legitimately look absolute: the
+            # contract permits selectors and JSON pointers. Concrete private
+            # source/workspace paths are checked above, including inside strings.
+            assert records and pointer.endswith("/location"), (path, value)
+            assert not re.match(r"/(?:Users|home|private|tmp|var|etc|opt|usr|Volumes)/", value), (path, value)
 
 
 def lab(hex_color):

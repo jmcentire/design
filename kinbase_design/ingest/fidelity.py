@@ -9,6 +9,7 @@ from ..assets import inspect_format
 from ..config import CAPTURE_WIDTHS, INGEST_COLOR_DELTA_E, INGEST_TYPE_RATIO_TOLERANCE, INGEST_SPACE_TOLERANCE_PX, INGEST_TYPE_TOLERANCE_PX
 from ..findings import Finding,report
 from ..language.versions import digest
+from ..language.tokens import Tokens
 from ..render import preview_files
 from ..render.styles import FONT_FORMAT_HINTS
 from ..storage import inside,read_json,write_json
@@ -60,6 +61,7 @@ def reconstruct(library,workspace,draft_id):
         for original in view['instances']:
             item={k:deepcopy(original[k]) for k in ('construct','values')};item['media']={}
             for slot,images in original['media'].items():
+                if slot in document.get('components',{}).get(item['construct'],{}).get('assets',{}):continue
                 for image in images:
                     candidate=assets.get(image['url'])
                     if candidate:
@@ -88,10 +90,14 @@ def reconstruct(library,workspace,draft_id):
     with stage(library,workspace,draft_id) as staged:files=preview_files(staged,draft_id,compositions)
     # Private captured fonts may be used for review without entering the shared asset manifest.
     faces=[];used=set()
+    tokens=Tokens(document['style'])
+    bound_families={tokens.evaluate(name)[1].split(',')[0].strip('\"\'') for name,node in tokens.nodes.items()
+                    if node.get('$type')=='fontFamily' and tokens.font_asset(name)}
     for entry in state['views']:
         view=read_json(inside(root,entry['file']))
         for face in view.get('font_faces',[]):
             family=face.get('family','').strip('\"\'')
+            if family in bound_families:continue
             if not face.get('src') and any(f.get('src') and f.get('family','').strip('\"\'')==family for f in view.get('font_faces',[])):continue
             candidates=[a for a in state['assets'] if a['kind']=='font' and (a.get('filename','') in face.get('src','') or family.replace(' ','').lower() in a.get('filename','').replace('-','').lower())]
             if len(candidates)!=1:
@@ -110,6 +116,8 @@ def reconstruct(library,workspace,draft_id):
             if not re.fullmatch(r'[\w -]+',family) or not re.fullmatch(r'\d+(?: \d+)?',key[1]) or key[2] not in {'normal','italic'}:continue
             faces.append('@font-face{font-family:'+json.dumps(family)+';src:url("'+name+'") format("'+FONT_FORMAT_HINTS[fmt]+'");font-weight:'+key[1]+';font-style:'+key[2]+'}')
     files['language.css']+=('\n'+'\n'.join(faces)).encode()
+    if any(name.startswith('assets/reference-') for name in private_files):
+        notes.append('Unpromoted source assets are used privately for this reconstruction; promote them to include them in the shared language')
     files.update(private_files)
     for name,data in files.items():
         path=inside(output,name);path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)

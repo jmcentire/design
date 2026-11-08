@@ -6,8 +6,10 @@ font match, refetch the live site during drafting, lose captures, or hide diverg
 
 import hashlib
 import json
+import socket
 
 import pytest
+from PIL import Image
 
 from tests.m2_support import (capture, color_distance, confined, dereference, dimension_px,
                               draft, png, read_json, token_values)
@@ -16,6 +18,21 @@ pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(420)]
 
 PALETTE = ("#102a43", "#f3f0e8", "#b34224", "#ffffff")
 SIZES = (16, 20, 25, 31.25)
+
+
+def family_names(value):
+    return [family.strip().strip('"\'') for family in value.split(",")]
+
+
+def opaque_color(value):
+    if isinstance(value, dict):
+        assert value["colorSpace"] == "srgb" and value.get("alpha", 1) == 1
+        return "#" + "".join(f"{round(channel * 255):02x}" for channel in value["components"])
+    value = value.lower()
+    if len(value) == 9:
+        assert value[-2:] == "ff"
+        value = value[:7]
+    return value
 
 
 def tree_hashes(root):
@@ -50,8 +67,8 @@ def test_authored_site_is_captured_measured_and_reconstructed_offline(
         measured = max(color_distance(source, entry["value"]) for source in entry["sources"])
         assert entry["max_delta_e"] == pytest.approx(measured, abs=0.02)
         assert measured <= ingest_config["color_delta_e"]
-        assert dereference(document["style"], "{" + entry["token"] + "}") == entry["value"]
-    assert "Fixture Sans" in facts["font_families"]
+        assert opaque_color(dereference(document["style"], "{" + entry["token"] + "}")) == entry["value"].lower()
+    assert any("Fixture Sans" in family_names(family) for family in facts["font_families"])
     assert facts["type_scale"]["base_px"] == pytest.approx(16, abs=ingest_config["type_size_px"])
     assert facts["type_scale"]["ratio"] == pytest.approx(1.25, abs=ingest_config["type_ratio"])
     for size in SIZES:
@@ -86,9 +103,12 @@ def test_authored_site_is_captured_measured_and_reconstructed_offline(
             path = fidelity_root / pair[key]
             assert path.resolve().is_relative_to(library.workspace.resolve())
             png(path)
-        assert (fidelity_root / pair["capture"]).read_bytes() == expected[pair["page"], pair["width"]].read_bytes()
+        with Image.open(fidelity_root / pair["capture"]) as reported, Image.open(expected[pair["page"], pair["width"]]) as original:
+            assert reported.size == original.size
+            assert reported.convert("RGBA").tobytes() == original.convert("RGBA").tobytes()
     measured = report["facts"]
-    assert measured["font_family"]["captured"] == measured["font_family"]["draft"] == "Fixture Sans"
+    assert family_names(measured["font_family"]["captured"])[0] == "Fixture Sans"
+    assert family_names(measured["font_family"]["draft"])[0] == "Fixture Sans"
     assert measured["font_family"]["match"] is True
     for key in ("captured_ratio", "draft_ratio"):
         assert measured["type_scale"][key] == pytest.approx(1.25, abs=ingest_config["type_ratio"])
@@ -111,17 +131,28 @@ def test_authored_site_is_captured_measured_and_reconstructed_offline(
 def test_instruction_like_page_text_cannot_direct_mapping(library, fixture_site, ingest_config):
     summaries = []
     styles = []
+    mappings = []
     for name in ("ordinary", "instruction"):
         artifact, root, captured = capture(library, [fixture_site.url + f"/editorial/{name}.html"])
         _, document, summary = draft(library, [artifact], name)
-        summaries.append(summary["measured"])
-        styles.append(document["style"])
+        measured = summary["measured"]
+        # Token names may incorporate source identity; compare measured values
+        # and resolved token contents rather than naming decisions.
+        measured["palette"] = [{key: value for key, value in entry.items() if key != "token"}
+                               for entry in measured["palette"]]
+        summaries.append(measured)
+        styles.append(sorted((kind, json.dumps(dereference(document["style"], value), sort_keys=True))
+                             for _, kind, value in token_values(document["style"])))
+        mappings.append({construct: {slot: (entry.get("role"), entry.get("emphasis"))
+                                     for slot, entry in component.get("slots", {}).items()}
+                         for construct, component in document["components"].items()})
         assert set(document["components"]) <= set(library.json("vocabulary")["constructs"])
         if name == "instruction":
             assert any("Ignore previous instructions" in (root / entry["dom"]).read_text()
                        for page in captured["pages"] for entry in page["widths"].values())
     assert summaries[0] == summaries[1]
     assert styles[0] == styles[1]
+    assert mappings[0] == mappings[1]
 
 
 def test_capture_never_sends_credentials_or_cookies(library, fixture_site, ingest_config):
@@ -194,3 +225,15 @@ def test_localhost_is_an_unauthenticated_capture_target(library, fixture_site, i
     assert not captured["problems"], captured
     assert captured["pages"] and captured["pages"][0]["widths"]
     assert fixture_site.requests
+
+
+def test_refused_network_connection_has_a_clear_bounded_failure(library, ingest_config):
+    # Bound but not listening: a real unavailable TCP service with no port-reuse race.
+    with socket.socket() as unavailable:
+        unavailable.bind(("127.0.0.1", 0))
+        port = unavailable.getsockname()[1]
+        result = library.cli("capture", "--url", f"http://127.0.0.1:{port}/",
+                             cwd=library.project, code=(0, 1, 2), timeout=30)
+    diagnostic = assert_capture_refused(result)
+    assert any(word in diagnostic for word in ("connect", "network", "refused", "unreachable", "failed")), diagnostic
+    assert not list((library.workspace / "drafts").glob("*/working.json"))

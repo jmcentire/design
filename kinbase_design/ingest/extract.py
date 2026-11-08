@@ -3,21 +3,23 @@ from collections import Counter
 from copy import deepcopy
 import json
 import re
-from ..config import INGEST_COLOR_DELTA_E, INGEST_DEFAULT_SPACE, INGEST_TYPE_TOLERANCE_PX, INGEST_SPACE_TOLERANCE_PX
+from ..config import INGEST_COLOR_DELTA_E, INGEST_DEFAULT_SPACE, INGEST_TYPE_TOLERANCE_PX, INGEST_SPACE_TOLERANCE_PX, INGEST_FULL_RADIUS_PX
+from ..checks.math import effective_background
 from ..findings import pointer
 from ..language.properties import KEYWORDS, SPACE_PROPERTIES
 from ..language.tokens import Tokens, normalize
 from ..vocabulary import slot_map
 from .mapping import map_view
 from .provenance import values, source, complete
-from .quantize import measurements, hex_color, delta_e, px, scale, spacing_base
+from .quantize import measurements, hex_color, delta_e, px, scale, spacing_base, full_radius
 
 
 def derive(language_id,vocabulary,sources,suggestions=()):
     facts=measurements(sources['views'],sources['colors']);provenance={};notes=[];questions=[]
     for key,entries in sources.get('source_facts',{}).items():
         if not facts[key] and entries:facts[key]=list(dict.fromkeys(entries)) if key=='font_families' else scale(entries)
-    facts['spacing_base']=spacing_base(facts['spacing'])
+    facts['spacing']=[v for v in facts['spacing'] if v>=0]
+    if not sources['views']:facts['spacing_base']=spacing_base(facts['spacing'])
     facts['type_scale_ratios']=[round(b/a,4) for a,b in zip(facts['type_scale'],facts['type_scale'][1:]) if a]
     document={'id':language_id,'name':language_id.replace('-',' ').title(),'vocabulary':vocabulary['version'],
               'style':{},'roles':{},'layout':{'variants':{}},'components':{},'overrides':[],'behaviors':[],'assets':{}}
@@ -26,7 +28,8 @@ def derive(language_id,vocabulary,sources,suggestions=()):
             for key,value in incoming.items():
                 if key not in target:
                     target[key]=deepcopy(value)
-                    for suffix,_ in values(value):provenance[pointer('style',*path,key)+suffix]=source(imported['artifact'],'json:'+pointer(*path,key)+suffix)
+                    for suffix,_ in values(value):provenance[pointer('style',*path,key)+suffix]=source(imported['artifact'],
+                        ('member:'+imported['location']+'#' if imported.get('location') else 'json:')+pointer(*path,key)+suffix)
                 elif isinstance(value,dict) and isinstance(target[key],dict) and '$value' not in value:
                     merge(target[key],value,(*path,key))
                 elif target[key]!=value:
@@ -74,6 +77,9 @@ def derive(language_id,vocabulary,sources,suggestions=()):
         if origin and chosen!=value:origin={'kind':'inferred','method':'CIEDE2000 palette quantization','inputs':[origin]}
         return token('color',chosen,origin)
     def space_token(number,where):
+        if number<0:
+            notes.append({'rule':'ingest-spacing','message':f'Negative offset {number:g}px retained in the capture; it is not a spacing step'})
+            return None
         base=facts['spacing_base'];nearest=round(number/base)*base
         if abs(number-nearest)<=INGEST_SPACE_TOLERANCE_PX:
             if nearest!=number:where={'kind':'inferred','method':'Spacing base quantization','inputs':[where]}
@@ -84,19 +90,19 @@ def derive(language_id,vocabulary,sources,suggestions=()):
     for view in sorted(sources['views'],key=lambda v:v['width']):
         mappings.append({**view,**map_view(view,vocabulary,suggestions)})
     body=next((n for v in mappings for n in v['nodes'] if n['tag']=='body'),None)
-    body_style=body.get('styles',{}) if body else {}
+    body_style={**body.get('styles',{}),**body.get('normalized_colors',{})} if body else {}
     foreground=body_style.get('color') or (facts['palette'][0]['value'] if facts['palette'] else '#222222')
     surface=body_style.get('background-color') or '#ffffff'
     if hex_color(surface) in {None,'#00000000'}:surface='#ffffff'
     base_size=px(body_style.get('font-size')) or (facts['type_scale'][0] if facts['type_scale'] else 16)
     family=body_style.get('font-family') or (facts['font_families'][0] if facts['font_families'] else 'system-ui')
     family=[f.strip().strip('\"\'') for f in family.split(',')]
-    base={'color':color_token(foreground),'surface':color_token(surface),'font-family':token('fontFamily',family),
+    base={'color':color_token(foreground) or color_token('#222222'),'surface':color_token(surface) or color_token('#ffffff'),'font-family':token('fontFamily',family),
           'font-size':token('dimension',f'{base_size:g}px'),'font-weight':token('fontWeight',400),'line-height':token('number',1.5)}
     base={k:v for k,v in base.items() if v is not None}
     def origin(view,node,prop):return source(view['artifact'],'selector:'+node['selector']+'; '+prop+'; '+view['page']+'@'+str(view['width']))
     def properties(view,node,root=False):
-        style=node.get('styles',{});result={}
+        style={**node.get('styles',{}),**node.get('normalized_colors',{})};result={}
         for prop,raw in style.items():
             ref=None;where=origin(view,node,prop)
             if prop in KEYWORDS and raw in KEYWORDS[prop]:
@@ -107,13 +113,21 @@ def derive(language_id,vocabulary,sources,suggestions=()):
                 ref=color_token(raw,where);prop='border-color' if prop=='border-top-color' else prop
             elif prop=='font-family':ref=token('fontFamily',[f.strip().strip('\"\'') for f in raw.split(',')],where)
             elif prop=='font-weight':
-                try:ref=token('fontWeight',float(raw),where)
+                try:
+                    weight=float(raw)
+                    ref=token('fontWeight',int(weight) if weight.is_integer() else weight,where)
                 except ValueError:pass
             elif prop=='line-height' and px(raw) is not None and px(style.get('font-size')):
                 ref=token('number',px(raw)/px(style['font-size']),where)
-            elif prop in {'font-size','letter-spacing','border-top-width','border-top-left-radius','max-width'} and px(raw) is not None:
+            elif (prop in {'font-size','letter-spacing','border-top-width','border-top-left-radius','max-width'}
+                  or prop=='width' and node['tag'] in {'img','svg'}) and px(raw) is not None:
                 prop={'border-top-width':'border-width','border-top-left-radius':'border-radius'}.get(prop,prop)
                 number=px(raw)
+                if prop=='border-radius' and full_radius(number,node.get('box',())):
+                    document['style'].setdefault(group,{})['full-radius']={'$type':'dimension','$value':f'{INGEST_FULL_RADIUS_PX}px'}
+                    result[prop]='{'+group+'.full-radius}'
+                    provenance[pointer('style',group,'full-radius')]={'kind':'inferred','method':'Full/pill radius normalized from computed radius and element box','inputs':[where]}
+                    continue
                 if prop=='font-size':
                     number=next((v for v in facts['type_scale'] if abs(v-number)<=INGEST_TYPE_TOLERANCE_PX),number)
                 if number!=px(raw):where={'kind':'inferred','method':'Type scale quantization','inputs':[where]}
@@ -129,17 +143,55 @@ def derive(language_id,vocabulary,sources,suggestions=()):
             if prop in style and style[prop] not in ordinary:
                 notes.append({'rule':'ingest-layout','message':f'{node["selector"]}: {prop}={style[prop]} is outside the closed property set; compare the captured layout'})
         return {k:v for k,v in result.items() if v is not None}
-    role_nodes={}
+    role_nodes={};role_surfaces={}
     for view in mappings:
         for item in view['instances']:
             slots=slot_map(vocabulary['constructs'][item['construct']])
-            for name,node in item['nodes'].items():role_nodes.setdefault(slots[name]['role'],(view,node))
+            for name,node in item['nodes'].items():
+                role=slots[name]['role'];role_nodes.setdefault(role,(view,node))
+                layers=list(node.get('backgrounds',[]))
+                if not layers:
+                    by_selector={n['selector']:n for n in view['nodes']};parent=node
+                    while parent:
+                        style=parent.get('styles',{})
+                        layers.append({'color':style.get('background-color','transparent'),'image':style.get('background-image','none')})
+                        parent=by_selector.get(parent.get('parent'))
+                layers=[{**layer,'color':hex_color(layer.get('color')) or layer.get('color')} for layer in layers]
+                # A transparent ancestry only tells us the browser canvas default;
+                # it does not establish the author's intended role pairing.
+                opaque=any((c:=hex_color(layer.get('color'))) and len(c)==7 for layer in layers)
+                rgba=effective_background(layers) if opaque else None
+                if rgba:
+                    value='#'+''.join(f'{round(c*255):02x}' for c in rgba[:3])
+                    role_surfaces.setdefault(role,{}).setdefault(value,origin(view,node,'effective background'))
     for role in vocabulary['roles']:
         treatment=deepcopy(base)
         if role in role_nodes:
             view,node=role_nodes[role]
             treatment.update({k:v for k,v in properties(view,node).items() if k in {'color','font-family','font-size','font-weight','font-style','line-height','letter-spacing'}})
         document['roles'][role]={emphasis:deepcopy(treatment) for emphasis in vocabulary['emphasis']}
+        construct=next(c for c,spec in vocabulary['constructs'].items() if any(s['role']==role for s in spec['slots']))
+        if role not in role_nodes and role!='media' and sources['views']:
+            name='size-'+role
+            document['style'].setdefault(group,{})[name]={'$type':'dimension','$value':f'{base_size:g}px'}
+            for emphasis in vocabulary['emphasis']:document['roles'][role][emphasis]['font-size']='{'+group+'.'+name+'}'
+            questions.append({'pointer':pointer('style',group,name,'$value'),'construct':construct,'state':'default',
+                              'values':list(dict.fromkeys([f'{base_size:g}px','14px','20px','28px']))[:4],
+                              'role':role,'reason':'No mapped text establishes this role’s type size'})
+        observed=role_surfaces.get(role,{})
+        if len(observed)==1:
+            value,where=next(iter(observed.items()))
+            for emphasis in vocabulary['emphasis']:
+                document['roles'][role][emphasis]['surface']=color_token(value,where)
+        else:
+            # Keep a separate inferred value so answering cannot rewrite a source token.
+            name='surface-'+role
+            default=next(iter(observed),hex_color(surface) or '#ffffff')
+            document['style'].setdefault(group,{})[name]={'$type':'color','$value':default}
+            for emphasis in vocabulary['emphasis']:document['roles'][role][emphasis]['surface']='{'+group+'.'+name+'}'
+            choices=list(dict.fromkeys([default,*observed,*[p['value'] for p in facts['palette'] if len(p['value'])==7],'#ffffff','#fbf6ee']))[:4]
+            questions.append({'pointer':pointer('style',group,name,'$value'),'construct':construct,'state':'default','values':choices,
+                              'role':role,'property':'surface','reason':'Ambiguous role surfaces' if observed else 'No captured surface establishes this role pairing'})
     document['components']['page-shell']={'properties':{'background-color':base['surface']}}
     treatments={}
     for view in mappings:
@@ -174,6 +226,27 @@ def derive(language_id,vocabulary,sources,suggestions=()):
         space=token('dimension',f'{INGEST_DEFAULT_SPACE}px',spacing=True)
         document['components'].setdefault('content-section',{}).setdefault('properties',{})['padding']=space
         ask(space,'content-section',['8px','16px','24px'])
+    if sources['views']:
+        seen={item['construct'] for view in mappings for item in view['instances']}
+        for construct,spec in vocabulary['constructs'].items():
+            if construct not in seen and construct!='page-shell':
+                name='space-'+construct
+                document['style'].setdefault('space',{})[name]={'$type':'dimension','$value':f'{facts["spacing_base"]:g}px'}
+                document['components'].setdefault(construct,{}).setdefault('properties',{})['padding']='{space.'+name+'}'
+                questions.append({'pointer':pointer('style','space',name,'$value'),'construct':construct,'state':'default',
+                                  'values':list(dict.fromkeys([f'{facts["spacing_base"]:g}px','8px','16px','24px']))[:4],
+                                  'reason':'Construct not established by the capture; choose its inferred spacing'})
+        for state in vocabulary['states']:
+            if state=='default':continue
+            scopes=[c for c,spec in vocabulary['constructs'].items() if state in spec['states']]
+            if not scopes:continue
+            name='surface-'+state
+            default=hex_color(surface) or '#ffffff'
+            document['style'].setdefault(group,{})[name]={'$type':'color','$value':default}
+            for c in scopes:document['components'].setdefault(c,{}).setdefault('states',{})[state]={'background-color':'{'+group+'.'+name+'}'}
+            questions.append({'pointer':pointer('style',group,name,'$value'),'construct':scopes[0],'state':state,
+                              'values':list(dict.fromkeys([default,'#edf4f5','#fbf6ee'])),'scopes':scopes,
+                              'reason':'Interaction/state appearance not observed in the static capture'})
     if any(item['construct']=='listing-card' and item.get('root_node',{}).get('styles',{}).get('display')=='flex'
            and item['root_node']['styles'].get('flex-direction')=='row' for view in mappings for item in view['instances']):
         slots=list(slot_map(vocabulary['constructs']['listing-card']))

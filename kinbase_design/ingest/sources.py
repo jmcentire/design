@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 from ..artifacts import read_artifact
 from ..artifacts.bundle import metadata, read_member
-from ..artifacts.capture import media_widths
+from ..artifacts.capture import media_widths, group_problems
 from ..config import INGEST_IMAGE_SAMPLE_SIZE
 from ..language.tokens import Tokens
 from .quantize import px
@@ -22,9 +22,10 @@ def collect(workspace, artifact_ids):
     result={'views':[],'tokens':[],'colors':[],'assets':[],'references':[],'problems':[],'briefs':[],
             'source_facts':{'font_families':[],'type_scale':[],'spacing':[],'radii':[],'breakpoints':[]}}
     seen=set()
-    def visit(artifact):
+    def visit(artifact,source_artifact=None,source_location=''):
         if artifact in seen:return
         seen.add(artifact);meta=metadata(workspace,artifact);kind=meta.get('kind','asset')
+        source_artifact=source_artifact or artifact
         if kind=='capture':
             details=meta['details'];result['assets'].extend(details.get('assets',[]));result['problems'].extend(details.get('problems',[]))
             for page in details['pages']:
@@ -33,7 +34,7 @@ def collect(workspace, artifact_ids):
                     result['views'].append({**data,**view,'page':page['id'],'artifact':artifact,'url':page['url'],
                                             'breakpoints':media_widths(data.get('media_queries',[]))})
         elif kind=='figma-export':
-            for child in meta['details']['children']:visit(child['artifact'])
+            for child in meta['details']['children']:visit(child['artifact'],source_artifact,child['location'])
         else:
             data,meta=read_artifact(workspace,artifact)
             filename=meta['filename'];suffix=Path(filename).suffix.lower()
@@ -41,7 +42,7 @@ def collect(workspace, artifact_ids):
                 try:
                     tree=json.loads(data)
                     if not isinstance(tree,dict):raise ValueError('DTCG import must be an object')
-                    result['tokens'].append({'artifact':artifact,'tree':tree})
+                    result['tokens'].append({'artifact':source_artifact,'location':source_location,'tree':tree})
                     tokens=Tokens(tree)
                     for name in tokens.nodes:
                         try:
@@ -64,4 +65,5 @@ def collect(workspace, artifact_ids):
             if kind in {'asset','image'}:
                 result['assets'].append({'artifact':artifact,'kind':'font' if suffix in {'.woff','.woff2','.ttf','.otf'} else 'image','filename':filename})
     for artifact in artifact_ids:visit(artifact)
+    result['problems']=group_problems(result['problems'])
     return result

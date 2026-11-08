@@ -9,7 +9,11 @@ under the run's `runtime/venv/bin/` directory.
 
 ## Open the workbench
 
+The repository/checkout is named `design`. The product remains Kinbase Design and the Python
+package remains `kinbase_design`. From the parent of your checkout:
+
 ```sh
+cd design
 python -m kinbase_design serve
 ```
 
@@ -74,7 +78,7 @@ effective component role/emphasis treatment is computed by the resolver.
   zero/one/many collections, and every declared state.
 - DTCG token evaluation, typed references, R1–R5 composition validation, variant-template
   contracts, role/surface pairing, spacing/breakpoints, override scope/reason checks, and
-  asset/font gaps. Every finding has a library-relative file and JSON pointer.
+  asset/font gaps. Every finding has a source-relative file and JSON pointer.
 - Resolution with per-property provenance and the specified override precedence; removing an
   override restores inherited treatment.
 - Immutable source import, content-addressed asset promotion, font/media bindings, and
@@ -88,7 +92,9 @@ in Chromium, with JavaScript disabled for rendering/navigation/state coverage an
 interaction checks. It measures contrast, role conformance, clipping, reflow, targets, asset
 loading, keyboard order and visible focus. Alpha-composition and geometry math are plain Python;
 axe-core 4.10.3 is bundled with its MPL-2.0 notice for supplemental rendered contrast analysis.
-Languages can express clipping with `overflow`, `text-overflow`, and `white-space`.
+Languages can express clipping with `overflow`, `text-overflow`, and `white-space`, and paint
+borders with `border-style`. Control box treatments apply to native inputs inside the slot; text
+treatments stay on the slot and inherit. Parts unused by the selected variant produce advisory coverage.
 `background-image` accepts a gradient token alias (DTCG color stops rendered at 180 degrees)
 or `asset:<image-id>:<variant>`. Background images are packaged and decoded by the checks;
 text over imagery or gradients remains an unresolved contrast review.
@@ -120,7 +126,7 @@ publishing, or telemetry is included.
 
 ## Ingest a source (M2)
 
-Open **Ingest** in the workbench (`/ingest`). Enter public URLs, or upload images, mocks,
+Open **Ingest** in the workbench (`/ingest`). Enter unauthenticated HTTP(S) URLs, including localhost or LAN development servers, or upload images, mocks,
 wireframes, DTCG JSON, assets, a brief, or a Figma export ZIP. Review captures at each width,
 derive a new draft, inspect the palette/type/spacing measurements, render the fidelity review,
 answer visual questions, and save to the library. These forms work without JavaScript.
@@ -137,17 +143,22 @@ python -m kinbase_design answer my-language question-1 candidate-2
 python -m kinbase_design save-draft my-language
 ```
 
-Capture uses a fresh Chromium context, strips cookies and authorization, blocks non-public
-network destinations and non-read requests, and adds discovered media-query widths within
-configured bounds. It stores DOM originals, sampled computed styles, screenshots, font faces
+Capture uses fresh Chromium and unauthenticated request contexts. It accepts internet, loopback
+and private-network HTTP(S) URLs, refuses embedded credentials and other URL schemes, strips
+cookies/auth headers and Set-Cookie responses, and blocks non-read requests and WebSockets.
+Discovered media-query widths are added within configured bounds. It stores DOM originals, sampled computed styles, screenshots, font faces
 and candidate asset originals. Later operations read those immutable artifacts and never visit
 the live site. A missing Chromium installation or launch failure returns exit 2 clearly.
 
 Drafts live in `workspace/drafts/<id>/`, with working JSON, provenance, captured compositions,
-questions and fidelity artifacts. Palette clustering uses CIEDE2000; type and spacing tolerances
+questions and fidelity artifacts. Provenance files are direct JSON-pointer maps: a record covers
+its value and descendants, and the nearest ancestor record wins. Token values and other design
+leaves require coverage; descriptive metadata, token metadata and reason text do not. Palette clustering uses CIEDE2000; type and spacing tolerances
 live in `config.py`. Source DTCG values remain unchanged. Semantic mapping is deterministic and
 reported as **heuristic**. Missing and ambiguous treatments get rendered alternatives; choosing
-again supersedes the value and its chosen provenance. Unsupported layout details, unmapped
+again supersedes the value and its chosen provenance. Candidate preview paths are relative to
+the draft directory. The value-provenance panel marks erased originals as “source removed”.
+Unsupported layout details, unmapped
 content, capture limits and fidelity divergences remain explicit coverage findings.
 
 The fidelity renderer uses the same vocabulary constructs, validated variants and CSS resolver

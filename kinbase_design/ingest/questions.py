@@ -23,6 +23,9 @@ def render_questions(library,workspace,draft_id,questions):
     for question in questions:
         for candidate in question['candidates']:
             trial=deepcopy(document);assign(trial,question['pointer'],candidate['value'])
+            if question.get('property')=='surface':
+                pairing=trial['roles'][question['role']]['neutral']['surface']
+                trial['components'].setdefault(question['construct'],{}).setdefault('properties',{})['background-color']=pairing
             relative=f'questions/{question["id"]}/{candidate["id"]}'
             with stage(library,workspace,draft_id,trial) as staged:
                 result=validate(staged,draft_id)

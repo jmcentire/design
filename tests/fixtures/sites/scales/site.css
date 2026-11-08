@@ -1,0 +1,6 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font: 16px/1.5 sans-serif; color: #102a43; background: #ffffff; }
+main { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+article { border-radius: 8px; padding: 16px; background: #f3f0e8; }
+.overlap { margin-top: -8px; margin-left: -12px; }
+.pill { display: block; width: 160px; height: 40px; padding: 8px; border-radius: 9999px; background: #225577; color: #ffffff; }

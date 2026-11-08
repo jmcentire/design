@@ -197,8 +197,11 @@ class Validator:
             if self.object(parts, p + '/parts'):
                 declared = valid_templates.get((construct, variant)) if isinstance(variant, str) else None
                 for name, props in parts.items():
+                    if not ID.fullmatch(name):
+                        self.issue('schema', p + pointer('parts', name), name, 'a kebab-case part id')
                     if not declared or name not in declared.parts:
-                        self.issue('R1', p + pointer('parts', name), name, 'a part in the selected template')
+                        self.issue('R1', p + pointer('parts', name), name, 'a part in the selected template',
+                                   'Part treatment is unused by the selected variant', type='coverage')
                     self.properties(props, p + pointer('parts', name))
             bindings = component.get('assets', {})
             if self.object(bindings, p + '/assets'):

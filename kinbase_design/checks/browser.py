@@ -47,11 +47,13 @@ def decode_backgrounds(page):
     }""",CHECK_TIMEOUT_MS)
 
 
-def observe(page):
+def observe(page, vocabulary=None):
     source = Path(__file__).with_name('observe.js').read_text().replace(
         '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
     snapshot = page.evaluate(source,{
         'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys())-{'surface'}),
+        'controlSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
+                        for slot in contract['slots'] if slot['kind']=='control'],
         'tolerance':CHECK_PIXEL_TOLERANCE,'targetSize':CHECK_TARGET_SIZE})
     for node in snapshot['nodes']:
         node['nativeControl'] = unmodified_native(node.pop('nativeAppearance'))
@@ -174,7 +176,7 @@ def inspect(document, vocabulary, preview, output, widths):
                         try:
                             prepare(page,Path(preview)/filename)
                             if js: decode_backgrounds(page)
-                            snapshot=observe(page)
+                            snapshot=observe(page,vocabulary)
                             if not js:
                                 snapshots[filename]=snapshot
                                 page.screenshot(path=str(Path(output)/(filename.removesuffix('.html')+f'@{width}.png')),full_page=True,animations='disabled',timeout=CHECK_TIMEOUT_MS)

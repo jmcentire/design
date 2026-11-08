@@ -2,8 +2,9 @@
 from ..config import (CHECK_NON_TEXT_CONTRAST, CHECK_TARGET_SIZE, CHECK_PIXEL_TOLERANCE)
 from ..findings import Finding, location
 from ..language.resolver import resolve, property_pointer
-from ..language.tokens import Tokens, ALIAS
+from ..language.tokens import Tokens, ALIAS, number_text
 from ..language.behaviors import matching, property_exception
+from ..language.properties import CONTROL_BOX_PROPERTIES
 from .math import color, contrast, effective_background, text_threshold, spacing_exception, css_equal
 from .grouping import observation_context
 
@@ -50,12 +51,14 @@ class Evaluation:
             if node['slot']:
                 props = resolve(self.document,self.vocabulary,node['slot'],node['state'],bp)['properties']
                 for prop, treatment in props.items():
-                    actual = node['css'].get(prop,'')
-                    if not css_equal(prop,treatment['value'],actual,node['fontSize'],snapshot['rootSize']):
-                        self.add('role-conformance',page,width,target,measured={'property':prop,'value':actual},threshold=treatment['value'],
-                                 expected=f'{prop} = {treatment["value"]}',message=f'{prop}: computed {actual}; resolved {treatment["value"]}',
-                                 exception=property_exception(self.document,target,prop),
-                                 pointer=property_pointer(self.document,self.vocabulary,prop,treatment))
+                    observations = node.get('controlStyles') if prop in CONTROL_BOX_PROPERTIES and node.get('controlStyles') is not None else [node]
+                    for observation in observations or [{'css':{},'fontSize':node['fontSize']}]:
+                        actual = observation['css'].get(prop,'')
+                        if not css_equal(prop,treatment['value'],actual,observation['fontSize'],snapshot['rootSize']):
+                            self.add('role-conformance',page,width,target,measured={'property':prop,'value':actual},threshold=treatment['value'],
+                                     expected=f'{prop} = {treatment["value"]}',message=f'{prop}: computed {actual}; resolved {treatment["value"]}',
+                                     exception=property_exception(self.document,target,prop),
+                                     pointer=property_pointer(self.document,self.vocabulary,prop,treatment))
                 family = props.get('font-family')
                 if family and node['text'].strip():
                     raw_path = property_pointer(self.document,self.vocabulary,'font-family',family)
@@ -63,7 +66,7 @@ class Evaluation:
                     asset = tokens.font_asset(ALIAS.fullmatch(raw)[1])
                     if asset:
                         first = family['value'].split(',')[0].strip().strip('"')
-                        weight = str(props.get('font-weight',{}).get('value',400))
+                        weight = number_text(props.get('font-weight',{}).get('value',400))
                         style = props.get('font-style',{}).get('value','normal')
                         loaded = any(f['family'].strip('"')==first and f['status']=='loaded' and f['weight']==weight and f['style']==style for f in snapshot['fonts'])
                         if not loaded or not node['fontReady'] or node['css']['font-family'].split(',')[0].strip().strip('"')!=first:
@@ -97,11 +100,11 @@ class Evaluation:
                 self.add('asset-load',page,width,target,measured={'backgroundDecoded':False,'box':node['box']},threshold='decoded and visible',expected='bound background image decodes into a visible box')
             if node['control'] and not node['disabled'] and not node.get('nativeControl', False):
                 external = effective_background(node['backgrounds'][1:])
-                boundary = color(node['boundary']) if node['boundary'] else None
-                if boundary is None or external is None:
+                boundaries = [parsed for value in node.get('boundaries',[node['boundary']]) if (parsed:=color(value)) is not None and parsed[3]>0]
+                if not boundaries or external is None:
                     self.add('non-text-contrast',page,width,target,type='needs-review',criterion='WCAG 1.4.11',threshold=CHECK_NON_TEXT_CONTRAST,expected='review the control boundary/state')
                 else:
-                    ratio = contrast(boundary,external)
+                    ratio = max(contrast(boundary,external) for boundary in boundaries)
                     if ratio < CHECK_NON_TEXT_CONTRAST:
                         self.add('non-text-contrast',page,width,target,criterion='WCAG 1.4.11',measured=round(ratio,2),threshold=CHECK_NON_TEXT_CONTRAST,expected='control boundary contrast at least 3:1')
         targets = [n for n in snapshot['nodes'] if n['interactive'] and n['visible'] and not n['disabled']]

@@ -36,6 +36,7 @@
     const control=e.matches('button,input:not([type="hidden"]),textarea,select');
     const hasBorder=parseFloat(s.borderTopWidth)>0 && !['none','hidden'].includes(s.borderTopStyle);
     const boundary=hasBorder?s.borderTopColor:(s.backgroundColor!=='rgba(0, 0, 0, 0)'?s.backgroundColor:null);
+    const boundaries=[...(hasBorder?[s.borderTopColor]:[]),s.backgroundColor].filter(value=>value!=='rgba(0, 0, 0, 0)'&&value!=='transparent');
     const inline=e.tagName==='A' && e.parentElement && e.parentElement.matches('p,li') && [...e.parentElement.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim());
     const userAgent=e.matches('input[type="checkbox"],input[type="radio"]') && s.appearance!=='none';
     const equivalent=e.tagName==='A' && [...document.querySelectorAll('a[href]')].some(a=>a!==e&&a.href===e.href&&visible(a)&&a.getBoundingClientRect().width>=args.targetSize&&a.getBoundingClientRect().height>=args.targetSize);
@@ -50,13 +51,17 @@
     const backgroundDecoded=backgroundAsset?window.__kdBackgroundImages?.[backgroundURL]===true:null;
     const image=e.tagName==='IMG' && !!e.closest('[data-kd-asset]');
     const fontSize=parseFloat(s.fontSize),fontWeight=parseFloat(s.fontWeight)||400;
+    const controlStyles=args.controlSlots.includes(e.dataset.kdSlot)?[...e.querySelectorAll('input,select,textarea,button')].map(control=>{
+      const style=getComputedStyle(control);
+      return {css:Object.fromEntries(properties.map(p=>[p,style.getPropertyValue(p)])),fontSize:parseFloat(style.fontSize)};
+    }):null;
     return {index,target:target(e),slot:e.dataset.kdSlot||null,state:root?.dataset.kdState||'default',
       text,directText,visible:visible(e),box:rect(e),scroll:[e.scrollWidth,e.scrollHeight],
-      css:Object.fromEntries(properties.map(p=>[p,s.getPropertyValue(p)])),fontSize,fontWeight,
+      css:Object.fromEntries(properties.map(p=>[p,s.getPropertyValue(p)])),fontSize,fontWeight,controlStyles,
       backgrounds:background(e),overImage,disabled,clipped,lineClamp:parseInt(s.webkitLineClamp)||0,
       backgroundAsset,backgroundDecoded,image,asset:image?e.closest('[data-kd-asset]').dataset.kdAsset:null,
       imageURL:image?e.getAttribute('src'):null,decoded:image?e.complete&&e.naturalWidth>0&&e.naturalHeight>0:null,
-      meaningfulImage:image&&!!e.alt,control,nativeAppearance:control?nativeControl(e):null,boundary,interactive:interactive(e),inline,userAgent,equivalent,
+      meaningfulImage:image&&!!e.alt,control,nativeAppearance:control?nativeControl(e):null,boundary,boundaries,interactive:interactive(e),inline,userAgent,equivalent,
       scrollContainer:['auto','scroll'].includes(s.overflowX),
       fontReady:document.fonts.check(`${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`,text.trim()||'A')};
   });

@@ -1,22 +1,40 @@
 """Public, unauthenticated URL capture. Extraction never returns to these URLs."""
-import ipaddress
 import re
+import json
 from urllib.parse import urlsplit
 from ..config import CAPTURE_WIDTHS, CAPTURE_MAX_WIDTHS, CAPTURE_MAX_PAGES, CHECK_MAX_WIDTH
 from .runtime import run_job
 
 
 def public_url(url):
+    """Public means unauthenticated; local development and LAN hosts are valid."""
     parts=urlsplit(url)
-    if parts.scheme not in {'http','https'} or not parts.hostname or parts.username or parts.password:
-        raise ValueError('Capture requires public http(s) URLs without credentials')
-    host=parts.hostname.lower()
-    if host=='localhost' or host.endswith(('.localhost','.local','.internal')):
-        raise ValueError('Capture requires a public host')
-    try:address=ipaddress.ip_address(host)
-    except ValueError:address=None
-    if address and not address.is_global:raise ValueError('Capture requires a public IP address')
+    if parts.scheme not in {'http','https'} or not parts.hostname:
+        raise ValueError('Capture requires an http or https URL')
+    if parts.username is not None or parts.password is not None:
+        raise ValueError('Capture refuses URLs with embedded credentials')
+    _=parts.port  # Validate a supplied port without contacting the host.
     return url
+
+
+def anonymous_headers(headers):
+    return {key:value for key,value in headers.items()
+            if key.lower() not in {'cookie','authorization','proxy-authorization'}}
+
+
+def group_problems(problems):
+    """One actionable problem with all of its affected pages and widths."""
+    grouped={}
+    for problem in problems:
+        core={key:value for key,value in problem.items() if key not in {'page','width','pages','widths'}}
+        key=json.dumps(core,sort_keys=True)
+        entry=grouped.setdefault(key,{**core,'pages':[],'widths':[]})
+        for page in problem.get('pages',[])+([problem['page']] if 'page' in problem else []):
+            if page not in entry['pages']:entry['pages'].append(page)
+        for width in problem.get('widths',[])+([problem['width']] if 'width' in problem else []):
+            if width not in entry['widths']:entry['widths'].append(width)
+    for entry in grouped.values():entry['widths'].sort()
+    return list(grouped.values())
 
 
 def widths(value=None):

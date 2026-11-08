@@ -1,7 +1,6 @@
 """Test-owned real HTTP sources. No product/browser substitution or external network."""
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 import shutil
 import threading
 from types import SimpleNamespace
@@ -27,6 +26,11 @@ def ingest_config(library):
 def fixture_site(tmp_path):
     root = tmp_path / "source-sites"
     shutil.copytree(FIXTURES / "sites", root)
+    large = root / "large" / "index.html"
+    # 2,500 pairs of visible elements precede all distinctive late colors.
+    # The static expansion avoids relying on script execution in the source page.
+    filler = "".join(f'<span data-cell="{i}"><span>x</span></span>' for i in range(2500))
+    large.write_text(large.read_text().replace("<!-- FILLER -->", filler))
     make_font(root / "editorial" / "fixture.ttf")
     # The paired pages differ only in a text node. Keep dimensions unchanged;
     # instruction-looking content cannot become a palette or mapping instruction.

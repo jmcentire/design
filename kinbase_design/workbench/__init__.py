@@ -153,7 +153,12 @@ def create_app(library: str | Path, workspace: str | Path):
                 gaps = [f for f in result['findings'] if f['type']=='missing' and (f['rule']=='asset-font' or '/assets' in f['pointer'] or '$extensions' in f['pointer'] or (isinstance(f['observed'],str) and f['observed'].startswith('asset:')))]
                 latest = latest_report(library, language_id)
                 groups = {kind:[f for f in (latest or {}).get('findings',[]) if f['type']==kind] for kind in ('violation','missing','needs-review','coverage')}
-                body = html('viewer.html', latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
+                from ..ingest.provenance import inspect_sources
+                provenance_entries=[]
+                if result['accepted']:
+                    provenance_file=inside(library,'languages',language_id,'provenance',digest(load_language(library,language_id))+'.json')
+                    if provenance_file.exists():provenance_entries=inspect_sources(workspace,read_json(provenance_file))
+                body = html('viewer.html', provenance_entries=provenance_entries, latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
                             pages=pages, page=page, width=width, widths=VIEWPORTS,
                             annotations=query.get('annotations',['0'])[0]=='1', upload_mb=MAX_UPLOAD_BYTES//(1024*1024))
             elif method == 'POST' and len(segments) == 3 and segments[0] == 'languages' and segments[2] == 'check':

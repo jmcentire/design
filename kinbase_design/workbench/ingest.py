@@ -9,6 +9,7 @@ from ..config import MAX_UPLOAD_BYTES,VIEWPORTS
 from ..ingest import draft,summary,save_draft,promote_draft,questions,answer
 from ..ingest.fidelity import fidelity
 from ..ingest.staging import folder,stage,load_draft
+from ..ingest.provenance import inspect_sources
 from ..language.versions import digest
 from ..render import preview_files
 from ..storage import inside,read_json,identifier
@@ -72,7 +73,7 @@ def handle(library,workspace,environ,segments,query,html):
         if action is None and method=='GET':
             result=summary(library,workspace,draft_id)
             slots=[{'scope':c+'.'+s['id'],'kind':s['asset_kind']} for c,v in load(library)['constructs'].items() for s in v['slots'] if s.get('asset_kind')]
-            return page('draft.html',title='Draft '+draft_id,result=result,slots=slots)
+            return page('draft.html',title='Draft '+draft_id,result=result,slots=slots,provenance_entries=inspect_sources(workspace,read_json(inside(root,'provenance.json'))))
         if action=='preview' and method=='GET' and len(tail)>=4:
             with stage(library,workspace,draft_id) as staged:files=preview_files(staged,draft_id)
             name='/'.join(tail[3:])
