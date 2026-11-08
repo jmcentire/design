@@ -6,6 +6,7 @@ relations use ordinary sRGB HSL; byte quantization gets 1 degree / 0.015 toleran
 """
 
 import colorsys
+import math
 import re
 
 import pytest
@@ -147,10 +148,14 @@ def assert_whimsy(rows, value):
 
 def assert_type_scale(rows, ratio):
     title, subtitle, body = (pixels(role(rows, name)["css"]["font-size"]) for name in ("title", "subtitle", "body"))
-    # Normal CSS/font-size rounding can introduce subpixel error, but cannot
-    # justify a different hierarchy ratio or a constant ratio across choices.
-    assert title / subtitle == pytest.approx(ratio, abs=0.02)
+    # Amendment 11b: subtitle/body is one modular step; title/subtitle may
+    # skip whole steps. Infer k from measured sizes, never from implementation.
     assert subtitle / body == pytest.approx(ratio, abs=0.02)
+    observed = title / subtitle
+    exponent = round(math.log(observed) / math.log(ratio))
+    assert exponent >= 1, ("Title must be at least one modular step above subtitle", observed, ratio)
+    assert observed == pytest.approx(ratio ** exponent, rel=0.02), ("Title skipped a fractional modular step", observed, ratio, exponent)
+    return exponent
 
 
 def contrast_gap(rows):
@@ -183,8 +188,9 @@ def assert_dimension_effects(first, second, first_values, second_values, dimensi
             assert any(role(first, name)["css"]["font-family"] != role(second, name)["css"]["font-family"]
                        for name in ("title", "body")), "Type pairings use the same computed families"
         elif dimension == "type-scale":
-            assert_type_scale(first, a)
-            assert_type_scale(second, b)
+            first_steps = assert_type_scale(first, a)
+            second_steps = assert_type_scale(second, b)
+            assert first_steps == second_steps, ("A/B changed the number of modular title steps", first_steps, second_steps)
             assert "font-size" in changed
         elif dimension in {"density", "shape"}:
             properties = PADDINGS | {"row-gap", "column-gap", "margin-block"} if dimension == "density" else RADII - {"border-radius"}

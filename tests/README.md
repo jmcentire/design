@@ -727,3 +727,18 @@ failure remains product-side and its assertion is unchanged.
 remains blocked by absent vocabulary (109 setup errors, 82 browser cases
 deselected). Validator browser rerun is required. Logs:
 `/tmp/kinbase-tester-variation-repair-collection.log`, `/tmp/kinbase-tester-variation-repair.log`.
+
+Validator run b662ad1d (tester 178b3ed, candidate c9bb407) reported 190/191.
+Amendment 11b permits skipped modular type steps. The type-scale oracle now checks
+subtitle/body against the selected ratio with absolute tolerance 0.02, infers the
+integer title/subtitle exponent from measured sizes, and checks ratio^k with
+relative tolerance 0.02. The exponent must be >=1 and identical in both candidates;
+fractional steps or changing the step count between A/B still fail. No role size
+or particular exponent is pinned to the candidate's observed implementation.
+
+191 tests collect; compilation and whitespace checks pass. Local arithmetic
+diagnostics cover one-step and skipped-step scales, fractional-step rejection and
+different inferred exponents. Non-browser execution remains blocked by absent
+vocabulary (109 setup errors, 82 browser cases deselected). Browser rerun awaits
+the Validator. Logs: `/tmp/kinbase-tester-type-scale-collection.log` and
+`/tmp/kinbase-tester-type-scale.log`.
