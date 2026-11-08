@@ -107,6 +107,13 @@ def pair(library, session, root):
     changed = {name for name in DIMENSIONS if result["a"]["values"][name] != result["b"]["values"][name]}
     assert changed == set(dimensions), "The pair must isolate exactly its advertised unsettled dimensions"
     assert result["a"]["hash"] != result["b"]["hash"]
+    assert set(result["variation"]) == set(dimensions)
+    for dimension, variation in result["variation"].items():
+        observed = variation["distance"]
+        assert isinstance(observed, (int, float)) and not isinstance(observed, bool) and math.isfinite(observed)
+        expected = distance(dimension, result["a"]["values"][dimension], result["b"]["values"][dimension])
+        assert math.isclose(observed, expected, rel_tol=1e-9, abs_tol=1e-9), (dimension, variation, expected)
+        assert type(variation["widest"]) is bool
     return result
 
 

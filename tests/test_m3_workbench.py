@@ -14,7 +14,7 @@ from playwright.sync_api import expect
 from tests.browser_support import link_at
 from tests.m2_support import assert_provenance, assert_valid_draft, read_json, scalar_leaves
 from tests.m3_perceptual_support import assert_moodboard_variety
-from tests.m3_support import BEACH, candidate_directory, candidate_library, log_bytes, log_records
+from tests.m3_support import BEACH, candidate_directory, candidate_library, log_bytes, log_records, settled
 from tests.test_m2_workbench import activate, submit, visible
 from tests.test_versions_assets import expected_hash
 
@@ -105,11 +105,12 @@ def answer_interview(page):
     return alternative
 
 
-def choose_visible(page, choice, comment):
+def choose_visible(page, choice, comment, scope=None, require_comment=True):
     # Both a direct submit button and a native choice field + submit are valid.
-    pattern = re.compile(r"^(?:(?:choose|pick|prefer|option)\s+)?" + choice + r"(?:\b|$)", re.I)
-    buttons = visible(page.get_by_role("button", name=pattern))
-    controls = buttons or visible(page.get_by_role("radio", name=pattern))
+    pattern = re.compile((r"\b" if scope is not None else r"^(?:(?:choose|pick|prefer|option)\s+)?") + choice + r"(?:\b|$)", re.I)
+    owner = scope if scope is not None else page
+    buttons = visible(owner.get_by_role("button", name=pattern))
+    controls = buttons or visible(owner.get_by_role("radio", name=pattern))
     assert controls, ("Missing no-JS A/B choice", choice)
     control = controls[0]
     form = control.locator("xpath=ancestor::form[1]")
@@ -117,13 +118,28 @@ def choose_visible(page, choice, comment):
     # The comment label's wording is not contract. Its form ownership ties the
     # labelled textbox to this choice instead of an unrelated field on the page.
     comments = visible(form.get_by_role("textbox", name=re.compile(r"\S")))
-    assert comments, "A/B choice form must offer a labelled comment textbox"
-    comments[0].fill(comment)
+    if require_comment:
+        assert comments, "A/B choice form must offer a labelled comment textbox"
+    if comments:
+        comments[0].fill(comment)
     if buttons:
         submit(page, form, control)
     else:
         control.check()
         submit(page, form)
+    return bool(comments)
+
+
+def revision_form(page, choice_id, choice):
+    """Read rendered form ownership, without pinning a field name or endpoint."""
+    for form in page.locator("form").all():
+        values = form.locator('input[type="hidden"]').evaluate_all("els => els.map(e => e.value)")
+        if choice_id not in values:
+            continue
+        pattern = re.compile(r"\b" + choice + r"\b", re.I)
+        if visible(form.get_by_role("button", name=pattern)) or visible(form.get_by_role("radio", name=pattern)):
+            return form
+    return None
 
 
 def name_draft(page):
@@ -201,21 +217,32 @@ def test_no_js_generate_interview_moodboard_revise_derive_preview_and_save(serve
     assert len(history) == 1 and history[0]["choice"] == "A"
     first = history[0]
     assert first["comment"] == "Prefer the calmer sample"
+    after_first = settled(library, root.name, root)  # Read-only corroboration of the UI submission.
     # Revision is reached through visible controls, never by constructing a route.
-    if not visible(page.get_by_role("button", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))) and not visible(
-            page.get_by_role("link", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))):
-        activate(page, r"history|previous.*choice|earlier.*choice")
-    activate(page, r"revis|edit.*choice|change.*choice")
-    visual_samples(page)
-    inspect_materialized_swatches(library, root, inspected)
+    inline = revision_form(page, first["id"], "B")
+    if inline is None:
+        if not visible(page.get_by_role("button", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))) and not visible(
+                page.get_by_role("link", name=re.compile(r"revis|edit.*choice|change.*choice", re.I))):
+            activate(page, r"history|previous.*choice|earlier.*choice")
+        inline = revision_form(page, first["id"], "B")
+        if inline is None:
+            activate(page, r"revis|edit.*choice|change.*choice")
+            inline = revision_form(page, first["id"], "B")
+        visual_samples(page)
+        inspect_materialized_swatches(library, root, inspected)
     before_revision = log_bytes(root)
-    choose_visible(page, "B", "The alternate works better")
+    revision_comment = choose_visible(page, "B", "The alternate works better", scope=inline, require_comment=False)
     assert log_bytes(root).startswith(before_revision)
     history = log_records(root)
     assert len(history) == 2
     assert history[1]["choice"] == "B" and history[1]["supersedes"] == first["id"]
     assert history[1]["pair"] == first["pair"]
-    assert history[1]["comment"] == "The alternate works better"
+    if revision_comment:
+        assert history[1]["comment"] == "The alternate works better"
+    after_revision = settled(library, root.name, root)
+    for dimension in first["dimensions"]:
+        assert after_revision["settled"][dimension]["value"] != after_first["settled"][dimension]["value"]
+        assert after_revision["settled"][dimension]["choices"] == [history[1]["id"]]
     name_draft(page)
     activate(page, r"derive|stop|finish")
     created = set((library.workspace / "drafts").glob("*/working.json")) - before_drafts

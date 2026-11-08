@@ -23,8 +23,9 @@ def compositions(document):
     return {
         'palette.html':page('Palette',[
             {'group':True,'selector':'palette-strip','layout':{'columns':3,'column-gap':0},'children':swatches},
-            {'construct':'content-section','values':{'title':'Aa · A new perspective','body':'Text and surface, together.'},
-             'treatment':{'properties':{'padding':'{space.double}','background-color':'{color.paper}'}}}]),
+            {'construct':'hero','values':{'title':'Aa · A new perspective','body':'Text and surface, together.'},
+             'treatment':{'properties':{'padding':'{space.double}','background-color':'{color.paper}'},
+                          'slots':{'title':{'properties':{'font-size':'{type.subtitle}'}}}}}]),
         'type.html':page('Type specimen',[
             {'construct':'hero','values':{'eyebrow':'TYPE / 0123456789','title':'Aa Bb Cc','body':'A new perspective. The quick brown fox jumps over the lazy dog.'},
              'treatment':{'properties':{'padding':'{space.double}','background-color':'{color.paper}'}}}]),

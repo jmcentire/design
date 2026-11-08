@@ -15,7 +15,7 @@ from tests.test_resolution import CSS_PROPERTIES
 
 COLORS = {"color", "background-color", "border-color", "outline-color", "background-image"}
 PADDINGS = {"padding-top", "padding-right", "padding-bottom", "padding-left"}
-SPACING = {"padding", "padding-block", "padding-inline", "gap", "row-gap", "column-gap"} | PADDINGS
+SPACING = {"padding", "padding-block", "padding-inline", "margin-block", "gap", "row-gap", "column-gap"} | PADDINGS
 TYPOGRAPHY = {"font-family"}
 SIZES = {"font-size", "line-height"}
 # Shorthand expansion is observed explicitly to include asymmetric treatments.
@@ -187,11 +187,15 @@ def assert_dimension_effects(first, second, first_values, second_values, dimensi
             assert_type_scale(second, b)
             assert "font-size" in changed
         elif dimension in {"density", "shape"}:
-            properties = PADDINGS | {"row-gap", "column-gap"} if dimension == "density" else RADII - {"border-radius"}
+            properties = PADDINGS | {"row-gap", "column-gap", "margin-block"} if dimension == "density" else RADII - {"border-radius"}
             increased = False
             for low_row, high_row in zip(low, high):
                 for prop in properties:
                     small, large = numeric_values(low_row["css"][prop]), numeric_values(high_row["css"][prop])
+                    if prop == "margin-block" and "type-scale" in dimensions and len(small) == len(large) and all(
+                            x / pixels(low_row["css"]["font-size"]) == pytest.approx(
+                                y / pixels(high_row["css"]["font-size"]), abs=0.001) for x, y in zip(small, large)):
+                        continue  # UA em margins may follow the independent type-scale change.
                     if dimension == "shape" and max(len(small), len(large)) == 2:
                         small = small * 2 if len(small) == 1 else small
                         large = large * 2 if len(large) == 1 else large

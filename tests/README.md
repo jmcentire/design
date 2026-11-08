@@ -700,3 +700,30 @@ are not product/browser results. Non-browser execution remains blocked by absent
 candidate vocabulary (109 setup errors, 82 browser cases deselected). The real
 rendered checks require the Validator. Logs:
 `/tmp/kinbase-tester-perceptual-collection.log`, `/tmp/kinbase-tester-perceptual.log`.
+
+Validator run 3858c5ae (tester b88094e, candidate 5d20f66) reported 186/191.
+Amendment 10.6 replaces abstract-domain exhaustion with the pair's published
+`variation.<dimension>.widest`. The driver verifies each reported distance against
+the candidate values. After neither, the next pair must include every non-widest
+dimension with greater distance and omit every widest dimension, including mixed
+pairs; rejected dimensions remain unsettled. The usable range is product-published,
+not inferred from the domain maximum. This supersedes the earlier widening oracle.
+
+Three test-side repairs also follow the ruling. The neutral-copy scanner excludes
+complete construct/state identifier captions for constructs actually depicted,
+while still scanning the state specimens and all other prose. Density permits
+`margin-block` and observes it as spacing; UA em-based margins caused by an
+independent type-scale change retain their prior exception. Workbench revision
+first finds inline forms carrying the previous choice id, regardless of field name,
+and submits their visible B choice. Separate history/edit navigation is supported
+when present, but is not required. Read-only `settled` output corroborates changed
+values and the new supporting choice id; the append-only log must retain the first
+comment and superseding revision. If a revision form offers a comment field its
+submitted text must persist; a quick revision without a comment field is valid.
+The initial choice still requires comment entry/retention. The home-page whimsy
+failure remains product-side and its assertion is unchanged.
+
+191 cases collect; compilation and whitespace checks pass. Non-browser execution
+remains blocked by absent vocabulary (109 setup errors, 82 browser cases
+deselected). Validator browser rerun is required. Logs:
+`/tmp/kinbase-tester-variation-repair-collection.log`, `/tmp/kinbase-tester-variation-repair.log`.

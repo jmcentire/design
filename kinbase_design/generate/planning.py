@@ -1,8 +1,10 @@
 """Pair planning derives state from effective decisions, including neither and revision."""
 from copy import deepcopy
-from .dimensions import DOMAINS,alternatives,exhausted,distance
+from .dimensions import alternatives,distance,widest
 from .sessions import read,write,choices,effective,settled,new_id
 from .candidates import materialize
+
+PLANNING_REVISION = 2
 
 
 def baseline(workspace,session):
@@ -19,24 +21,22 @@ def rejected(state,log,d):
             for c in log if c['choice']=='neither' and d in c['dimensions']]
 
 
+def variation(d,a,b):
+    return {'distance':distance(d,a,b),'widest':widest(d,a,b)}
+
+
+def offered_variation(offered,dimension):
+    if offered.get('planning_revision')==PLANNING_REVISION:
+        return offered['variation'][dimension]
+    # Older sessions used category exploration rather than distance to name
+    # their limit. Upgrade that interpretation without rewriting choice history.
+    return variation(dimension,offered['a']['values'][dimension],offered['b']['values'][dimension])
+
+
 def at_limit(state,log,dimension):
-    if dimension!='type-pairing':return exhausted(dimension,rejected(state,log,dimension))
-    # Exhausting unseen categories earns one explicit final comparison. Only a
-    # rejection of that advertised limit retires the dimension from the rounds.
     return any(c['choice']=='neither' and dimension in c['dimensions']
-               and state['pairs'][c['pair']].get('variation',{}).get(dimension,{}).get('widest',False)
+               and offered_variation(state['pairs'][c['pair']],dimension)['widest']
                for c in log)
-
-
-def variation(d,a,b,prior):
-    if d=='type-pairing':
-        seen=list(dict.fromkeys(v for pair in prior for v in pair))
-        return {'distance':distance(d,a,b),'widest':exhausted(d,prior),
-                'previously_offered':seen,'remaining_unseen':[v for v in DOMAINS[d] if v not in seen and v not in (a,b)],
-                'reason':'All pairings have been explored; this is the final widest available comparison' if exhausted(d,prior)
-                         else 'Explore pairings outside the immediately rejected pair'}
-    maximum=180 if d=='hue-family' else DOMAINS[d][1]-DOMAINS[d][0]
-    return {'distance':distance(d,a,b),'widest':distance(d,a,b)>=maximum-1e-7}
 
 
 def pair(library,workspace,session):
@@ -44,7 +44,7 @@ def pair(library,workspace,session):
     answered={c['pair'] for c in log}
     # Repeated GETs/CLI calls do not consume rounds before a decision is made.
     basis=[c['id'] for c in log]
-    pending=[p for key,p in state['pairs'].items() if key not in answered and p.get('basis')==basis and 'variation' in p]
+    pending=[p for key,p in state['pairs'].items() if key not in answered and p.get('basis')==basis and p.get('planning_revision')==PLANNING_REVISION]
     if pending:return pending[-1]
     if len(answered)>=state['settings']['round_cap'] or not preferences['unsettled']:return {'done':True}
     remaining=[d for d in preferences['unsettled'] if not at_limit(state,log,d)]
@@ -56,8 +56,8 @@ def pair(library,workspace,session):
     values=baseline(workspace,session);a=deepcopy(values);b=deepcopy(values)
     for d in dims:a[d],b[d]=alternatives(d,values[d],rejected(state,log,d))
     result={'pair':new_id('pair'),'round':len(answered)+1,'dimensions':dims,
-            'basis':basis,
-            'variation':{d:variation(d,a[d],b[d],rejected(state,log,d)) for d in dims},
+            'basis':basis,'planning_revision':PLANNING_REVISION,
+            'variation':{d:variation(d,a[d],b[d]) for d in dims},
             'exhausted':[d for d in preferences['unsettled'] if at_limit(state,log,d)],
             'a':materialize(library,workspace,state,a),'b':materialize(library,workspace,state,b)}
     state['pairs'][result['pair']]=result;write(workspace,state)

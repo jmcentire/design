@@ -10,7 +10,7 @@ from .sessions import folder
 from .theory import language
 from .specimens import compositions
 
-SPECIMEN_REVISION = 3
+SPECIMEN_REVISION = 5
 
 
 def materialize(library,workspace,state,values):

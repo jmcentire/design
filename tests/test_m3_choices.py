@@ -46,41 +46,25 @@ def test_beach_brief_candidates_stay_in_requested_hue_families(library):
 
 
 def test_neither_immediately_widens_until_exhaustion_and_cap_ends_rounds(library):
-    from tests.m3_support import PAIRINGS, RANGES, distance
+    from tests.m3_support import distance
 
     session, root, _ = start(library)
-    previous, categories, pairs = None, set(), []
+    previous, pairs = None, []
     for _ in range(8):  # Public default round cap, with no dimensions settled.
         current = pair(library, session, root)
         assert not current.get("done"), "Neither must not settle dimensions or terminate rounds early"
         pairs.append(current)
         if previous:
-            exhausted = {}
-            for dimension in previous["dimensions"]:
+            # Amendment 10.6: the public usable-range boundary supersedes the
+            # abstract domain maximum, including mixed two-dimension pairs.
+            exhausted = {d for d in previous["dimensions"] if previous["variation"][d]["widest"]}
+            widening = set(previous["dimensions"]) - exhausted
+            assert widening <= set(current["dimensions"]), ("Non-widest dimensions must return immediately", widening, current)
+            assert not exhausted & set(current["dimensions"]), ("Widest rejected dimensions must be left unsettled", exhausted, current)
+            for dimension in widening:
+                a, b = (current[side]["values"][dimension] for side in ("a", "b"))
                 old_a, old_b = (previous[side]["values"][dimension] for side in ("a", "b"))
-                if dimension == "type-pairing":
-                    exhausted[dimension] = len(PAIRINGS - categories) < 2
-                else:
-                    maximum = 180 if dimension == "hue-family" else RANGES[dimension][1] - RANGES[dimension][0]
-                    exhausted[dimension] = distance(dimension, old_a, old_b) >= maximum - 1e-9
-            if all(exhausted.values()):
-                assert not set(current["dimensions"]) & set(previous["dimensions"]), (
-                    "A further neither after the widest pair must move to other unsettled dimensions", current)
-            else:
-                assert set(current["dimensions"]) == set(previous["dimensions"]), (
-                    "Amendment 10.5 requires the immediately next pair to re-offer the rejected dimensions", current)
-                for dimension in current["dimensions"]:
-                    a, b = (current[side]["values"][dimension] for side in ("a", "b"))
-                    old_a, old_b = (previous[side]["values"][dimension] for side in ("a", "b"))
-                    if dimension == "type-pairing":
-                        if not exhausted[dimension]:
-                            assert not {a, b} & {old_a, old_b}
-                    elif exhausted[dimension]:
-                        assert distance(dimension, a, b) == pytest.approx(distance(dimension, old_a, old_b))
-                    else:
-                        assert distance(dimension, a, b) > distance(dimension, old_a, old_b)
-        if "type-pairing" in current["dimensions"]:
-            categories.update(current[side]["values"]["type-pairing"] for side in ("a", "b"))
+                assert distance(dimension, a, b) > distance(dimension, old_a, old_b)
         choose(library, session, root, current, "neither", comment="Explore further apart")
         assert not settled(library, session, root)["settled"]
         previous = current

@@ -173,6 +173,14 @@ def assert_neutral_default_copy(page):
     copy += page.locator("[aria-label],[placeholder],img[alt]").evaluate_all("""els => els.filter(e => {
       const r=e.getBoundingClientRect(); return r.width>0 && r.height>0 && getComputedStyle(e).visibility!=='hidden';
     }).flatMap(e => ['aria-label','placeholder','alt'].map(a => e.getAttribute(a) || ''))""")
+    depicted = page.locator("[data-kd-construct][data-kd-state]").evaluate_all(
+        "els => els.map(e => [e.dataset.kdConstruct, e.dataset.kdState])")
+    captions = [re.compile(r"^" + re.escape(construct) + r"(?:\s*(?:[·:—–/\-]\s*)?" + re.escape(state) + r")?$", re.I)
+                for construct, state in depicted]
+    # Only complete identifier captions for states actually depicted are exempt.
+    # Keep scanning all other sample prose, including copy on those same cards.
+    copy = ["\n".join(line for line in text.splitlines()
+                      if not any(caption.fullmatch(line.strip()) for caption in captions)) for text in copy]
     domain = re.compile(r"\b(?:listings?|bookings?|ratings?|destinations?)\b|\bbook\s+(?:now|this|your)\b|"
                         r"\breserve\s+(?:this|your)\b|\bper\s+night\b|\b\d+\s+(?:beds?|bedrooms?|guests?)\b", re.I)
     offenders = [text for text in copy if domain.search(text)]

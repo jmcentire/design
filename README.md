@@ -254,18 +254,22 @@ the long-word, long-title, missing-image and collection-size stress cases remain
 
 Sessions live in the private workspace under `sessions/<id>/`. `choices.jsonl` is append-only;
 settled dimensions are calculated from effective choices. `neither` reoffers those dimensions
-at greater distances until their domain is exhausted, then moves on. Categorical exploration
-ends with an explicitly marked widest comparison before moving on; pair JSON exposes its
-`variation` and the dimensions left `exhausted` but unsettled. Interview and pinned
+at greater distances until the offered pair reports `variation[dimension].widest: true`,
+then leaves that dimension unsettled and moves on. Each pair reports its distance and limit;
+a mixed pair retries only dimensions that can still widen. Different type pairings already
+have the maximum categorical distance of 1, so their first comparison is marked widest.
+Pair JSON also lists dimensions left `exhausted` but unsettled. Interview and pinned
 mood-board directions provide priors; A/B choices take precedence. Candidate directories hold
 `working.json`, `sample.html`, `swatch.html`, the normal sample pages, CSS and packaged assets.
-The common sample includes attention-emphasis status text, labels, typography, cards and form
+The home hero’s eyebrow uses attention emphasis by default. The common A/B sample also
+includes attention-emphasis status text, labels, typography, cards and form
 controls so each dimension has a visible specimen. Colour fills hero and accent surfaces and
 primary actions; type scale, spacing and shape affect prominent parts of the same screen. Both
 directions retain identical sample HTML. Interview selections initially preserve the brief’s seeds.
 Mood-board and interview tiles use focused palette strips, type specimens, shape/rhythm and
 accent/texture compositions (`palette.html`, `type.html`, `shape.html`, `formality.html`,
-`texture.html`), built by the same preview renderer from each candidate’s language.
+`texture.html`), built by the same preview renderer from each candidate’s language. Decorative
+texture occupies an empty accent-band part above the content; all text has a solid background.
 The workbench serves these at `/generate/<session>/candidates/<hash>/<file>`.
 Candidates include the manifest’s `assets/sha256/` package files as well as preview URLs, so
 the directory can be copied to `languages/<working.json id>/` in another library. The round

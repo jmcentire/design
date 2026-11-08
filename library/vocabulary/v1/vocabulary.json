@@ -691,7 +691,7 @@
         {
           "id": "eyebrow",
           "role": "caption",
-          "emphasis": "neutral",
+          "emphasis": "attention",
           "element": "p",
           "required": false,
           "kind": "text"

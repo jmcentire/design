@@ -110,7 +110,18 @@ def language(language_id,vocabulary,values,resources,preferences=None):
         if construct in {'page-shell','listing-card','card','nav'}:treatment['properties']['background-color']=paper
         if construct=='hero':treatment['properties'].update({'padding-block':spacing['quad'],'background-color':wash,'border-radius':radius})
         if construct=='error-state':treatment['properties'].update({'background-color':accent_wash,'border-radius':radius})
-        if construct=='content-section':treatment['properties'].update({'background-image':texture,'border-radius':radius})
+        if construct=='content-section':
+            # Texture is a non-text sibling, never a background ancestor of copy.
+            # A declared variant keeps the vocabulary slots in their reading order.
+            variant='accent-band'
+            content=''.join('{{slot:'+slot['id']+'}}' for slot in spec['slots'])
+            template=f'<{spec["root"]}><div data-kd-part="accent-band"></div>'+content+f'</{spec["root"]}>'
+            doc['layout']['variants'][construct]={variant:{'template':template}}
+            treatment['variant']=variant
+            treatment['properties'].update({'background-color':paper,'border-radius':radius})
+            treatment['parts']={'accent-band':{'background-image':texture,'padding-block':spacing['base'],
+                                             'margin-block':spacing['base'],'border-radius':radius}}
+
         if construct=='nav':treatment['properties'].update({'display':'flex','flex-wrap':'wrap','align-items':'center','justify-content':'space-between'})
         if construct in {'form','search-bar'}:treatment['properties']['display']='grid'
         if construct in {'listing-card','card'}:treatment['properties'].update({'border-radius':radius,'border-color':border,'border-width':line_width,'border-style':'solid'})
@@ -135,7 +146,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     doc['components']['hero']['slots'].setdefault('action',{})['emphasis']='primary'
     doc['components']['listing-card']['slots'].setdefault('rating',{})['emphasis']='attention'
     if palette_refs:
-        # Visible fixed source swatches on existing constructs; no invented structural variant.
+        # Visible fixed source swatches on existing constructs.
         for i,construct in enumerate(('hero','content-section','footer')):
             ref=palette_refs[i%len(palette_refs)]
             comp=doc['components'][construct];comp['properties']['background-color']=ref

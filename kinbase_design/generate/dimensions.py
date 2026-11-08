@@ -43,6 +43,15 @@ def distance(d,a,b):
     return abs(a-b)
 
 
+def maximum_distance(d):
+    if d=='type-pairing':return 1
+    if d=='hue-family':return 180
+    return DOMAINS[d][1]-DOMAINS[d][0]
+
+
+def widest(d,a,b):return distance(d,a,b)>=maximum_distance(d)-1e-7
+
+
 def alternatives(d,center,rejected=()):
     """Grow rejected intervals, then offer the full domain without cycling forever."""
     if d=='type-pairing':
@@ -55,7 +64,7 @@ def alternatives(d,center,rejected=()):
             available += [v for v in DOMAINS[d] if v not in available]
         if not rejected:available=[center]+[v for v in available if v!=center]
         return available[:2]
-    lo,hi=DOMAINS[d];maximum=180 if d=='hue-family' else hi-lo
+    lo,hi=DOMAINS[d];maximum=maximum_distance(d)
     prior=max((distance(d,*pair) for pair in rejected),default=0)
     initial=50 if d=='hue-family' else maximum*(.3 if d=='saturation' else .6)
     spread=min(maximum,max(initial,prior*1.8))
@@ -68,7 +77,4 @@ def alternatives(d,center,rejected=()):
 
 
 def exhausted(d,rejected):
-    if not rejected:return False
-    if d=='type-pairing':return len({v for pair in rejected for v in pair})>=len(DOMAINS[d])
-    maximum=180 if d=='hue-family' else DOMAINS[d][1]-DOMAINS[d][0]
-    return any(distance(d,*pair)>=maximum-1e-7 for pair in rejected)
+    return any(widest(d,*pair) for pair in rejected)
