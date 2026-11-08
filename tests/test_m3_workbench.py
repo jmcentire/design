@@ -184,7 +184,9 @@ def test_no_js_generate_interview_moodboard_revise_derive_preview_and_save(serve
     submit(page, removals[-1].locator("xpath=ancestor::form[1]"), removals[-1])
     removed = read_json(session_file)
     assert flags(removed, "removed") > flags(pinned, "removed")
-    activate(page, r"compare|A/B|round|continue|next")
+    # Playwright serializes role regexes into selectors delimited by '/'. Use
+    # its Unicode escape so the accessible label still matches literal A/B.
+    activate(page, r"compare|A\u002fB|round|continue|next")
     visual_samples(page)
     inspect_materialized_swatches(library, root, inspected)
     before_choice = log_bytes(root)

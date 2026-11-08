@@ -170,10 +170,15 @@ def assert_provenance(document, records, shared=False):
 
 
 def assert_shared_privacy(library):
-    """Inspect delivered bytes/data; provenance keys/locations may be real JSON pointers."""
+    """Inspect shared metadata; supplied package assets retain their original bytes."""
     private = (str(library.workspace), str(library.project), str(library.workspace.parent))
     for path in library.library.rglob("*"):
         if not path.is_file():
+            continue
+        # B8 governs metadata/provenance, while B6 preserves supplied assets.
+        # SVG namespace URIs (and other original asset content) are not leaks
+        # introduced by shared provenance. Do not exempt any other library text.
+        if path.parent.name == "sha256" and path.parent.parent.name == "assets":
             continue
         data = path.read_bytes()
         assert not any(value.encode() in data for value in private), path

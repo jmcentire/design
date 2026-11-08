@@ -630,3 +630,20 @@ are diagnostics, not product/browser evidence. Non-browser execution remains
 blocked by missing `library/vocabulary` (109 setup errors; 80 browser cases
 deselected). Validator browser execution remains required. Logs:
 `/tmp/kinbase-tester-lazy-grid-collection.log`, `/tmp/kinbase-tester-lazy-grid.log`.
+
+Validator run 9ff11255 (tester 611fd2d, candidate 06a394f) reported 184/189.
+Two test-side repairs follow its ruling: the shared privacy scan now excludes
+only package asset bytes under `assets/sha256/*`, since B6 requires originals
+unchanged and an SVG's XML namespace is not a B8 metadata leak. Working copies,
+provenance and other library text remain scanned. The no-JS generate locator now
+spells its A/B slash as a regex Unicode escape to avoid Playwright's selector
+delimiter error while matching the same accessible labels. Neither-widening and
+whimsy assertions remain unchanged; the other three failures were product-side.
+
+189 tests still collect; compilation and whitespace checks pass. Local diagnostics
+accept an unchanged SVG asset while rejecting injected URL/workspace paths in
+working.json, provenance and other library text, and verify the slash-free pattern
+still matches A/B labels. Non-browser execution remains blocked by the absent
+candidate vocabulary (109 setup errors, 80 browser cases deselected). Browser
+rerun is pending the Validator. Logs: `/tmp/kinbase-tester-review-repair-collection.log`
+and `/tmp/kinbase-tester-review-repair.log`.

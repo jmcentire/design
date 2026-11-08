@@ -9,6 +9,8 @@ from ..vocabulary import load
 from .sessions import folder
 from .theory import language
 
+SPECIMEN_REVISION = 2
+
 
 def materialize(library,workspace,state,values):
     document,_,_=language('candidate',load(library),values,state['resources'])
@@ -16,16 +18,23 @@ def materialize(library,workspace,state,values):
     # Preview URLs and package paths serve different consumers. Keep both, also
     # repairing cached candidates created before package assets were materialized.
     shutil.copytree(inside(folder(workspace,state['id']),'assets'),inside(target,'assets'),dirs_exist_ok=True)
-    if not (target/'sample.html').exists() or not (target/'swatch.html').exists():
+    marker=target/'specimen.json'
+    current=read_json(marker).get('revision') if marker.exists() else None
+    if current!=SPECIMEN_REVISION or not (target/'sample.html').exists() or not (target/'swatch.html').exists():
         with TemporaryDirectory(prefix='kinbase-candidate-') as temporary:
             stage=Path(temporary);shutil.copytree(inside(library,'vocabulary'),stage/'vocabulary')
             save_language(stage,'candidate',document)
             shutil.copytree(inside(folder(workspace,state['id']),'assets'),stage/'languages/candidate/assets')
             build_preview(stage,'candidate',target)
-            swatch=preview_files(stage,'candidate',{'swatch.html':{'title':'Direction specimen','instances':[
-                {'construct':'hero'},{'construct':'listing-card'},{'construct':'form'}]}})
-            (target/'swatch.html').write_bytes(swatch['swatch.html'])
+            # Vocabulary defaults supply public hooks for every advertised effect:
+            # error-state.title is attention; listing-card.price is a label;
+            # hero/card/form exercise type, surface, spacing, actions and shape.
+            specimens=[{'construct':c} for c in ('hero','error-state','listing-card','form')]
+            files=preview_files(stage,'candidate',{
+                'sample.html':{'title':'Direction sample','instances':[{'construct':'nav'},*specimens,{'construct':'footer'}]},
+                'swatch.html':{'title':'Direction specimen','instances':specimens}})
+            for name in ('sample.html','swatch.html'):(target/name).write_bytes(files[name])
         save_working(target/'working.json','candidate',document)
-        (target/'sample.html').write_bytes((target/'index.html').read_bytes())
+        write_json(marker,{'revision':SPECIMEN_REVISION})
         write_json(target/'values.json',values)
     return {'hash':version,'preview':str(target.relative_to(Path(workspace).resolve())),'values':dict(values)}

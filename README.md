@@ -250,9 +250,13 @@ Generated illustrations are clearly sample assets, not photographs of a real pro
 
 Sessions live in the private workspace under `sessions/<id>/`. `choices.jsonl` is append-only;
 settled dimensions are calculated from effective choices. `neither` reoffers those dimensions
-at greater distances until their domain is exhausted, then moves on. Interview and pinned
+at greater distances until their domain is exhausted, then moves on. Categorical exploration
+ends with an explicitly marked widest comparison before moving on; pair JSON exposes its
+`variation` and the dimensions left `exhausted` but unsettled. Interview and pinned
 mood-board directions provide priors; A/B choices take precedence. Candidate directories hold
 `working.json`, `sample.html`, `swatch.html`, the normal sample pages, CSS and packaged assets.
+The common sample includes attention-emphasis status text, labels, typography, cards and form
+controls so each dimension has a visible specimen. Both directions retain identical sample HTML.
 The workbench serves these at `/generate/<session>/candidates/<hash>/<file>`.
 Candidates include the manifest’s `assets/sha256/` package files as well as preview URLs, so
 the directory can be copied to `languages/<working.json id>/` in another library. The round
