@@ -39,8 +39,8 @@ any particular file. No credentials have been validated by this implementation's
 Observed solid fills and text styles become DTCG tokens, routed through the existing artifact and
 draft operations. Use the returned artifact id with `draft --from ID --language NAME`.
 Identical source bytes and version produce the same artifact identity; changed API metadata is retained as a new snapshot. This is a source snapshot,
-not synchronization, a Figma plugin, or an approved design standard. Raster previews, variables,
-comments and model-based interpretation of the raw layout are not implemented here.
+not synchronization, a Figma plugin, or an approved design standard. Optional PNG node renders, live variables and comments are available through explicit flags.
+Model-based semantic interpretation of images/layout is not implemented.
 
 ## Company learning: one service, separate evidence and authority
 
@@ -66,3 +66,32 @@ Still required from the existing Company deployment owners: approved Figma accou
 publisher adapter and refresh schedule, Lauren's registered design scope/logical keys, and a
 verified end-to-end source change -> observation -> authorized ruling -> refreshed design input.
 This release does not claim that live learning or automatic Figma monitoring is connected.
+
+## Optional Figma evidence and Company publisher handoff
+
+```
+.venv/bin/kinbase-design figma pull --file-key FILE --version VERSION --render-node 1:2 --variables --comments
+.venv/bin/kinbase-design evidence-export --artifact ARTIFACT --out /private/company-corpus/design-evidence/observations-ARTIFACT.jsonl
+```
+
+Rendering is pinned to the captured file version and restricted to requested nodes present in
+that file. PNGs feed existing image sampling and visual-reference ingestion. API tokens never
+travel to image hosts. Failed/denied optional endpoints are reported as gaps without discarding
+the core snapshot. A partial pull is not complete evidence.
+
+Variables and comments endpoints return **live, unversioned** state, even when the document was
+requested at an older version. Their observation timestamps and this limitation are retained.
+Color variables preserve mode identity; same-mode aliases resolve without inventing cross-mode
+values. Other variable types and unresolved aliases remain raw source evidence. Comments stay in private artifacts until explicitly exported to the private Company corpus;
+a commenter name or Figma account ID is not automatically Company authority. Exports label
+comment text as unverified source observations and excerpts when bounded.
+
+Evidence export produces `design-evidence/1` JSONL for a corresponding adapter in the existing
+Company publisher. Records carry version/node/source identity, immutable artifact digest and
+machine authorship. Render references are evidence pointers and comment text is attributed source evidence, not semantic vision claims
+or automatic design rulings. Status is `prepared-not-submitted`; neither source acquisition nor
+export contacts Kinbase. Do not place this evidence in the public design tool repository.
+Only the approved Company publisher should submit it with its existing capped machine standing.
+The publisher adapter and authorized deployment must be verified before claiming shared learning.
+Lauren's delegated design authority requires the Company policy to support it; never relabel her
+as founder or infer authority from a typed name.

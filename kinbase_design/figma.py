@@ -94,7 +94,7 @@ def tokens_from(document):
     return tokens
 
 
-def snapshot(workspace, file_key, version=None, api=None):
+def snapshot(workspace, file_key, version=None, api=None, nodes=(), variables=False, comments=False):
     """Fetch a versioned source and feed observed tokens into existing import/draft."""
     file_key = identifier(file_key)
     if version:
@@ -112,10 +112,14 @@ def snapshot(workspace, file_key, version=None, api=None):
     if tokens:
         child = import_bytes(workspace, encode(tokens), 'tokens.json', 'dtcg')
         children.append({'artifact': child, 'location': 'tokens.json'})
-    artifact = import_bundle(workspace, {'figma.json': encode(source), 'tokens.json': encode(tokens)},
+    from .figma_extra import acquire
+    files, extras, observations, gaps = acquire(api, workspace, file_key, actual, source['document'], nodes, variables, comments)
+    children.extend(extras)
+    files.update({'figma.json': encode(source), 'tokens.json': encode(tokens), 'observations.json': encode(observations)})
+    artifact = import_bundle(workspace, files,
                              'figma-export', {'children': children, 'source': {'provider': 'figma',
-                             'file_key': file_key, 'version': actual}, 'authority': 'observation-only'})
+                             'file_key': file_key, 'version': actual}, 'authority': 'observation-only', 'observations': observations, 'gaps': gaps})
     return {'artifact': artifact, 'version': actual, 'observed_token_groups': len(tokens),
             'learning': 'Not submitted to Kinbase; source observations are not approved standards',
-            'gaps': ['Raster previews, Figma variables and comments are not imported',
-                     'Layout remains raw source evidence; only observed solid fills and text styles feed draft']}
+            'gaps': gaps + ['Visual references feed existing image sampling; semantic vision interpretation is not enabled',
+                            'Comments are private observations, not approved standards']}

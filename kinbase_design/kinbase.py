@@ -218,7 +218,8 @@ def submit(library,text,kind,settings=None):
     repo=configured_repo(library,settings)
     result=command(['kin','kinbase','submit','--repo',str(repo),'--type',kind,text,'--json'],cwd=repo)
     return {'status':'received' if result['ok'] else 'not sent (Kinbase command failed)',
-            'receipt':result['receipt'],'error':result.get('error'),'stderr':result.get('stderr','')}
+            'receipt':result['receipt'],'error':result.get('error'),'stderr':result.get('stderr',''),
+            'delivery_scope':'repository-evidence', 'company_publication':'not-verified', 'adoption':'not-verified'}
 
 
 def ask(library,question_id,settings=None):

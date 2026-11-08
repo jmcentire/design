@@ -70,6 +70,12 @@ def parser():
     figma.add_argument('action', choices=['identity', 'pull'])
     figma.add_argument('--file-key')
     figma.add_argument('--version')
+    figma.add_argument('--render-node', action='append', default=[])
+    figma.add_argument('--variables', action='store_true')
+    figma.add_argument('--comments', action='store_true')
+    evidence = commands.add_parser('evidence-export', parents=[common])
+    evidence.add_argument('--artifact', required=True)
+    evidence.add_argument('--out', required=True)
     generate = commands.add_parser('generate', parents=[common])
     actions = generate.add_subparsers(dest='generate_action', required=True)
     for name in ('start','interview','moodboard','pair','choose','settled','derive'):
@@ -97,14 +103,17 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'figma':
+        if args.command == 'evidence-export':
+            from .design_evidence import export
+            output(export(workspace, args.artifact, args.out))
+        elif args.command == 'figma':
             from . import figma
             if args.action == 'identity':
                 identity = figma.client().get('me')
                 output({k: identity.get(k) for k in ('id', 'handle', 'email')})
             else:
                 if not args.file_key: raise ValueError('figma pull requires --file-key')
-                output(figma.snapshot(workspace, args.file_key, args.version))
+                output(figma.snapshot(workspace, args.file_key, args.version, nodes=args.render_node, variables=args.variables, comments=args.comments))
         elif args.command == 'generate':
             from . import generate
             action=args.generate_action
