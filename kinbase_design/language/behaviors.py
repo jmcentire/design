@@ -36,7 +36,7 @@ def validate_behaviors(document, vocabulary, issue):
             continue
         try:
             scope = parse_scope(behavior.get('scope'), vocabulary)
-            if scope.state or scope.breakpoint:
+            if scope.state or scope.breakpoint or scope.heading:
                 raise ValueError('Behavior scope must target a construct or slot')
         except (ValueError, TypeError) as exc:
             issue('R1', p + '/scope', behavior.get('scope'), 'construct[.slot]', str(exc))

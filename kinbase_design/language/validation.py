@@ -7,8 +7,8 @@ from ..assets import KINDS, FORMATS, HASH_FILE, asset_path, background_binding
 from ..findings import Finding, pointer, report, location
 from ..storage import ID, load_language
 from .tokens import Tokens, ALIAS, is_number, GradientError
-from .properties import TOKEN_PROPERTIES, SPACE_PROPERTIES, KEYWORDS, OPTIONAL_KEYWORDS, LAYOUT_PROPERTIES, layout_value, LayoutValueError
-from .resolver import parse_scope, resolve, property_pointer
+from .properties import TOKEN_PROPERTIES, SPACE_PROPERTIES, KEYWORDS, OPTIONAL_KEYWORDS, LAYOUT_PROPERTIES, layout_value, fluid_width, LayoutValueError
+from .resolver import Resolver, parse_scope, property_pointer
 from .variants import Template
 from .behaviors import validate_behaviors
 
@@ -50,6 +50,10 @@ class Validator:
                     self.issue('content-hidden',p,value,'content-bearing constructs, slots and parts must remain rendered')
             elif key in OPTIONAL_KEYWORDS and isinstance(value,str) and value in OPTIONAL_KEYWORDS[key]:
                 continue
+            elif key=='width' and self.vocab.get('content_pages') and isinstance(value,str) and value.startswith('calc('):
+                try:fluid_width(self.tokens,value)
+                except (KeyError,ValueError,TypeError) as exc:
+                    self.issue('R2',p,value,'a closed fluid width backed by a nonnegative dimension token',str(exc))
             elif key in LAYOUT_PROPERTIES:
                 try:layout_value(self.tokens,key,value)
                 except (KeyError,ValueError,TypeError) as exc:
@@ -329,6 +333,10 @@ class Validator:
         assets=self.doc.get('assets',{})
         if not isinstance(assets,dict) or not any(isinstance(asset,dict) and asset.get('kind')=='font' for asset in assets.values()):
             return  # Asset references were checked above; no supplied faces to compare.
+        try:resolver = Resolver(self.doc, self.vocab)
+        except (KeyError, ValueError, TypeError, AttributeError):
+            if self.findings:return
+            raise
         breakpoints = [None]
         for path in self.tokens.nodes:
             if path.startswith('breakpoint.'):
@@ -348,7 +356,7 @@ class Validator:
                 for state in contract['states']:
                     for bp in breakpoints:
                         try:
-                            values = resolve(self.doc, self.vocab, scope, state, bp)['properties']
+                            values = resolver.resolve(scope, state, bp)['properties']
                             family = values.get('font-family')
                             if not family:
                                 continue

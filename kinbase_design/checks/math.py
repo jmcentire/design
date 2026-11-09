@@ -136,6 +136,11 @@ def css_equal(property, expected, observed, font_size, root_size, *, blockified=
         return expected.replace(' ','')==str(observed).replace(' ','') or expected=='auto' and observed=='auto / auto'
     if expected=='auto' and property in {'margin-inline','width','height','min-width'} and observed!='auto':
         return None  # Computed used sizes cannot establish an authored auto value.
+    if property=='width' and isinstance(expected,str) and expected.startswith('calc(100% - '):
+        if expected==observed:return True
+        # A used pixel width alone does not identify its percentage basis or
+        # min/max/flex constraints; do not misreport it as a different treatment.
+        return None
     if property == 'background-image':
         return background_equal(expected, observed)
     if property in {'color','background-color','border-color','outline-color'}:

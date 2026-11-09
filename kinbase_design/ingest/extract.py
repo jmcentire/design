@@ -7,21 +7,25 @@ import math
 import re
 from ..config import INGEST_DEFAULT_SPACE, INGEST_FULL_RADIUS_PX, IngestConfig, CHECK_TEXT_CONTRAST, CHECK_TARGET_SIZE
 from ..checks.math import effective_background, color, contrast
-from ..language.resolver import resolve
+from ..language.resolver import resolve,property_pointer
 from .presentation import literal_node
-from ..findings import pointer
+from ..findings import pointer,location
 from ..language.properties import KEYWORDS, SPACE_PROPERTIES, CONTROL_TEXT_PROPERTIES, property_value
-from ..language.tokens import Tokens, normalize
+from ..language.tokens import Tokens, normalize,ALIAS
 from ..vocabulary import slot_map
 from .mapping import map_view, semantic_role
-from .provenance import values, source, complete
+from .provenance import values, source, complete,record_at
 from .quantize import measurements, hex_color, delta_e, px, scale, spacing_base, full_radius
 from .question_quality import role_sizes, size_choices, deduplicate
 
 
 def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
     settings=settings or IngestConfig()
-    facts=measurements(sources['views'],sources['colors'],settings);provenance={};notes=[];questions=[]
+    from .composition import main_flow,transfer,correction,corrections_with_questions
+    sources,notes=main_flow(sources)
+    from .centering import viewport_centres,portable as portable_centering
+    centres=viewport_centres(sources['views']) if vocabulary.get('measure_minimum_em') else set()
+    facts=measurements(sources['views'],sources['colors'],settings);provenance={};questions=[];corrections=[]
     for key,entries in sources.get('source_facts',{}).items():
         tolerance=settings.radius_px if key=='radii' else settings.spacing_px if key=='spacing' else settings.type_size_px
         if not facts[key] and entries:facts[key]=list(dict.fromkeys(entries)) if key=='font_families' else scale(entries,tolerance)
@@ -321,13 +325,16 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         for item in view['instances']:
             scope=item['construct']
             item['treatment']={'properties':properties(view,item['root_node'],True) if item.get('root_node') else {},'slots':{}}
+            nav_links=[]
             if scope=='nav':
-                surfaces={effective_background(n.get('backgrounds',[])) for n in item['nodes'].values()}
-                surfaces.discard(None)
-                if len(surfaces)==1:
-                    painted=next(iter(surfaces));witness=next(iter(item['nodes'].values()))
-                    item['treatment']['properties']['background-color']=color_token('#'+''.join(f'{round(c*255):02x}' for c in painted[:3]),origin(view,witness,'backgrounds'))
+                from .navigation import evidence as navigation_evidence
+                nav_links,band=navigation_evidence(view,item)
+                if band:
+                    # Only an enclosing band's own paint establishes the nav
+                    # surface; the links keep their own foreground and fill.
+                    item['treatment']['properties']['background-color']=properties(view,band,True)['background-color']
             if scope=='card':
+                card_surface=item['root_node']
                 owned=[n for n in view.get('structure',view['nodes']) if n['selector'].startswith(item['selector']+' > ')]
                 anchors=[n['selector'] for n in item['nodes'].values() if n['tag'] not in {'a','button'}]
                 surfaces=[n for n in owned if n['tag'] in {'div','article'} and anchors and all(s==n['selector'] or s.startswith(n['selector']+' > ') for s in anchors)
@@ -338,7 +345,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                     item['treatment']['properties'].update({k:v for k,v in measured.items() if k in {'background-color','border-color','border-width','border-style','border-radius','box-shadow','display','flex-direction','gap','padding','padding-inline','padding-block'}})
             if item.get('root_node'):
                 existing=treatments.setdefault((scope,view['width']),{})
-                for key,val in item['treatment']['properties'].items():existing.setdefault(key,val)
+                for key,val in portable_centering(view,item['root_node'],item['treatment']['properties'],centres,notes).items():existing.setdefault(key,val)
             for slot,node in item['nodes'].items():
                 props=properties(view,node)
                 # A media slot wraps an image; its captured fixed pixel width is
@@ -346,6 +353,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                 definition=slot_map(vocabulary['constructs'][scope])[slot]
                 if definition['kind']=='media' and definition.get('asset_kind')!='logo':
                     props.pop('width',None);props.update(media_treatment(node))
+                    if 'word-break' in vocabulary.get('composition_rules',[]):props['display']='block'
                     box=node.get('box');container=item.get('box')
                     if box and box[2]>0 and (scope=='card' or container and box[2]<container[2]*.6):
                         # A captured card image is a measured bound even when
@@ -355,7 +363,8 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                 if slot=='links':props={k:v for k,v in props.items() if k in CONTROL_TEXT_PROPERTIES}
                 item['treatment']['slots'][slot]={'properties':props}
                 if not literal_node(node):
-                    portable=deepcopy(props)
+                    portable=portable_centering(view,node,deepcopy(props),centres,notes)
+                    if definition['kind']=='action':portable.pop('width',None)
                     if definition['role'] in {'title','subtitle'} and semantic_role(node) not in {'title','subtitle'}:
                         # Keep measured paragraph styling in fidelity, not in the
                         # reusable heading slot. Its declared role owns hierarchy.
@@ -365,16 +374,23 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                 if scope=='hero' and slot=='title' and not literal_node(node) and 'background-color' in props:
                     treatments[(scope,view['width'])]['background-color']=treatments[(scope+'.'+slot,view['width'])]['background-color']
             if scope in {'nav','footer'} and 'link' in vocabulary['constructs'][scope].get('parts',{}):
-                links=[n for n in view.get('structure',view['nodes']) if n['tag']=='a' and n['selector'].startswith(item['selector']+' > ')]
+                links=nav_links if scope=='nav' else [n for n in view.get('structure',view['nodes']) if n['tag']=='a' and n['selector'].startswith(item['selector']+' > ')]
                 if links:
-                    native=paint_pair(view,links[0],properties(view,links[0]));portable={k:v for k,v in native.items() if k in CONTROL_TEXT_PROPERTIES|{'background-color','border-color','border-style','border-width','border-radius','padding','padding-inline','padding-block'}}
+                    # The surrounding surface establishes contrast, not the
+                    # link's own paint. Preserve its measured transparency.
+                    native=properties(view,links[0]);portable={k:v for k,v in native.items() if k in CONTROL_TEXT_PROPERTIES|{'background-color','border-color','border-style','border-width','border-radius','padding','padding-inline','padding-block'}}
                     treatments.setdefault((scope+'~link',view['width']),portable)
             for fragments in item.get('fragments',{}).values():
                 for fragment in fragments:
                     node=fragment.pop('node')
                     fragment['properties']={k:v for k,v in properties(view,node).items() if k in CONTROL_TEXT_PROPERTIES}
+            if scope=='card' and vocabulary.get('composition_rules'):
+                from .reconstruction_card import treatment as card_reconstruction
+                card_reconstruction(item,view,card_surface,token,origin)
 
         if view['unmapped']:notes.append({'rule':'ingest-mapping','message':f'{view["page"]}@{view["width"]}: {len(view["unmapped"])} elements have no matching Vocabulary slot','locations':view['unmapped']})
+    if vocabulary.get('content_pages'):
+        transfer(document,vocabulary,mappings,treatments,properties,token,space_token,origin,questions,notes,corrections,facts['spacing_base'],principal_groups)
     for scope in sorted({scope for scope,width in treatments}):
         prior={}
         for (target,width),treatment in sorted(treatments.items(),key=lambda item:item[0][1]):
@@ -412,8 +428,12 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         treatment={k:v for k,v in properties(view,node).items() if k in CONTROL_TEXT_PROPERTIES|{'background-color','border-color','border-width','border-style','border-radius','padding','padding-inline','padding-block'}}
         for name,spec in vocabulary['constructs'].items():
             for slot in spec['slots']:
-                if slot['kind']=='action' and slot['element'] in {'a','button'} and not any((name+'.'+slot['id'],v['width']) in treatments for v in mappings):
-                    document['components'].setdefault(name,{}).setdefault('slots',{}).setdefault(slot['id'],{})['properties']=deepcopy(treatment)
+                observed=any((name+'.'+slot['id'],v['width']) in treatments for v in mappings)
+                if 'word-break' in vocabulary.get('composition_rules',[]):
+                    observed=any(i['construct']==name and (slot['id'] in i['nodes'] or slot['id'] in i.get('action_items',{})) for v in mappings for i in v['instances'])
+                if slot['kind']=='action' and slot['element'] in {'a','button'} and not observed:
+                    current=document['components'].setdefault(name,{}).setdefault('slots',{}).setdefault(slot['id'],{}).setdefault('properties',{})
+                    for key,value in treatment.items():current.setdefault(key,deepcopy(value))
     for width in facts['breakpoints']:
         document['style'].setdefault('breakpoint',{}).setdefault('w'+format(width,'g').replace('.','-'),{'$type':'dimension','$value':f'{width:g}px'})
     def ask(ref,construct,choices):
@@ -458,12 +478,54 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
             template='<article>{{slot:media}}<div data-kd-part="content">'+''.join('{{slot:'+slot+'}}' for slot in slots if slot!='media')+'</div></article>'
             document['layout']['variants'][construct]={'captured-side':{'template':template}}
             card=document['components'].setdefault(construct,{});card['variant']='captured-side'
-            card.setdefault('parts',{})['content']={'display':'flex','flex-direction':'column'}
+            card.setdefault('parts',{}).setdefault('content',{}).update({'display':'flex','flex-direction':'column'})
     # Reusable constructs need readable defaults even for slots absent from the
     # source page. Work at each declared width so responsive paints stay paired.
+    if vocabulary.get('composition_rules') and not any(scope=='collection.items' for scope,width in treatments):
+        items=document['components'].setdefault('collection',{}).setdefault('slots',{}).setdefault('items',{}).setdefault('properties',{})
+        items.update({'display':'grid','grid-template-columns':'1fr','gap':space_token(facts['spacing_base']*2,{'kind':'inferred','method':'Unmeasured collection rhythm','inputs':[]})})
+        document['style'].setdefault('breakpoint',{})['collection']={'$type':'dimension','$value':'768px'}
+        index=len(document['overrides'])
+        document['overrides'].append({'scope':'collection.items@collection','properties':{'grid-template-columns':'repeat(2, 1fr)'},
+                                      'reason':'No repeated collection measured; inferred two-column desktop composition'})
+        questions.append({'pointer':pointer('overrides',index,'properties','grid-template-columns'),'construct':'collection','state':'default',
+                          'values':['repeat(2, 1fr)','1fr','repeat(3, 1fr)'],'reason':'No repeated collection establishes its columns; review the inferred desktop layout'})
     breakpoint_tokens=Tokens(document['style'])
     breakpoints=[None]+[name for _,name in sorted((breakpoint_tokens.breakpoint(name.removeprefix('breakpoint.')),name.removeprefix('breakpoint.')) for name in breakpoint_tokens.nodes if name.startswith('breakpoint.'))]
     def effective(scope,bp):return {k:v['value'] for k,v in resolve(document,vocabulary,scope,breakpoint=bp)['properties'].items()}
+    def measured_value(scope,bp,prop,actual):
+        """Find a captured witness, falling back to token/geometry provenance."""
+        construct,_,slot=scope.partition('.');construct,_,part=construct.partition('~')
+        width=Tokens(document['style']).breakpoint(bp) if bp else min((v['width'] for v in mappings),default=0)
+        views=sorted((v for v in mappings if v['width']<=width),key=lambda v:v['width'],reverse=True)
+        aliases={'padding-inline':'padding-left','padding-block':'padding-top'}
+        for view in views:
+            for item in view['instances']:
+                if item['construct']!=construct:continue
+                nodes=([item['nodes'][slot]] if slot in item['nodes'] else []) if slot else [item.get('root_node',{})]
+                if part:nodes=[n for n in view.get('structure',view['nodes']) if n['selector'].startswith(item['selector']+' > ')]
+                for node in nodes:
+                    raw=node.get('styles',{}).get(prop,node.get('styles',{}).get(aliases.get(prop)))
+                    if raw is not None and (raw==actual or px(raw) is not None and px(raw)==px(actual)):
+                        return node['selector'],raw
+        detail=resolve(document,vocabulary,scope,breakpoint=bp)['properties'].get(prop)
+        if detail:
+            path=property_pointer(document,vocabulary,prop,detail);raw=location(document,path)[1]
+            match=ALIAS.fullmatch(raw) if isinstance(raw,str) else None
+            if match:path=pointer('style',*match[1].split('.'),'$value')
+            def witness(entry):
+                if not isinstance(entry,dict):return None
+                if entry.get('location','').startswith('selector:'):
+                    selector,_,source_prop=entry['location'][9:].partition('; ');source_prop=source_prop.split('; ',1)[0]
+                    # A quantized spacing token still reports its original CSS
+                    # measurement. Geometry-derived values retain their metric.
+                    for view in views:
+                        for node in view.get('structure',view['nodes']):
+                            raw=node.get('styles',{}).get(source_prop)
+                            if node['selector']==selector and raw is not None:return selector,raw
+                    return selector,actual
+                return next((s for item in entry.get('inputs',[]) if (s:=witness(item))),None)
+            return witness(record_at(provenance,path))
     def put_treatment(scope,bp,props,method):
         current=effective(scope,bp);tokens=Tokens(document['style'])
         props={key:value for key,value in props.items() if property_value(document,tokens,key,value)!=current.get(key)}
@@ -511,11 +573,73 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         line=props.get('line-height');line_px=line*(px(props.get('font-size')) or base_size) if isinstance(line,(int,float)) else px(line)
         if (line_px or 0)<CHECK_TARGET_SIZE:result['line-height']=token('dimension',f'{CHECK_TARGET_SIZE:g}px')
         return result
+    def composition_minimum(scope,bp,prop,minimum,props,rule=None):
+        from .composition import pixels
+        if prop=='gap' and any(axis in props for axis in ('row-gap','column-gap')):
+            return {key:value for axis in ('row-gap','column-gap') for key,value in composition_minimum(scope,bp,axis,minimum,props,rule).items()}
+        actual=pixels(props.get(prop,props.get('padding' if prop.startswith('padding') else 'gap')))
+        if actual is not None and actual>=minimum:return {}
+        value=math.ceil(minimum/facts['spacing_base'])*facts['spacing_base']
+        name='composition-'+scope.replace('.','-').replace('~','-')+'-'+prop+'-'+(bp or 'base')
+        document['style'].setdefault('space',{})[name]={'$type':'dimension','$value':f'{value:g}px'}
+        questions.append({'pointer':pointer('style','space',name,'$value'),'construct':scope.split('.')[0].split('~')[0],
+                          'state':'default','values':list(dict.fromkeys([f'{value:g}px',f'{actual:g}px' if actual is not None else f'{value+facts["spacing_base"]:g}px'])),
+                          'reason':f'{prop} is '+('unmeasured' if actual is None else f'{actual:g}px')+f'; infer the nearest spacing-scale value meeting the {minimum:g}px composition minimum'})
+        if prop!='padding-block' and actual is not None and (witness:=measured_value(scope,bp,prop,f'{actual:g}px')):
+            correction(corrections,questions[-1],rule or ('text-inset' if prop.startswith('padding') else 'control-separation'),
+                       *witness,f'{value:g}px')
+        return {prop:'{space.'+name+'}'}
     for bp in breakpoints:
         canvas=color(effective('page-shell',bp).get('background-color',Tokens(document['style']).reference(base['surface'])[1])) or color('#ffffff')
         for construct,spec in vocabulary['constructs'].items():
             root=effective(construct,bp)
+            state_surfaces=[]
+            if vocabulary.get('content_pages'):
+                adjustments={}
+                state_surfaces=[Tokens(document['style']).reference(s['background-color'])[1]
+                                for s in document['components'].get(construct,{}).get('states',{}).values() if 'background-color' in s]
+                if root.get('background-color') or (px(root.get('border-width')) or 0)>0 or state_surfaces:
+                    inner=effective(construct+'~content',bp) if 'content' in spec.get('parts',{}) else {}
+                    if (px(inner.get('padding-inline',inner.get('padding'))) or 0)<8:
+                        if construct in {'card','listing-card'} and 'gutter' in vocabulary.get('composition_rules',[]) and (px(root.get('padding-inline',root.get('padding'))) or 0)==0:
+                            put_treatment(construct+'~content',bp,composition_minimum(construct+'~content',bp,'padding-inline',8,inner),'Single text inset within full-bleed items')
+                        else:adjustments.update(composition_minimum(construct,bp,'padding-inline',8,root))
+                    if 'word-break' in vocabulary.get('composition_rules',[]) and construct in {'hero','content-section'}:
+                        adjustments.update(composition_minimum(construct,bp,'padding-block',8,root))
+                if construct in {'nav','footer'}:
+                    adjustments.update({'display':'flex','flex-wrap':'wrap','align-items':'center'})
+                if construct in {'form','search-bar','gallery'} and root.get('display') not in {'grid','inline-grid','flex','inline-flex'}:
+                    adjustments['display']='grid'
+                if construct in {'nav','footer','hero','content-section','form','search-bar','gallery'}:
+                    adjustments.update(composition_minimum(construct,bp,'gap',4,root))
+                display_witness=measured_value(construct,bp,'display',root.get('display')) if adjustments.get('display')=='grid' else None
+                put_treatment(construct,bp,adjustments,'Composition gutters and control separation')
+                if adjustments.get('display')=='grid':
+                    detail=resolve(document,vocabulary,construct,breakpoint=bp)['properties']['display']
+                    questions.append({'pointer':property_pointer(document,vocabulary,'display',detail),
+                                      'construct':construct,'state':'default','values':['grid','flex'],
+                                      'reason':'Infer a group layout that applies the measured gap between adjacent controls'})
+                    if display_witness:correction(corrections,questions[-1],'control-separation',*display_witness,'grid')
+                for part in ('content','actions'):
+                    if part not in spec.get('parts',{}):continue
+                    scope=construct+'~'+part;part_props=effective(scope,bp)
+                    adjustments=composition_minimum(scope,bp,'gap',4,part_props)
+                    adjustments.update({'display':'flex','flex-direction':'row' if part=='actions' else 'column'})
+                    if part=='actions':adjustments.update({'flex-wrap':'wrap','align-items':'center'})
+                    put_treatment(scope,bp,adjustments,'Measured group flow with minimum control separation')
+                if 'links' in slot_map(spec):
+                    scope=construct+'.links';props=effective(scope,bp)
+                    put_treatment(scope,bp,{'display':'flex','flex-wrap':'wrap',**composition_minimum(scope,bp,'gap',4,props)},'Separated navigation targets')
+                if construct=='collection' and 'gutter' in vocabulary.get('composition_rules',[]):
+                    scope='collection.items';props=effective(scope,bp)
+                    put_treatment(scope,bp,composition_minimum(scope,bp,'gap',8,props,'gutter'),'Measured repeated-group gutters with an 8px minimum')
+                root=effective(construct,bp)
             root_bg=effective_background([{'color':root.get('background-color','#00000000'),'image':'none'},{'color':'#'+''.join(f'{round(c*255):02x}' for c in canvas[:3]),'image':'none'}])
+            content_bg=root_bg
+            if 'gutter' in vocabulary.get('composition_rules',[]) and construct in {'card','listing-card'}:
+                inner=effective(construct+'~content',bp)
+                content_bg=effective_background([{'color':inner.get('background-color','#00000000'),'image':'none'},
+                    {'color':'#'+''.join(f'{round(c*255):02x}' for c in root_bg[:3]),'image':'none'}])
             put_treatment(construct,bp,{'outline-color':focus_color(canvas)},'Focus outline contrast inferred against the surrounding page surface')
             for slot in spec['slots']:
                 scope=construct+'.'+slot['id'];props=effective(scope,bp);updates={}
@@ -525,18 +649,23 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                         if bp is None:notes.append({'rule':'ingest-media','message':scope+': no measured media proportion; a bounded neutral proportion and cover fit are inferred'})
                     if construct=='hero' and 'max-width' not in props:updates.update({'max-width':token('dimension','48rem'),'margin-inline':'auto'})
                 else:
-                    bg=effective_background([{'color':props.get('background-color','#00000000'),'image':'none'},{'color':'#'+''.join(f'{round(c*255):02x}' for c in root_bg[:3]),'image':'none'}])
+                    bg=effective_background([{'color':props.get('background-color','#00000000'),'image':'none'},{'color':'#'+''.join(f'{round(c*255):02x}' for c in content_bg[:3]),'image':'none'}])
                     if slot.get('asset_kind')=='logo':
                         # Logo slots also contain the content site's text name.
                         # An icon's own fill does not establish that text color.
                         props['color']=root.get('color',effective(construct+'.links',bp).get('color',props.get('color'))) if 'links' in slot_map(spec) else root.get('color',props.get('color'))
                         updates['color']=token('color',props['color'])
                     updates.update(readable(scope,bp,props,bg))
-                    surrounding=root_bg if slot['kind'] in {'action','control'} or slot.get('asset_kind')=='logo' else bg
+                    surrounding=content_bg if slot['kind'] in {'action','control'} or slot.get('asset_kind')=='logo' else bg
                     updates['outline-color']=focus_color(surrounding)
                     if slot.get('asset_kind')=='logo' and (px(props.get('width')) or 96)<96:updates['width']=token('dimension','96px')
                 if slot['kind']=='action' and slot['element'] in {'a','button'} or slot.get('asset_kind')=='logo':
                     updates.update(target_dimensions(props))
+                    updates.update({'align-self':'start','justify-self':'start'})
+                if slot['kind']=='text' and ((px(props.get('border-width')) or 0)>0 or
+                    props.get('background-color') and (paint:=color(props['background-color'])) and paint[3]>0 and
+                    (paint!=content_bg or any(color(surface)!=paint for surface in state_surfaces))):
+                    updates.update(composition_minimum(scope,bp,'padding-inline',8,props))
                 put_treatment(scope,bp,updates,'Readable contextual paint and minimum target dimensions inferred from captured treatments')
             if 'link' in spec.get('parts',{}):
                 scope=construct+'~link';props=effective(scope,bp)
@@ -545,9 +674,14 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                 updates['outline-color']=focus_color(root_bg)
                 updates.update(target_dimensions(props))
                 put_treatment(scope,bp,updates,'Native navigation links retain measured styling with usable target dimensions')
+    for question in questions:
+        if any(c['pointer']==question['pointer'] for c in corrections):
+            chosen=location(document,question['pointer'])[1]
+            if chosen not in question['values']:question['values'].insert(0,chosen)
     questions=deduplicate(document,questions)
     for index,q in enumerate(questions,1):
         q['id']='question-'+str(index)
         q['candidates']=[{'id':'candidate-'+str(n),'value':v} for n,v in enumerate(q.pop('values'),1)]
     return {'document':document,'provenance':complete(document,provenance,[a.get('artifact') for a in sources['tokens']]+list(dict.fromkeys(v['artifact'] for v in sources['views']))),
-            'facts':facts,'mappings':[{k:v for k,v in view.items() if k!='structure'} for view in mappings],'questions':questions,'notes':notes,'mapping':'heuristic'}
+            'facts':facts,'mappings':[{k:v for k,v in view.items() if k!='structure'} for view in mappings],'questions':questions,'notes':notes,'mapping':'heuristic',
+            'excluded':sources['excluded'],'corrections':corrections_with_questions(document,corrections,questions)}

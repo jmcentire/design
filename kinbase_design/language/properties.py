@@ -34,6 +34,8 @@ for choices in KEYWORDS.values():
 
 def property_value(document, tokens, name, value):
     """Single value-computation path for root, slot, role, override and part CSS."""
+    if name=='width' and document.get('vocabulary')!='v1' and isinstance(value,str) and value.startswith('calc('):
+        return fluid_width(tokens,value)
     if name in KEYWORDS:
         return value
     if name in OPTIONAL_KEYWORDS and isinstance(value,str) and value in OPTIONAL_KEYWORDS[name]:
@@ -53,21 +55,31 @@ from .tokens import ALIAS
 LAYOUT_PROPERTIES = {'grid-template-columns','grid-column','grid-row','aspect-ratio'}
 IMAGE_PROPERTIES = {'aspect-ratio','object-fit','object-position'}
 TOKEN_PROPERTIES.update({'column-gap':{'dimension'},'row-gap':{'dimension'},
+                         'margin-block-start':{'dimension'},'margin-block-end':{'dimension'},
                          'margin-inline':{'dimension'},'box-shadow':{'shadow'}})
-SPACE_PROPERTIES.update({'column-gap','row-gap','margin-inline'})
+SPACE_PROPERTIES.update({'column-gap','row-gap','margin-inline','margin-block-start','margin-block-end'})
 KEYWORDS.update({
     'object-fit': {'contain','cover','fill','none','scale-down'},
     'object-position': {'center','top','bottom','left','right'},
     'align-self': {'auto','start','end','center','stretch'},
     'justify-self': {'auto','start','end','center','stretch'},
 })
-OPTIONAL_KEYWORDS = {'margin-inline':{'auto'},'box-shadow':{'none'}}
+OPTIONAL_KEYWORDS = {'margin-inline':{'auto'},'max-width':{'100%'},'box-shadow':{'none'}}
 
 
 class LayoutValueError(ValueError):
     def __init__(self, message, parts=()):
         self.parts = parts
         super().__init__(message)
+
+
+def fluid_width(tokens,value):
+    """One closed relative-width form; arbitrary CSS arithmetic is not accepted."""
+    match=re.fullmatch(r'calc\(100% - (\{[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\})\)',value)
+    if not match:raise LayoutValueError('calc(100% - {nonnegative-dimension-token})')
+    kind,amount=tokens.reference(match[1])
+    if kind!='dimension' or amount.startswith('-'):raise LayoutValueError('a nonnegative dimension token')
+    return 'calc(100% - '+amount+')'
 
 
 def layout_value(tokens, name, value):

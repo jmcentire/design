@@ -2,7 +2,7 @@
   const properties = args.properties;
   const all = [...document.body.querySelectorAll('*')].filter(e => !['SCRIPT','STYLE'].includes(e.tagName));
   const scope = e => {const slot=e.dataset.kdSlot,root=e.closest('[data-kd-construct]');return slot?(slot.includes('.')?slot:root.dataset.kdConstruct+'.'+slot):null;};
-  const target = e => {const slot=e.closest('[data-kd-slot]');return slot?scope(slot):e.closest('[data-kd-construct]')?.dataset.kdConstruct || 'page';};
+  const target = e => {const root=e.closest('[data-kd-construct]'),slot=e.closest('[data-kd-slot]');return slot&&slot.closest('[data-kd-construct]')===root?scope(slot):root?.dataset.kdConstruct || 'page';};
   const rect = e => {const r=e.getBoundingClientRect(); return [r.x+scrollX,r.y+scrollY,r.width,r.height];};
   const visible = e => {const r=e.getBoundingClientRect(),s=getComputedStyle(e);if(!(r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'))return false;for(let p=e;p;p=p.parentElement)if(parseFloat(getComputedStyle(p).opacity)===0)return false;return true;};
   const interactive = e => e.matches('a[href],button,input:not([type="hidden"]),textarea,select,summary,[tabindex]') && e.tabIndex>=0;
@@ -65,7 +65,7 @@
       const style=getComputedStyle(image);
       return {css:Object.fromEntries(properties.map(p=>[p,style.getPropertyValue(p)])),fontSize:parseFloat(style.fontSize)};
     }):null;
-    return {index,target:target(e),slot:scope(e),part:e.dataset.kdPart&&root?root.dataset.kdConstruct+'~'+e.dataset.kdPart:null,state:root?.dataset.kdState||'default',
+    return {index,target:target(e),slot:scope(e),heading:/^H[1-6]$/.test(e.tagName)?Number(e.tagName[1]):null,part:e.dataset.kdPart&&root?root.dataset.kdConstruct+'~'+e.dataset.kdPart:null,state:root?.dataset.kdState||'default',
       text,directText,visible:visible(e),blockified:blockified(e),box:rect(e),scroll:[e.scrollWidth,e.scrollHeight],
       css:Object.fromEntries(properties.map(p=>[p,s.getPropertyValue(p)])),fontSize,fontWeight,controlStyles,imageStyles,
       backgrounds:background(e),overImage,disabled,clipped,lineClamp:parseInt(s.webkitLineClamp)||0,
@@ -109,7 +109,8 @@
     }
     for(const e of all){const s=getComputedStyle(e);if(['row-reverse','column-reverse'].includes(s.flexDirection)||parseInt(s.order)!==0)preservation.push({target:target(e),kind:'content-reading-order',text:'Visual ordering differs from DOM ordering'});}
   }
-  return {nodes,preservation,contentPage:document.body.hasAttribute('data-kd-content'),rootSize:parseFloat(getComputedStyle(document.documentElement).fontSize),
+  const composition=(__COMPOSITION__)(all,{target,rect,visible,interactive,background,rules:args.compositionRules||[],measureMinimumEm:args.measureMinimumEm||0});
+  return {nodes,preservation,composition,contentPage:document.body.hasAttribute('data-kd-content'),rootSize:parseFloat(getComputedStyle(document.documentElement).fontSize),
     fonts:[...document.fonts].map(f=>({family:f.family,weight:f.weight,style:f.style,status:f.status})),
     pageWidth:Math.max(document.documentElement.scrollWidth,document.body.scrollWidth),
     text:document.body.innerText,

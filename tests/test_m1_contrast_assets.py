@@ -70,7 +70,10 @@ def test_text_on_image_or_gradient_is_unresolved_review(library, language, tmp_p
 def test_needs_review_alone_is_unresolved_but_does_not_block_acceptance(library, lantern, tmp_path):
     gradient = token(lantern, "probe", "uncertain", "gradient", [
         {"color": "#000000", "position": 0}, {"color": "#ffffff", "position": 1}])
-    slot_properties(lantern, slot="price")["background-image"] = gradient
+    slot_properties(lantern, slot="price").update({
+        "background-image": gradient,
+        "padding-inline": token(lantern, "space", "review-inset", "dimension", "8px"),
+    })
     library.write(lantern)
     report = run_check(library, tmp_path / "review-not-pass", "lantern", accepted=True)
     assert findings(report, "contrast", "listing-card.price", "needs-review"), report

@@ -49,8 +49,13 @@ def decode_backgrounds(page):
 
 def observe(page, vocabulary=None):
     source = Path(__file__).with_name('observe.js').read_text().replace(
-        '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
+        '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text()).replace(
+        '__COMPOSITION__', Path(__file__).with_name('composition.js').read_text()).replace(
+        '__READABILITY__', Path(__file__).with_name('readability.js').read_text()).replace(
+        '__BINDING__', Path(__file__).with_name('binding.js').read_text())
     snapshot = page.evaluate(source,{
+        'compositionRules':(vocabulary or {}).get('composition_rules',[]),
+        'measureMinimumEm':(vocabulary or {}).get('measure_minimum_em',0),
         'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys() | LAYOUT_PROPERTIES)-{'surface'}),
         'controlSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
                         for slot in contract['slots'] if slot['kind']=='control'],
@@ -166,7 +171,7 @@ def inspect(document, vocabulary, preview, output, widths):
         if 'engine' in locals(): engine.stop()
         raise BrowserUnavailable('Chromium is unavailable or cannot start: '+str(exc)[:1000]) from exc
     try:
-        for width in widths:
+        for width in sorted(widths) if 'word-break' in vocabulary.get('composition_rules',[]) else widths:
             snapshots={}
             for js in (False,True):
                 context=browser.new_context(java_script_enabled=js,viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},device_scale_factor=1)

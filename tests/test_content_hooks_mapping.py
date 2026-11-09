@@ -80,18 +80,23 @@ def test_hook_contract_round_trips_pages_and_exports(content_library, tmp_path):
     save_content(source, content)
     out = tmp_path / "page"
     doc = render(content_library, source, out)
-    contract_bytes = content_library.cli("hooks").stdout.encode()
+    page_contract = json.loads((out / "hooks.json").read_bytes())
+    version = page_contract["vocabulary"]
+    assert isinstance(version, str) and version
+    assert version == content_library.read("harbor")["vocabulary"]
+    contract_bytes = content_library.cli("hooks", "--vocabulary", version).stdout.encode()
     contract = json.loads(contract_bytes)
-    assert contract["vocabulary"] == "v2", "Content pages use the new content-capable vocabulary"
-    assert json.loads((out / "hooks.json").read_bytes()) == contract
+    assert contract["vocabulary"] == version
+    assert page_contract == contract
+    # Content capability comes from the published landmarks/blocks/constructs,
+    # checked below, rather than a particular version's spelling.
     assert_hooks(contract, doc)
     second = tmp_path / "second"
     render(content_library, source, second, "lantern")
     assert (out / "hooks.json").read_bytes() == (second / "hooks.json").read_bytes()
     # CLI serialization may have a final newline; JSON semantics establish CLI
     # agreement, and persisted bytes establish identical-vocabulary stability.
-    pinned = content_library.json("hooks", "--vocabulary", contract["vocabulary"])
-    assert pinned == contract
+    assert content_library.json("hooks", "--vocabulary", version) == contract
     for adapter in ("generic", "dtcg-tailwind"):
         target = tmp_path / adapter
         content_library.cli("export", "harbor", "--adapter", adapter, "--out", target)

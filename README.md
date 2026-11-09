@@ -101,6 +101,60 @@ text over imagery or gradients remains an unresolved contrast review.
 Browser operations and the whole worker process have configured time limits. Chromium startup
 failure is an environment error (exit 2), never an accepted report. OCR is not used.
 
+Vocabulary v3 adds rendered composition checks on sample pages and `check --content` at every requested
+width. `heading-scale` compares each heading to the smallest heading of the preceding level and
+to the paragraph font size carrying the most text. `text-inset` measures text line boxes against
+painted surfaces and visible border edges, requiring 8px horizontally; links and buttons use target
+checks instead. `control-separation` requires 4px between distinct interactive targets when either
+has a painted boundary. At widths of 1024px and above, `measure` limits paragraphs with at least
+60 characters to 40em. These are violations with measured values, construct/slot pointers and
+page/width occurrences, grouped like the existing findings; no new exception mechanism is added.
+Vocabulary v4 adds `word-break`: a word (letters or digits between spaces or punctuation)
+must occupy one rendered line box. If its natural width at the smallest checked viewport exceeds
+the content width of its containing main column, a split word produces `needs-review`.
+The column is the nearest real side-by-side grid/flex item, or the page's `main` landmark;
+its padding and borders are excluded. Narrow nested blocks do not create an exemption,
+and a wider viewport does not enlarge that column. `label-proximity` checks each `dd` against its preceding
+and following `dt`: its own label must be closer, using vertical gaps for stacked boxes and
+horizontal gaps for boxes on the same row. Both rules use the same pointers and occurrence grouping.
+Word-break `measured` records retain `word`, `word_width` (at the reported viewport),
+`available_width` (at the smallest checked viewport), `smallest_width`, and `line_boxes`.
+A split word is `needs-review` when its width at that smallest viewport exceeds the available
+width there; otherwise it is a violation. Grouped findings keep the first measurement at the
+top level and each occurrence's measurement, page and width under `evidence`.
+Vocabulary v6 adds `heading-binding`: a heading with visible preceding and following blocks
+inside its construct must have a smaller vertical gap after it than before it; equal gaps fail.
+`gutter` requires at least 8px between painted repeated siblings, horizontally when side by
+side and vertically when stacked. Both apply on samples and content pages at every checked
+width, with measured gaps and the same finding pointers and occurrence grouping.
+Vocabulary v7 extends `measure` for paragraphs of 60 or more characters at every checked
+width: a paragraph violates the lower bound only when it is both narrower than 15em and
+narrower than two thirds of its containing column. The containing column is the border box
+of the nearest ancestor that is a grid item or an item in a row-direction flex container and shares its row with another visible
+item beside it. Otherwise it is the content box of the page's `main` landmark. Single-column
+stacks do not qualify. Ordinary panel padding is allowed; a paragraph squeezed below both
+thresholds is a violation. Findings include the paragraph and column widths and the column's semantic target. The 40em desktop maximum still applies.
+The published v1–v6 vocabulary files remain unchanged. Shipped languages and new drafts use v7;
+explicitly selected older vocabularies retain their versioned preview and check behavior.
+
+V3 and later paragraphs default to `max-width: 40em` in the low-priority defaults layer. A language can
+override a paragraph hook's `max-width` (for example, `hero.body`) to choose another measure;
+the rendered `measure` rule still checks the resulting width. The `actions` part in the v3 and later
+hero and content-section templates groups their action links in a wrapping flex row with a
+default `1rem` gap. Override it through `construct~actions`, such as `hero~actions` or
+`content-section~actions`, to change spacing or arrangement. Cards currently place their single
+action in the `content` part; `card~content` controls spacing between that action and card text.
+All these defaults yield to resolved language treatments. Missing-image placeholder text wraps
+within its padded box; v4 checks whether the chosen media column breaks a word.
+V5 publishes each facts wrapper as `data-kd-part="pair"`, listed in `hooks` and addressable as
+`construct~pair[@bp]`. Content-page facts are stacked `dt`/`dd` pairs, with no internal gap and a default `1rem`
+gap between pairs. Override `card~pair` for spacing inside each pair (`gap` with grid/flex, or padding) and
+`card.meta` for spacing between pairs (`gap`/`row-gap`). For side-by-side labels and values, set
+`display: flex` and `flex-direction: row` on `card~pair`, or use two grid columns. The pair
+gap must be smaller than the gap to the next label. V4 retains its original `fact` part name.
+Listing-card samples have a `content` part and use the collection hooks, so measured responsive
+layouts apply to samples as well as content pages.
+
 Reports and `<page>@<width>.png` screenshots go to `--out`, or by default to
 `library/generated/<id>/checks/<hash>/`. A custom output is mirrored under `generated/` so the
 workbench can show its latest report and link its screenshots. The viewer groups findings by
@@ -160,7 +214,15 @@ Capture artifacts expose `capture.json`, with screenshots, DOM and style samples
 and image originals under `assets/`. Capture stdout lists only successfully captured page names;
 unloaded pages appear in problems. Draft stdout is also saved as `drafts/<id>/summary.json`,
 including `measured` facts and a numeric question count; `questions <id>` returns the candidates.
+Question specimens expose the treatment being chosen across their responsive overrides, so
+a different breakpoint cannot conceal the candidate. Measure choices use enough neutral prose
+and intrinsic width to demonstrate their caps. These specimen adjustments affect previews only;
+an answer changes exactly the question's recorded pointers. Unusable alternatives still render
+the unchanged current draft and explain why they cannot be selected.
 Fidelity writes `drafts/<id>/fidelity/report.json` with image pairs and aggregate measured facts.
+Repeated-item evidence comes from adjacent siblings with comparable structure, excluding
+wrapped definition-list pairs. Distances larger than the neighbouring items are not transferred
+as gutters. Reconstruction retains prose-only items without inventing headings.
 Each pair's `html` points to the reconstructed page rendered for that screenshot. The workbench
 links to it at `/ingest/drafts/<id>/fidelity/<file>`, serving its adjacent stylesheet and assets.
 
@@ -191,7 +253,13 @@ metadata or an eyebrow by position; short accent text becomes a highlight. Speci
 constructs such as `listing-card` remain available for explicit mappings and authored languages.
 
 Choosing again supersedes the value and its chosen provenance. Candidate preview paths are relative to
-the draft directory. The value-provenance panel marks erased originals as “source removed”.
+the draft directory. Every candidate names a preview. A null (unmeasured) or invalid alternative
+uses `preview_kind: "current-draft"` and a `preview_note` explaining why it shows the unchanged
+current draft; it cannot be chosen. Applicable alternatives use `preview_kind: "candidate"`
+and show their own value. Choosing an answer refreshes these previews.
+Heading-binding corrections also offer a compliant next spacing step, so an unusable measured
+alternative does not leave the question with only one visible choice.
+The value-provenance panel marks erased originals as “source removed”.
 Unsupported layout details, unmapped
 content, capture limits and fidelity divergences remain explicit coverage findings.
 
@@ -204,10 +272,18 @@ use the existing validator, and promoted draft assets use the existing promotion
 Long-form pages retain heading-led sections, ordered prose and media, and inline link/accent
 fragments. These use structure and presentation signals, including for blogs and travel guides.
 Repeated-group containers retain measured columns and row/column gaps at each captured width.
+The page shell likewise uses each capture’s main container border-box width and inline padding,
+centred at that width; a nested constrained container takes precedence over a full-width main.
+Changes become breakpoint overrides, rather than a single maximum copied across every width.
 Captured compositions recover content and repeated groups from the saved DOM, leave unobserved
 slots empty, and retain measured context as references to draft tokens. These contexts pass
 through the same validator and resolver. Responsive source-image substitutions are reported;
 saved inline SVGs pass the ordinary asset safety checks before private rendering.
+Repeated items preserve captured definition lists as `dl`/`dt`/`dd`, including inline links, and
+leave absent headings absent. Their captured media/content parts preserve measured full-bleed
+media separately from the text inset. Navigation links retain their own foreground and transparent paint.
+Their nearest enclosing painted band supplies the navigation background, including a band nested
+inside the header; an interactive child's fill never establishes that surface.
 Ingest keeps measured text foregrounds with their composited surfaces. Reusable role defaults
 use a legible page pair; unresolved or unreadable contextual pairs use an explicitly questioned
 fallback. Code, preformatted text and keyboard/literal styling stay in captured fragments and
@@ -555,10 +631,10 @@ The compiler uses `hero`, `content-section` (section and CTA), `collection` with
 `site-header` with `nav`, `page-shell`, and `footer`. Rich slot values go through `SampleRenderer.reconstruction`
 and the existing construct renderer. Content-owned images/branding never use language media
 bindings. CSS defaults for content vocabularies live in a lower cascade layer, so any language
-declaration for the same element and property takes precedence. For content pages, vocabulary v2
-fixes the markup; language template variants apply only to ordinary sample/fidelity previews. An incompatible selected variant produces an advisory
+declaration for the same element and property takes precedence. For content pages, vocabularies v2 and later
+fix the markup; language template variants apply only to ordinary sample/fidelity previews. An incompatible selected variant produces an advisory
 `content-variant` coverage finding naming its construct. Content pages require a vocabulary
-with a content-page contract (v2); v1 languages receive a `content-vocabulary` finding.
+with a content-page contract (v2 and later); v1 languages receive a `content-vocabulary` finding.
 Their validation, resolution and sample previews continue to use the unchanged v1 contract.
 `vocabulary` and `hooks` default to the newest version present in the configured library;
 `--vocabulary v1` selects v1 explicitly. Unknown versions exit 2.
@@ -638,6 +714,14 @@ private renderer. The repository contains only synthetic section records and map
 
 ### Closed responsive layout grammar
 
+For content-page vocabularies, `width` also accepts `calc(100% - {dimension.token})`,
+where the token is a nonnegative px/rem dimension. This is a closed expression;
+other arithmetic and raw CSS lengths remain invalid. Ingest uses it with a centred
+`margin-inline: auto` and a measured `max-width`: between captures the container
+keeps the lower capture's combined side margins, grows with the viewport, and caps
+at the next capture's column width. At each captured width, its measured width and
+inline padding are restored; above the final capture its final width is the cap.
+
 These properties use the same validator, resolver, provenance and declared breakpoint overrides
 as existing properties. All strings are parsed against this closed grammar:
 
@@ -651,6 +735,9 @@ as existing properties. All strings are parsed against this closed grammar:
 | `object-position` | center, top, bottom, left, right |
 | `align-self`, `justify-self` | auto, start, end, center, stretch |
 | `row-gap`, `column-gap`, `margin-inline` | Dimension aliases under space.*; margin-inline also accepts auto |
+| `margin-block-start`, `margin-block-end` | Dimension aliases under space.* |
+| `width` | Dimension alias; content vocabularies also accept `calc(100% - {dimension.token})` |
+| `max-width` | Dimension alias, or `100%` for the containing extent |
 | `box-shadow` | none, or a DTCG shadow alias whose value has color, offsetX, offsetY, blur, spread |
 
 `outline-color` accepts a color-token alias and controls the safety focus outline, including
@@ -658,30 +745,85 @@ focused descendants. Ingest selects its color against the surrounding surface, i
 of the target's text/fill pair; the color remains visible in resolution and exports. V2 native
 checkboxes/radios have a 24px minimum box as a control-usability default.
 
-For content vocabularies, resolution expands overlapping padding/gap shorthands into effective
+For content vocabularies, resolution expands overlapping padding/gap/margin-block shorthands into effective
 block/inline or row/column axes. A derived axis carries `source_property` so findings and export
 aliases still refer to the original authored property. Browser conformance accounts for CSS
 blockification of inline display only when a measured flex/grid or out-of-flow context requires it.
 V1 retains its original resolution and preview contract.
 
-Existing properties retain their grammar. Image-specific aspect/fit/position on media slots
+Other existing properties retain their grammar. Image-specific aspect/fit/position on media slots
 applies to the hooked image itself or its child image; layout stays on its slot element. Overrides
 use normal scopes such as `collection.items@md`, plus `construct~part@md` for vocabulary or selected sample-template
 parts. For example, `collection.items@md` can set `grid-template-columns: "repeat(3, 1fr)"`.
+Heading slots also accept a semantic-level qualifier, such as `card.title.h3@md` (before an
+optional state). It applies when that slot renders as an h3; `resolve LANGUAGE card.title.h3`
+reports the same treatment used by CSS and rendered checks. Without a level, resolution uses
+the vocabulary's default heading tag. At the same state/breakpoint, a level-qualified override
+wins over the unqualified scope. Ingest retains each measured heading level, interpolating
+missing levels between neighbours; a card rendered as h2 therefore gets the h2 size, while
+the same slot rendered as h3 gets the h3 size.
 `display: none` on content-bearing constructs, slots and parts produces `content-hidden`;
 `display: contents` is allowed. `order`, `position`, `visibility`, `content`, `transform`,
 `clip-path`, `opacity` and `text-indent` remain unknown properties.
 
 Harbor's collection has three columns at md, with a split hero; Lantern has single-column
 editorial rows with square media, a centered Instrument Sans opening and a heading column beside prose.
+Harbor uses a spacious coastal band, framed media and compact collection titles. Lantern uses
+unframed editorial rows and natural-width action groups: page titles remain 28/34px, section
+headings are 24/28px and card titles 20/24px below/above md. Both constrain prose and keep card
+titles below section headings. Gallery/stress labels are captions in v3; the gallery title uses
+the language's page-title treatment, so test scaffolding does not invert its heading scale.
+The gallery's media area receives keyboard focus separately from its action link, so its targets
+have separate bounds and the language's group gap can separate them.
 Both keep the exact same content DOM and return to one column below md. New drafts capture
 supported computed values and infer proportional grid tracks from measured widths, retaining
 that inference in provenance. Repeated card group measurements supply collection columns/gaps;
 the widest measured group in a page's widest capture supplies the reusable collection, retaining
-its identity at smaller widths. Narrow side thumbnails retain their measured maximum width.
+its identity at smaller widths. Narrow side thumbnails retain their measured maximum width and aspect ratio at each width.
+V4 maps text/media geometry to side-by-side or stacked card tracks; absent mobile media uses
+a bounded landscape treatment with a question. Inner text groups use natural row heights,
+measured padding and gaps. Alignment comes from the mapped source group and applies consistently
+to its text and actions. Interpolated small text never falls below the smallest measured source
+text. Prose measure comes from paragraph boxes, not the glyph width of a short inline caption.
+Main-column geometry supplies container width even when the source uses grid instead of a CSS
+max-width. Heading levels, prose measure, padded card interiors, action-group separation and
+the leading heading's painted band transfer separately. Heading margins establish text-group
+rhythm once: the smaller following space is the group gap and any larger leading space becomes
+a start-only title margin. Paragraph margins do not accumulate on top of that gap. Media that
+fills the measured card extent uses `max-width: 100%`; bounded side thumbnails retain their
+pixel cap and proportion. V6 selects surface evidence from the principal repeated group,
+including a bordered child inside an unpainted column wrapper. Gutters are measured between
+those item surfaces, so column padding does not disappear as a zero CSS gap. Root and inner
+padding have one owner; full-bleed media keeps the text inset in its sibling content wrapper.
+Hero leads, item paragraphs and main-flow prose have separate type and colour evidence.
+Inherited surface colours are not copied into paragraph or facts backgrounds. Nested paint
+requires a corresponding painted source group. Missing item headings borrow measured heading
+margins; noncompliant spacing retains the measured alternative in a correction question.
+V7 retains viewport centring as `margin-inline: auto`, rather than copying the computed pixel
+margin inside an already-centred page. Computed margins suffice when they are equal within 1px
+and fill the parent's remaining content width (excluding its padding and borders), or change
+across viewport widths while the block stays the same width. Explicit auto margins and capped
+viewport alignment also establish centring. This works when cross-origin stylesheet rules are
+unavailable; offsets without centring evidence remain unchanged. Capture reconstructions retain
+their original measured values. Reusable prose
+width caps stay within 15–40em; a narrower containing column still constrains their actual width,
+and a changed measured cap is disclosed in `corrections` with its question.
+Navigation-link treatment comes from
+navigation landmarks, rather than unrelated header buttons. Fixed, sticky and absolutely
+positioned elements and their descendants are excluded from palette, role and treatment
+evidence; private draft notes identify every excluded selector. Missing heading levels are
+interpolated between neighbours; measured values that exceed composition limits use a compliant
+default with an explicit question. These defaults remain ordinary resolved language treatments.
+Draft stdout and `summary.json` always include `excluded` and `corrections` arrays. Exclusions
+identify the source selector, `reason: "out-of-flow"`, computed `position`, and the excluded
+evidence kinds (`color`, `role`, `treatment`). Each correction identifies its composition `rule`,
+changed language `pointer`, source `selector`, `measured` and `chosen` values, and the `question`
+ID returned by `questions`. The question retains the measured value among its candidates.
+Interpolated headings have null selector and measured values; their null candidate records the
+absence of source evidence and is reported as invalid for selection, like other invalid candidates.
 Unobserved layout is not represented as measured evidence. Generate uses declared, explicitly
 inferred responsive collection defaults. Immutable v1 language versions and v1 samples remain
-readable; new authored/generated/ingested documents use v2.
+readable; new authored/generated/ingested documents use v7.
 
 Limits remain: no arbitrary selectors, raw CSS, pseudo-element generated content, transforms,
 absolute/sticky positioning, animation, named grid areas, nested minmax/calc expressions or

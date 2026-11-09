@@ -1,9 +1,9 @@
 """CSS is derived from the resolver; identity stays out of sample HTML."""
 import json
 from pathlib import Path
-from ..language.resolver import resolve, parse_scope, property_pointer
+from ..language.resolver import Resolver, parse_scope, property_pointer
 from ..findings import location
-from ..language.tokens import ALIAS, Tokens
+from ..language.tokens import ALIAS
 from ..language.properties import property_value, CONTROL_BOX_PROPERTIES, CONTROL_TEXT_PROPERTIES, IMAGE_PROPERTIES, LAYOUT_PROPERTIES
 from ..language.versions import digest
 from ..vocabulary import slot_map
@@ -48,7 +48,8 @@ def treatments(properties, control, media=False):
 
 
 def stylesheet(document, vocabulary, variables=None):
-    tokens = Tokens(document.get('style', {}))
+    resolver = Resolver(document, vocabulary)
+    tokens = resolver.tokens
     def select(construct, slot=None, state=None, native=False):
         target = selector(construct,slot,state,native)
         if native == 'image' and slot:
@@ -57,7 +58,7 @@ def stylesheet(document, vocabulary, variables=None):
         return target
 
     def resolved(scope, state='default', breakpoint=None):
-        properties = resolve(document, vocabulary, scope, state, breakpoint)['properties']
+        properties = resolver.resolve(scope, state, breakpoint)['properties']
         if variables is not None:
             for name, detail in properties.items():
                 _, raw = location(document, property_pointer(document, vocabulary, name, detail))
@@ -71,6 +72,10 @@ def stylesheet(document, vocabulary, variables=None):
         # All normal language declarations outrank presentation defaults, even
         # when the default's selector is more specific. Keep v1's cascade intact.
         base += Path(__file__).with_name('content.css').read_text()
+        if vocabulary.get('composition_rules'):
+            base += Path(__file__).with_name('composition.css').read_text()
+        if 'label-proximity' in vocabulary.get('composition_rules',[]):
+            base += Path(__file__).with_name('readability.css').read_text()
         base = '@layer kd-defaults {\n' + base + '\n}'
     rules = ['/* Kinbase Design ' + identity + ' */', base]
     body = resolved('page-shell.body')
@@ -96,6 +101,17 @@ def stylesheet(document, vocabulary, variables=None):
                 format_hint = FONT_FORMAT_HINTS.get(detail['format'], detail['format'])
                 rules.append('@font-face{' + f'font-family:{family};src:url("assets/{asset}-{variant}.{detail["format"]}") format("{format_hint}");font-weight:{detail["weight"]};font-style:{detail["style"]};font-display:swap' + '}')
     breakpoints = sorted((tokens.breakpoint(name.removeprefix('breakpoint.')), name.removeprefix('breakpoint.')) for name in tokens.nodes if name.startswith('breakpoint.'))
+    heading_scopes={}
+    stateful_slots={(construct,slot) for construct,component in document.get('components',{}).items()
+                    for slot,treatment in component.get('slots',{}).items()
+                    if any(state!='default' and props for state,props in treatment.get('states',{}).items())}
+    for target,override,_ in resolver.overrides:
+        if target.slot and target.state:stateful_slots.add((target.construct,target.slot))
+        if target.heading:
+            keys=heading_scopes.setdefault((target.construct,target.slot),{}).setdefault(target.heading,set())
+            keys.update(override['properties'])
+            for shorthand,axes in (('padding',('padding-block','padding-inline')),('gap',('row-gap','column-gap')),('margin-block',('margin-block-start','margin-block-end'))):
+                if shorthand in keys:keys.update(axes)
     emitted = {}
     for bp in [None] + [name for _, name in breakpoints]:
         block = []
@@ -114,9 +130,22 @@ def stylesheet(document, vocabulary, variables=None):
                         for native,values in enumerate(props):
                             if values:block.append(select(construct, slot, state, native='image' if native==2 else bool(native)) + '{' + values + '}')
                         emitted[key] = props
+                for level in sorted(heading_scopes.get((construct,slot),())):
+                    # Without slot state treatments, the default heading rule
+                    # already covers every state. Keep the full state cascade
+                    # when any state treatment exists: generic state selectors
+                    # can otherwise override the heading, and later states may
+                    # need to reset an earlier state's heading treatment.
+                    states=contract['states'] if (construct,slot) in stateful_slots else ['default']
+                    for state in states:
+                        properties=resolved(scope+'.h'+str(level),state,bp)
+                        values=declaration({k:v for k,v in properties.items() if k in heading_scopes[(construct,slot)][level]})
+                        key=(construct,slot,state,level)
+                        if values and emitted.get(key)!=values:
+                            target=','.join(s+':is(h'+str(level)+')' for s in select(construct,slot,state).split(','))
+                            block.append(target+'{'+values+'}');emitted[key]=values
             parts = set(contract.get('parts',{})) | set(document.get('components',{}).get(construct,{}).get('parts',{}))
-            for override in document.get('overrides',[]):
-                target = parse_scope(override['scope'],vocabulary)
+            for target,override,_ in resolver.overrides:
                 if target.construct==construct and target.part:parts.add(target.part)
             for part in sorted(parts):
                 values = declaration(resolved(construct+'~'+part,breakpoint=bp))

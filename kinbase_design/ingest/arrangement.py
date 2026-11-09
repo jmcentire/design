@@ -11,6 +11,22 @@ def bounds(boxes):
     return [x,y,max(b[0]+b[2] for b in boxes)-x,max(b[1]+b[3] for b in boxes)-y]
 
 
+def gutters(boxes):
+    """Distances beyond the adjacent items' own extent are not item gutters."""
+    rows=[]
+    for box in sorted(boxes,key=lambda b:(b[1],b[0])):
+        row=next((r for r in rows if abs(r[0][1]-box[1])<=INGEST_ROW_TOLERANCE_PX),None)
+        if row is None:rows.append([box])
+        else:row.append(box)
+    horizontal=[b[0]-a[0]-a[2] for row in rows for a,b in zip(sorted(row),sorted(row)[1:])
+                if 0<=b[0]-a[0]-a[2]<=max(a[2],b[2])]
+    vertical=[]
+    for previous,row in zip(rows,rows[1:]):
+        gap=min(b[1] for b in row)-max(b[1]+b[3] for b in previous)
+        if 0<=gap<=max(b[3] for b in previous+row):vertical.append(gap)
+    return {'column-gap':horizontal,'row-gap':vertical}
+
+
 def measure(parent,items):
     boxes=[item['box'] for item in items if item.get('box')]
     rows=[]
@@ -22,10 +38,10 @@ def measure(parent,items):
     columns=len(tracks) if style.get('display')=='grid' and tracks and all(re.fullmatch(r'[\d.]+px',t) for t in tracks) else max(map(len,rows),default=1)
     columns=max(1,min(INGEST_MAX_COLUMNS,columns))
     layout={'columns':columns}
-    horizontal=[b[0]-(a[0]+a[2]) for row in rows for a,b in zip(sorted(row),sorted(row)[1:])]
-    vertical=[min(b[1] for b in row)-max(b[1]+b[3] for b in previous) for previous,row in zip(rows,rows[1:])]
-    for prop,observed in [('column-gap',horizontal),('row-gap',vertical)]:
+    for prop,observed in gutters(boxes).items():
         value=px(style.get(prop))
+        extent=max((b[2 if prop=='column-gap' else 3] for b in boxes),default=0)
+        if value is not None and value>extent:value=None
         if value is None and observed:value=median(observed)
         if value is not None:layout[prop]=max(0,value)
     return {'selector':parent['selector'],'members':[item['selector'] for item in items],
@@ -35,8 +51,8 @@ def measure(parent,items):
 def groups(instances,by):
     siblings={}
     for item in instances:
-        if item.get('group'):siblings.setdefault(item['group'],[]).append(item)
-    return [measure(by.get(key,{'selector':key}),items) for key,items in siblings.items() if len(items)>=2]
+        if item.get('group'):siblings.setdefault((item['group'],tuple(item.get('group_members',[]))),[]).append(item)
+    return [measure(by.get(key,{'selector':key}),items) for (key,_),items in siblings.items() if len(items)>=2]
 
 
 def compose(instances,groups):

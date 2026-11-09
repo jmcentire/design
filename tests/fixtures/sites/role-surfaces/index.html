@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic role and surface source</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f5f6f8; color: #182534; font: 16px/1.5 sans-serif; }
+    header, main, footer { width: 800px; max-width: calc(100% - 32px); margin: 24px auto; }
+    nav { display: flex; gap: 16px; }
+    nav a { padding: 8px; color: #173e8f; }
+    h1, h2, h3 { margin: 32px 0 8px; line-height: 1.25; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 20px; }
+    p, ul, dl, dd, figure { margin: 0; }
+    p, li { max-width: 480px; background: transparent; }
+    #leading { background: #dbe9f4; border: 2px solid #2d4256; border-radius: 12px;
+               padding: 24px; }
+    #lead { font-size: 20px; }
+    #notes, #article { margin-top: 32px; }
+    .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+             column-gap: 24px; row-gap: 32px; margin-top: 24px; }
+    .item { display: flex; flex-direction: column; gap: 12px; padding: 16px;
+            background: #fff; border: 1px solid #8493a3; border-radius: 10px;
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.15); }
+    .item img { display: block; width: 100%; height: auto; }
+    .item .body { font-size: 16px; color: #182534; }
+    .meta { font-size: 14px; color: #687888; }
+    .facts { display: flex; flex-direction: column; gap: 16px; }
+    .pair { display: flex; flex-direction: column; gap: 4px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .actions a { display: inline-block; color: #173e8f; border: 1px solid #173e8f;
+                 border-radius: 4px; padding: 8px 12px; }
+    aside { padding: 16px; background: #fff1cc; border: 1px solid #8a681d;
+            border-radius: 6px; margin-top: 24px; }
+    @media (max-width: 600px) { .items { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header><nav aria-label="Main"><a href="#notes">Notes</a><a href="#article">Reading</a></nav></header>
+  <main>
+    <section id="leading">
+      <h1>The field notebook</h1>
+      <p id="lead">A larger introduction invites the reader to observe small changes and keep a careful record of each visit.</p>
+    </section>
+    <section id="notes">
+      <p>These invented entries provide a short record before the collection heading.</p>
+      <h2>Recent notes</h2>
+      <p>Each entry contains ordinary prose, quieter metadata, a picture and a small list of facts.</p>
+      <div class="items">
+        <article class="item">
+          <img src="scene.svg" alt="Blue and green synthetic bands" width="320" height="160">
+          <p class="body">Morning light crossed the stone path while a small bird rested beside the gate.</p>
+          <p class="meta">Recorded on the first visit</p>
+          <dl class="facts"><div class="pair"><dt>Season</dt><dd>Spring</dd></div><div class="pair"><dt>Place</dt><dd>Garden</dd></div></dl>
+          <div class="actions"><a href="#article">Read note</a><a href="#ending">More</a></div>
+        </article>
+        <article class="item">
+          <img src="scene.svg" alt="Another view of the synthetic bands" width="320" height="160">
+          <p class="body">Quiet branches moved above the bench as the afternoon breeze reached the orchard.</p>
+          <p class="meta">Recorded on the second visit</p>
+          <dl class="facts"><div class="pair"><dt>Season</dt><dd>Summer</dd></div><div class="pair"><dt>Place</dt><dd>Orchard</dd></div></dl>
+          <div class="actions"><a href="#article">Read note</a><a href="#ending">More</a></div>
+        </article>
+      </div>
+    </section>
+    <article id="article">
+      <p>A longer passage records the ordinary details that connect each visit. The prose has the same dark colour as the body of each entry, and it draws no panel behind its lines.</p>
+      <h2>Reading the notebook</h2>
+      <p>Looking again may reveal a detail that was easy to miss. These sentences remain ordinary body text even when a nearby date or caption uses the quieter secondary colour.</p>
+      <h3>Keep a record</h3>
+      <ul><li>Write down what changed between the morning and afternoon visits.</li><li>Compare the new observation with the earlier entry before adding a conclusion.</li></ul>
+      <p class="meta">Updated after the last visit</p>
+    </article>
+    <aside><p>This tinted notice belongs to its own panel and must not colour ordinary prose elsewhere.</p></aside>
+  </main>
+  <footer id="ending"><p class="meta">Synthetic text and pictures for a local test only.</p></footer>
+</body>
+</html>

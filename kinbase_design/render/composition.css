@@ -1,0 +1,7 @@
+/* Neutral prose and action flow; resolved language treatment takes precedence. */
+:where(p){max-width:40em}
+[data-kd-construct="page-shell"]>.kd-full-content{padding-inline:0}
+:where([data-kd-part="actions"]){display:flex;flex-wrap:wrap;gap:1rem;align-items:center}
+:where([data-kd-slot$=".action"],[data-kd-slot$=".secondary-action"]){align-self:start;justify-self:start}
+:where([data-kd-content]) figcaption{padding-inline:8px}
+:where(.kd-placeholder){padding:8px;overflow-wrap:anywhere}

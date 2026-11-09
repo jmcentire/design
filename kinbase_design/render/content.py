@@ -65,7 +65,7 @@ def slot(definition, attrs, value, heading=None):
     elif kind == 'brand':
         attrs['href'] = 'index.html'
         text = (media(data['logo']) if data.get('logo') else '') + element('span',{},escape(data['name']))
-    elif kind == 'facts':text = ''.join(element('div',{},element('dt',{},escape(i['label']))+element('dd',{},escape(i['value']))) for i in data)
+    elif kind == 'facts':text = ''.join(element('div',{'data-kd-part':definition.get('fact-part')},element('dt',{},escape(i['label']))+element('dd',{},escape(i['value']))) for i in data)
     elif kind == 'notices':text = ''.join(element('p',{},escape(i)) for i in data)
     elif kind == 'children':text = data  # Only renderer-generated construct bytes, never input HTML.
     else:raise ValueError('Unknown content slot kind: ' + kind)

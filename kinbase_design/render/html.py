@@ -24,6 +24,33 @@ def element(tag, attrs, content=''):
     return start if tag in {'img', 'input'} else start + content + '</' + tag + '>'
 
 
+def definition_fragments(fragments):
+    """Keep captured definition fields and inline runs, without inventing copy."""
+    def inline(fragment):
+        href=captured_href(fragment.get('href'))
+        return element('a' if href else 'span',{'href':href,'style':declaration(fragment.get('resolved_properties',{})) or None},escape(fragment['text']))
+    chunks=[];index=0
+    while index<len(fragments):
+        fragment=fragments[index];definition=fragment.get('definition')
+        if not definition:
+            chunks.append(inline(fragment));index+=1;continue
+        fields=[]
+        while index<len(fragments):
+            fragment=fragments[index];field=fragment.get('definition')
+            if not field and fragment['text'].isspace():index+=1;continue
+            if not field or field['list']!=definition['list']:break
+            if not fields or fields[-1][0]!=field['field']:fields.append([field['field'],field['tag'],''])
+            fields[-1][2]+=inline(fragment);index+=1
+        pairs=[];pair=[];has_value=False
+        for _,tag,content in fields:
+            if tag=='dt' and has_value:
+                pairs.append(element('div',{'data-kd-part':'pair'},''.join(pair)));pair=[];has_value=False
+            pair.append(element(tag,{},content));has_value|=tag=='dd'
+        if pair:pairs.append(element('div',{'data-kd-part':'pair'},''.join(pair)))
+        chunks.append(element('dl',{},''.join(pairs)))
+    return ''.join(chunks)
+
+
 def captured_href(value):
     if not isinstance(value,str):return None
     try:
@@ -49,6 +76,8 @@ class SampleRenderer:
     def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None,heading_level=None,action_items=None):
         name, role, emphasis = definition['id'], definition['role'], definition['emphasis']
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
+        if definition.get('focusable'):
+            attrs.update(tabindex='0', **{'aria-label':definition['accessible-name']})
         if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
         if accessible_name:attrs['aria-label']=accessible_name
         binding = self.document.get('components', {}).get(construct, {}).get('assets', {}).get(name)
@@ -111,6 +140,9 @@ class SampleRenderer:
         if fragments and any(f.get('preformatted') for f in fragments):
             if tag=='p':tag='div'
             content=element('pre',{},element('code',{},''.join(escape(f['text']) for f in fragments)))
+        elif fragments and any(f.get('definition') for f in fragments):
+            tag='div'
+            content=definition_fragments(fragments)
         elif fragments:
             chunks=[];previous=None
             for fragment in fragments:
@@ -140,8 +172,11 @@ class SampleRenderer:
                 attrs = {'data-kd-slot':construct+'.'+name,'data-kd-role':definition['role'],'data-kd-emphasis':definition['emphasis']}
                 slots[name] = content_slot(definition,attrs,values.get(name,{'kind':'inline','value':''}),(heading_levels or {}).get(name))
         else:
-            slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name) if captured else None,(action_items or {}).get(name)) if not (captured or provided_only) or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
+            slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name),(action_items or {}).get(name)) if not (captured or provided_only) or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
                      for name, definition in slot_map(contract).items() if not definition.get('content-only')}
+            if construct=='collection' and self.vocabulary.get('composition_rules') and not (captured or provided_only):
+                slots['items']=element('div',{'data-kd-slot':'collection.items','data-kd-role':'body','data-kd-emphasis':'neutral'},
+                                      ''.join(self.construct('card',state=state,heading_levels={'title':3}) for _ in range(self.samples['collection-size'])))
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
         if content_document:
@@ -164,11 +199,16 @@ class SampleRenderer:
             attrs.update(action=contract['action'], method='get')
         component = self.document.get('components', {}).get(construct, {})
         variant = 'default' if content_document else component.get('variant', 'default')
-        content_template = contract.get('content-template') if content_document else None
+        content_template = contract.get('content-template') if content_document or variant=='default' and (not captured or construct=='card') and self.vocabulary.get('composition_rules') else None
         if variant == 'default' and not content_template:
             return element(contract['root'], attrs, backdrop+''.join(slots.values())+children)
         template = content_template or self.document['layout']['variants'][construct][variant]['template']
         Template(template, contract)
+        if treatment is not None:
+            def part_style(match):
+                props=resolve(treatment,self.vocabulary,construct+'~'+match[2])['properties']
+                return '<'+match[1]+attributes({'data-kd-part':match[2],'style':declaration(props)})+'>'
+            template=re.sub(r'<(div|span) data-kd-part="([a-z0-9-]+)">',part_style,template)
         # This is the restricted parser's placeholder syntax, never executable Jinja.
         rendered = SLOT.sub(lambda match:slots.get(match[1],''), template)
         rendered=re.sub(r'<' + contract['root'] + r'\s*>', lambda match:'<' + contract['root'] + attributes(attrs) + '>'+backdrop, rendered, count=1, flags=re.IGNORECASE)
@@ -207,15 +247,20 @@ class SampleRenderer:
         body_style=f'--kd-captured-space:{max(0,float(page["spacing_base"])):g}px' if page.get('captured') and 'spacing_base' in page else ''
         return env.from_string(PAGE).render(title=page.get('title','Captured page'),navigation='',content=Markup(content),footer='',body_style=body_style).encode('utf-8')
 
+    def collection_group(self,content):
+        if not self.samples.get('collection-hooks'):return element('div',{'class':'kd-grid'},content)
+        items=element('div',{'data-kd-slot':'collection.items','data-kd-role':'body','data-kd-emphasis':'neutral'},content)
+        return element('section',{'data-kd-construct':'collection','data-kd-state':'default'},items)
+
     def stress(self):
         sections = []
         for sample in self.samples['stress']:
-            label = element('h2', {'class':'kd-context-heading'}, escape(sample['name']))
+            label = element('div' if self.vocabulary.get('composition_rules') else 'h2', {'class':'kd-context-heading'}, escape(sample['name']))
             if 'items' in sample:
                 content = ''.join(self.construct('listing-card') for _ in range(sample['items']))
                 if not sample['items']:
                     content = self.construct('empty-state')
-                content = element('div', {'class':'kd-grid'}, content)
+                content = self.collection_group(content)
             else:
                 values = {sample['slot']:self.context[sample['context']]} if 'slot' in sample else {}
                 content = self.construct(sample['construct'], values=values, missing_image=sample.get('missing-image',False))
@@ -224,19 +269,24 @@ class SampleRenderer:
 
     def page(self, filename):
         self.sequence = 0
+        ordinary_title=' '.join([self.context['long-title']]*2)
         navigation = self.construct('nav')
         if filename == 'states.html':
-            content = element('h1', {'class':'kd-context-heading'}, escape(self.context['state-gallery-title']))
+            content = '' if self.vocabulary.get('composition_rules') else element('h1', {'class':'kd-context-heading'}, escape(self.context['state-gallery-title']))
             for construct in self.samples['pages'][filename]:
                 for state in self.vocabulary['constructs'][construct]['states']:
-                    heading = element('h2', {}, escape(construct + ' · ' + state))
+                    heading = element('div' if self.vocabulary.get('composition_rules') else 'h2', {'class':'kd-context-heading'} if self.vocabulary.get('composition_rules') else {}, escape(construct + ' · ' + state))
                     content += element('section', {'class':'kd-state'}, heading + self.construct(construct,state))
             content += self.stress()
+            if self.vocabulary.get('composition_rules'):
+                content = self.construct('page-shell',values={'title':self.context['state-gallery-title']},provided_only=True)+content
         else:
             content = ''
             for construct in self.samples['pages'][filename]:
                 if construct == 'listing-card':
-                    content += element('div', {'class':'kd-grid'}, ''.join(self.construct(construct) for _ in range(self.samples['collection-size'])))
+                    # Ordinary pages also exercise the declared title preview;
+                    # its complete copy is already published on listing.html.
+                    content += self.collection_group(''.join(self.construct(construct,values={'title':ordinary_title} if index==0 and self.vocabulary.get('composition_rules') else None) for index in range(self.samples['collection-size'])))
                 else:
                     content += self.construct(construct)
             if 'page-shell' in self.samples['pages'][filename]:
@@ -244,10 +294,19 @@ class SampleRenderer:
                 shell_end = content.index('</main>')
                 content = content[:shell_end] + content[shell_end + len('</main>'):] + '</main>'
             else:
-                content = element('main', {}, content)
+                content = element('main', {'data-kd-construct':'page-shell'} if filename=='listing.html' and self.vocabulary.get('composition_rules') else {}, content)
         if filename == 'listing.html':
             texts = [self.context['construct-copy']['listing-card']['title']] + [self.context[s['context']] for s in self.samples['stress'] if s.get('construct') == 'listing-card' and s.get('slot') == 'title']
-            content += element('section', {'class':'kd-full-content','aria-label':self.context['full-content-label']}, ''.join(element('p',{},escape(text)) for text in texts))
+            if self.vocabulary.get('composition_rules'):texts.append(ordinary_title)
+            if self.vocabulary.get('composition_rules'):
+                # Full copies share the main column and its prose cap, without
+                # adding the inset of a second construct around each paragraph.
+                body=slot_map(self.vocabulary['constructs']['page-shell'])['body']
+                full_copy=''.join(self.slot('page-shell',body,None,{'body':text},False) for text in texts)
+                full_copy=element('section',{'class':'kd-full-content','aria-label':self.context['full-content-label']},full_copy)
+                end=content.rindex('</main>');content=content[:end]+full_copy+content[end:]
+            else:
+                content += element('section', {'class':'kd-full-content','aria-label':self.context['full-content-label']}, ''.join(element('p',{},escape(text)) for text in texts))
         footer = self.construct('footer')
         env = Environment(autoescape=select_autoescape(default_for_string=True))
         return env.from_string(PAGE).render(title=self.context['pages'][filename], navigation=Markup(navigation), content=Markup(content), footer=Markup(footer)).encode('utf-8')

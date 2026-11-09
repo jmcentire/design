@@ -1,0 +1,77 @@
+{
+  "version": "v7",
+  "pages": {
+    "index.html": [
+      "hero",
+      "search-bar",
+      "content-section",
+      "listing-card"
+    ],
+    "search.html": [
+      "page-shell",
+      "search-bar",
+      "filter-group",
+      "listing-card"
+    ],
+    "listing.html": [
+      "detail-header",
+      "gallery",
+      "content-section"
+    ],
+    "form.html": [
+      "page-shell",
+      "form"
+    ],
+    "states.html": [
+      "page-shell",
+      "nav",
+      "search-bar",
+      "filter-group",
+      "listing-card",
+      "gallery",
+      "detail-header",
+      "form",
+      "empty-state",
+      "error-state",
+      "footer",
+      "hero",
+      "content-section",
+      "card",
+      "collection",
+      "site-header"
+    ]
+  },
+  "stress": [
+    {
+      "name": "long-word",
+      "construct": "listing-card",
+      "slot": "title",
+      "context": "long-word"
+    },
+    {
+      "name": "long-title",
+      "construct": "listing-card",
+      "slot": "title",
+      "context": "long-title"
+    },
+    {
+      "name": "missing-image",
+      "construct": "listing-card",
+      "missing-image": true
+    },
+    {
+      "name": "zero-items",
+      "items": 0
+    },
+    {
+      "name": "one-item",
+      "items": 1
+    },
+    {
+      "name": "many-items",
+      "items": 12
+    }
+  ],
+  "collection-size": 3,
+  "collection-hooks": true
+}

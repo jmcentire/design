@@ -39,6 +39,9 @@ class Evaluation:
         return finding
 
     def snapshot(self, page, width, snapshot, full_text):
+        from .composition import evaluate
+        if self.vocabulary.get('composition_rules'):
+            evaluate(self,page,width,snapshot.get('composition',{}))
         for item in snapshot.get('preservation',[]):
             self.add(item['kind'],page,width,item['target'],measured=item['text'],
                      expected='content text, media and controls remain visible in accessible reading order')
@@ -52,7 +55,9 @@ class Evaluation:
                     self.add('asset-load',page,width,target,measured={'decoded':node['decoded'],'box':node['box']},threshold='decoded and visible',expected='bound image has a visible box')
                 continue
             if node['slot'] or node.get('part'):
-                props = resolve(self.document,self.vocabulary,node['slot'] or node['part'],node['state'],bp)['properties']
+                scope=node['slot'] or node['part']
+                if node.get('heading') and node['slot']:scope+='.h'+str(node['heading'])
+                props = resolve(self.document,self.vocabulary,scope,node['state'],bp)['properties']
                 for prop, treatment in props.items():
                     observations = node.get('controlStyles') if prop in CONTROL_BOX_PROPERTIES and node.get('controlStyles') is not None else [node]
                     if prop in IMAGE_PROPERTIES and node.get('imageStyles') is not None:

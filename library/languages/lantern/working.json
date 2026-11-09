@@ -1,7 +1,7 @@
 {
   "id": "lantern",
   "name": "Lantern",
-  "vocabulary": "v2",
+  "vocabulary": "v7",
   "description": "Warm editorial evenings, quiet paper, and rust-colored invitations.",
   "style": {
     "color": {
@@ -63,6 +63,18 @@
       },
       "caption": {
         "$value": "14px"
+      },
+      "section": {
+        "$value": "24px"
+      },
+      "section-md": {
+        "$value": "28px"
+      },
+      "card": {
+        "$value": "20px"
+      },
+      "card-md": {
+        "$value": "24px"
       }
     },
     "space": {
@@ -110,18 +122,27 @@
         "$value": "1px"
       },
       "media": {
-        "$value": "96px"
+        "$value": "128px"
       },
       "logo": {
         "$value": "144px"
       },
       "page": {
         "$type": "dimension",
-        "$value": "1200px"
+        "$value": "1080px"
       },
       "prose": {
         "$type": "dimension",
         "$value": "720px"
+      },
+      "measure-612": {
+        "$value": "612px"
+      },
+      "measure-504": {
+        "$value": "504px"
+      },
+      "measure-648": {
+        "$value": "648px"
       }
     },
     "line": {
@@ -469,6 +490,18 @@
         "background-color": "{color.paper}",
         "max-width": "{shape.page}",
         "margin-inline": "auto"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.title}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        }
       }
     },
     "nav": {
@@ -489,6 +522,13 @@
           "properties": {
             "width": "{shape.logo}"
           }
+        },
+        "links": {
+          "properties": {
+            "display": "flex",
+            "flex-wrap": "wrap",
+            "gap": "{space.sm}"
+          }
         }
       }
     },
@@ -505,7 +545,9 @@
             "color": "{color.card}",
             "background-color": "{color.primary}",
             "padding": "{space.md}",
-            "border-radius": "{shape.radius}"
+            "border-radius": "{shape.radius}",
+            "align-self": "start",
+            "justify-self": "start"
           }
         }
       }
@@ -538,16 +580,58 @@
       },
       "assets": {
         "media": "evening-stay:primary"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.title}"
+          }
+        },
+        "location": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "rating": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "price": {
+          "properties": {
+            "max-width": "{shape.measure-648}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "gallery": {
       "variant": "default",
       "properties": {
         "padding": "{space.lg}",
-        "gap": "{space.md}"
+        "gap": "{space.md}",
+        "display": "grid"
       },
       "assets": {
         "media": "evening-stay:primary"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "detail-header": {
@@ -555,6 +639,29 @@
       "properties": {
         "padding": "{space.lg}",
         "gap": "{space.md}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.title}"
+          }
+        },
+        "location": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "description": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "form": {
@@ -570,7 +677,14 @@
             "color": "{color.card}",
             "background-color": "{color.primary}",
             "padding": "{space.md}",
-            "border-radius": "{shape.radius}"
+            "border-radius": "{shape.radius}",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
           }
         }
       }
@@ -580,6 +694,24 @@
       "properties": {
         "padding": "{space.lg}",
         "gap": "{space.md}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "error-state": {
@@ -587,6 +719,24 @@
       "properties": {
         "padding": "{space.lg}",
         "gap": "{space.md}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "footer": {
@@ -594,6 +744,20 @@
       "properties": {
         "padding": "{space.lg}",
         "gap": "{space.md}"
+      },
+      "slots": {
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "links": {
+          "properties": {
+            "display": "flex",
+            "flex-wrap": "wrap",
+            "gap": "{space.sm}"
+          }
+        }
       }
     },
     "hero": {
@@ -614,7 +778,10 @@
         },
         "title": {
           "properties": {
-            "font-family": "{font.family}"
+            "font-family": "{font.family}",
+            "font-size": "{type.title}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
           }
         },
         "action": {
@@ -625,7 +792,9 @@
             "padding-block": "{space.action-block}",
             "padding-inline": "{space.action-inline}",
             "text-decoration-line": "none",
-            "display": "inline-block"
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
           }
         },
         "secondary-action": {
@@ -636,14 +805,36 @@
             "padding-block": "{space.action-block}",
             "padding-inline": "{space.action-inline}",
             "text-decoration-line": "none",
-            "display": "inline-block"
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}",
+            "margin-inline": "auto"
           }
         }
       },
       "parts": {
         "content": {
-          "display": "grid",
-          "gap": "{space.md}"
+          "display": "flex",
+          "gap": "{space.md}",
+          "flex-direction": "column",
+          "align-items": "center"
+        },
+        "actions": {
+          "display": "flex",
+          "flex-wrap": "wrap",
+          "gap": "{space.xs}",
+          "align-items": "center",
+          "justify-content": "center"
         }
       }
     },
@@ -651,7 +842,8 @@
       "variant": "default",
       "properties": {
         "padding": "{space.lg}",
-        "gap": "{space.md}"
+        "gap": "{space.md}",
+        "padding-inline": "{space.md}"
       },
       "slots": {
         "action": {
@@ -662,8 +854,40 @@
             "padding-block": "{space.action-block}",
             "padding-inline": "{space.action-inline}",
             "text-decoration-line": "none",
-            "display": "inline-block"
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
           }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        }
+      },
+      "parts": {
+        "actions": {
+          "display": "flex",
+          "flex-wrap": "wrap",
+          "gap": "{space.xs}",
+          "align-items": "center"
+        },
+        "heading": {
+          "display": "flex",
+          "flex-direction": "column",
+          "gap": "{space.sm}"
         }
       }
     },
@@ -679,6 +903,16 @@
             "gap": "{space.md}",
             "grid-template-columns": "1fr"
           }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
         }
       }
     },
@@ -686,16 +920,19 @@
       "properties": {
         "display": "grid",
         "gap": "{space.sm}",
-        "padding": "{space.md}",
-        "border-style": "solid",
+        "padding": "{space.none}",
+        "border-style": "none",
         "border-width": "{shape.line}",
-        "background-color": "{color.card}",
+        "background-color": "{color.paper}",
         "border-color": "{color.border}"
       },
       "slots": {
         "title": {
           "properties": {
-            "font-family": "{font.family}"
+            "font-family": "{font.family}",
+            "font-size": "{type.card}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
           }
         },
         "media": {
@@ -712,14 +949,45 @@
             "padding-block": "{space.action-block}",
             "padding-inline": "{space.action-inline}",
             "text-decoration-line": "none",
-            "display": "inline-block"
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-612}"
+          }
+        },
+        "meta": {
+          "properties": {
+            "max-width": "{shape.measure-612}",
+            "display": "grid",
+            "gap": "{space.sm}"
+          }
+        },
+        "highlight": {
+          "properties": {
+            "max-width": "{shape.measure-648}"
           }
         }
       },
       "parts": {
         "content": {
+          "display": "flex",
+          "gap": "{space.sm}",
+          "flex-direction": "column",
+          "padding": "{space.md}"
+        },
+        "pair": {
           "display": "grid",
-          "gap": "{space.sm}"
+          "gap": "{space.none}",
+          "grid-template-columns": "1fr"
         }
       }
     }
@@ -744,21 +1012,21 @@
       "properties": {
         "font-size": "{type.title-md}"
       },
-      "reason": "The title scale grows from 28px to 34px at the medium breakpoint."
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
     },
     {
       "scope": "listing-card.title@md",
       "properties": {
         "font-size": "{type.title-md}"
       },
-      "reason": "The title scale grows from 28px to 34px at the medium breakpoint."
+      "reason": "The editorial listing title follows the declared 28px/34px title scale."
     },
     {
       "scope": "detail-header.title@md",
       "properties": {
         "font-size": "{type.title-md}"
       },
-      "reason": "The title scale grows from 28px to 34px at the medium breakpoint."
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
     },
     {
       "scope": "hero.title@md",
@@ -766,7 +1034,7 @@
         "font-family": "{font.family}",
         "font-size": "{type.title-md}"
       },
-      "reason": "The title scale grows from 28px to 34px at the medium breakpoint."
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
     },
     {
       "scope": "card@md",
@@ -780,9 +1048,10 @@
       "scope": "content-section@md",
       "properties": {
         "display": "grid",
-        "grid-template-columns": "1fr 3fr"
+        "grid-template-columns": "1fr 3fr",
+        "padding-inline": "{space.lg}"
       },
-      "reason": "A narrow heading column accompanies the long-form prose."
+      "reason": "A narrow heading column accompanies the long-form prose. Restore the wider editorial inset above the phone layout."
     },
     {
       "scope": "nav@md",
@@ -809,9 +1078,58 @@
     {
       "scope": "card.title@md",
       "properties": {
-        "font-size": "{type.title-md}"
+        "font-size": "{type.card-md}"
       },
-      "reason": "The title scale grows from 28px to 34px at the medium breakpoint."
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "gallery.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "form.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "empty-state.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "error-state.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "content-section.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "collection.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "content-section~actions@md",
+      "properties": {
+        "grid-column": "1 / -1"
+      },
+      "reason": "Actions follow editorial prose at their natural width."
     }
   ],
   "behaviors": [

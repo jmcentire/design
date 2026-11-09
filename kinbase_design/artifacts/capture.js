@@ -6,6 +6,8 @@
   const rendered=new Set(all);
   for(const e of all)for(let parent=e.parentElement;parent;parent=parent.parentElement)rendered.add(parent);
   const hidden=elements.filter(e=>!rendered.has(e)&&(!e.parentElement||rendered.has(e.parentElement))).map(selector);
+  const excluded=all.filter(e=>{for(let p=e;p;p=p.parentElement)if(['fixed','sticky','absolute'].includes(getComputedStyle(p).position)||p.getAttribute('aria-modal')==='true')return true;return false;})
+    .map(e=>({selector:selector(e),reason:'Outside document flow: '+getComputedStyle(e).position,position:getComputedStyle(e).position}));
   // Keep bounded geometry for repeated wrappers even when their typography
   // was not selected for the more expensive computed-style sample.
   const geometry=new Map();
@@ -47,7 +49,7 @@
     text:(e.innerText||e.textContent||'').slice(0,args.maxText),directText:[...e.childNodes].filter(n=>n.nodeType===3).map(n=>n.textContent).join('').slice(0,args.maxText),
     attributes:Object.fromEntries(['id','class','role','alt','type','aria-label','href'].map(n=>[n,e.getAttribute(n)]).filter(p=>p[1]!==null)),
     src:e.tagName==='IMG'?e.currentSrc:e.tagName.toLowerCase()==='svg'?'inline:'+location.href+'#'+selector(e):null,box:[r.x+scrollX,r.y+scrollY,r.width,r.height],
-    styles:Object.fromEntries(args.properties.map(p=>[p,s.getPropertyValue(p)])),backgrounds,
+    styles:{...Object.fromEntries(args.properties.map(p=>[p,s.getPropertyValue(p)])),position:s.position},backgrounds,
     normalized_colors:Object.fromEntries(['color','background-color','border-color','border-top-color'].map(p=>[p,srgb(s.getPropertyValue(p))]))};});
   const inlineSVG=e=>{
     const copy=e.cloneNode(true),seen=new Set(),defs=document.createElementNS('http://www.w3.org/2000/svg','defs');
@@ -76,7 +78,7 @@
     if(!copy.hasAttribute('viewBox'))copy.setAttribute('viewBox',`0 0 ${rect.width} ${rect.height}`);
     return new XMLSerializer().serializeToString(copy);
   };
-  return {title:document.title,nodes,hidden,geometry:Object.fromEntries(geometry),media_queries:[...new Set(queries)],font_faces:faces,
+  return {title:document.title,nodes,hidden,excluded,geometry:Object.fromEntries(geometry),media_queries:[...new Set(queries)],font_faces:faces,
     candidates:[...[...document.images].filter(visible).map(e=>({url:e.currentSrc,alt:e.alt,selector:selector(e),kind:/logo|brand/i.test(e.alt+' '+e.className+' '+e.src)?'logo':'image'})),
       ...all.flatMap(e=>[...styles.get(e).backgroundImage.matchAll(/url\(["']?([^"')]+)["']?\)/g)].map(m=>({url:new URL(m[1],document.baseURI).href,selector:selector(e),kind:'image'}))),
       ...[...document.querySelectorAll('svg')].filter(visible).map(e=>{
