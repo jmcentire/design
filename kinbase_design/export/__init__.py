@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 from ..assets import package_files, package_notices
+from ..builder import current_builder, builder_label
 from ..language import validate
 from ..language.versions import digest, mint
 from ..render import InvalidLanguage
@@ -10,7 +11,8 @@ from ..vocabulary import load, hook_contract
 from .adapters import ADAPTERS, metadata
 
 
-def export_files(library, language_id, adapter_name):
+def export_files(library, language_id, adapter_name, builder=None):
+    builder = current_builder() if builder is None else builder
     if adapter_name not in ADAPTERS:raise ValueError('Unknown export adapter: ' + adapter_name)
     document = load_language(library, language_id)
     result = validate(library, language_id, document)
@@ -18,15 +20,16 @@ def export_files(library, language_id, adapter_name):
     reference = language_id + '@' + digest(document)
     adapter = ADAPTERS[adapter_name]
     vocabulary = load(library,document['vocabulary'])
-    files = adapter.files(document, vocabulary, reference)
+    files = adapter.files(document, vocabulary, reference, builder)
     files['hooks.json'] = (json.dumps(hook_contract(vocabulary),ensure_ascii=False,indent=2)+'\n').encode()
     files.update(package_files(library, language_id, document))
-    files['ATTRIBUTION.txt'] = (metadata(reference,adapter_name+'@'+adapter.version)['$description']+'\n\n'+'\n\n'.join(package_notices(library,language_id,document))+'\n').encode()
+    files['ATTRIBUTION.txt'] = (metadata(reference,adapter_name+'@'+adapter.version,builder)['$description']+'; '+builder_label(builder)+'\n\n'+'\n\n'.join(package_notices(library,language_id,document))+'\n').encode()
     return files
 
 
-def export(library, language_id, adapter_name, out):
-    files = export_files(library, language_id, adapter_name)
+def export(library, language_id, adapter_name, out, builder=None):
+    builder = current_builder() if builder is None else builder
+    files = export_files(library, language_id, adapter_name, builder)
     root = Path(out).expanduser().resolve()
     # Export destinations may not overwrite source languages or vocabulary.
     library = Path(library).resolve()
@@ -38,4 +41,4 @@ def export(library, language_id, adapter_name, out):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
     return {'language': reference, 'adapter': adapter_name+'@'+ADAPTERS[adapter_name].version,
-            'out': str(root), 'files': sorted(files)}
+            'out': str(root), 'files': sorted(files), 'builder': builder}

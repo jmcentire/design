@@ -4,6 +4,7 @@ import json
 from copy import deepcopy
 from pathlib import Path
 from ..assets import package_files
+from ..builder import current_builder, builder_label
 from ..language import validate
 from ..language.resolver import resolve
 from ..storage import load_language, inside
@@ -18,7 +19,8 @@ class InvalidLanguage(ValueError):
         super().__init__('Language has unresolved validation findings')
 
 
-def preview_files(library, language_id, compositions=None, vocabulary_version=None):
+def preview_files(library, language_id, compositions=None, vocabulary_version=None, builder=None):
+    builder = current_builder() if builder is None else builder
     document = load_language(library, language_id)
     result = validate(library, language_id, document)
     if not result['accepted']:
@@ -58,7 +60,9 @@ def preview_files(library, language_id, compositions=None, vocabulary_version=No
         for page in compositions.values():contexts(page['instances'])
     files = ({name:renderer.reconstruction(page) for name,page in compositions.items()} if compositions is not None
              else {name:renderer.page(name) for name in vocabulary['context']['pages']})
-    files['language.css'] = stylesheet(document, vocabulary).encode('utf-8')
+    label = builder_label(builder)
+    files = {name: ('<!-- ' + label + ' -->\n').encode() + data for name, data in files.items()}
+    files['language.css'] = ('/* ' + label + ' */\n' + stylesheet(document, vocabulary)).encode('utf-8')
     files.update(package_files(library, language_id, document))
     return files
 

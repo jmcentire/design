@@ -3,6 +3,7 @@ import json
 import logging
 from pathlib import Path
 from ..assets import package_notices, inspect_format
+from ..builder import current_builder, builder_label
 from ..language import validate
 from ..language.versions import mint, digest
 from ..render import preview_files
@@ -56,7 +57,8 @@ def page_files(library, language_id, content):
                 result['findings'].append(Finding('coverage','content-variant',f'languages/{language_id}/working.json',
                     pointer('components',name,'variant'),variant,'vocabulary-owned content markup',
                     f'{name}: variant markup is not used on content pages; review CSS treatment against the fixed vocabulary wrappers.').to_dict())
-    files = preview_files(library, language_id, {'index.html':composition}, vocabulary_version=version)
+    builder = current_builder()
+    files = preview_files(library, language_id, {'index.html':composition}, vocabulary_version=version, builder=builder)
     # Language assets are approved, but a portable offline bundle still cannot
     # contain an image that executes code or fetches a remote subresource.
     for asset, entry in document.get('assets',{}).items():
@@ -66,8 +68,8 @@ def page_files(library, language_id, content):
     files.update(images)
     files['hooks.json'] = (json.dumps(hook_contract(vocabulary),ensure_ascii=False,indent=2)+'\n').encode()
     notices = normalized.get('footer',{}).get('notices',[]) + package_notices(library,language_id,document)
-    files['ATTRIBUTION.txt'] = ('\n\n'.join(notices)+'\n').encode()
-    result.update(vocabulary=version,validated=True,rendered_check=status,accepted=status=='accepted')
+    files['ATTRIBUTION.txt'] = (builder_label(builder)+'\n\n'+'\n\n'.join(notices)+'\n').encode()
+    result.update(builder=builder,vocabulary=version,validated=True,rendered_check=status,accepted=status=='accepted')
     return result, files
 
 
@@ -106,6 +108,6 @@ def render_page(library, language_id, content, out):
     for name in set(old)-files.keys():
         path = inside(root,name)
         if path.is_file():path.unlink()
-    write_json(root/MARKER, {'schema':'kinbase-content-bundle/1','files':sorted(files)})
+    write_json(root/MARKER, {'schema':'kinbase-content-bundle/1','builder':result['builder'],'files':sorted(files)})
     logging.getLogger(__name__).info('render_page language=%s files=%d',language_id,len(files))
     return {**result,'files':sorted(files)}
