@@ -108,9 +108,12 @@ def test_feedback_without_kinbase_is_recorded_locally_and_never_changes_validati
     with workbench(library) as server:
         page.goto(server + "/languages/tidal")
         unknown_badges(page, unavailable)
-        comments = visible(page.get_by_role("textbox", name=re.compile(r"feedback|comment|message|observation", re.I)))
+        note_buttons = visible(page.get_by_role("button", name=re.compile(r"record feedback|comment", re.I)))
+        assert note_buttons, "Viewer has no note-recording operation"
+        note_form = note_buttons[0].locator("xpath=ancestor::form[1]")
+        comments = visible(note_form.get_by_role("textbox", name=re.compile(r"feedback|comment|message|observation", re.I)))
         if not comments:
-            comments = visible(page.locator("textarea"))
+            comments = visible(note_form.locator("textarea"))
         assert comments, "Viewer has no no-JS feedback field"
         control = comments[0]
         form = control.locator("xpath=ancestor::form[1]")
