@@ -57,7 +57,8 @@ def assert_source_tokens(library, document, provenance, expected):
 
 @pytest.mark.browser
 @pytest.mark.browser_timeout(240)
-def test_dtcg_values_and_source_provenance_survive_draft_and_save(library, tmp_path, ingest_config):
+@pytest.mark.parametrize("missing_browser", [False, True], ids=["browser-available", "browser-unavailable"])
+def test_dtcg_values_and_source_provenance_survive_draft_and_save(library, tmp_path, ingest_config, missing_browser):
     source = tmp_path / "private-original.json"
     shutil.copyfile(FIXTURES / "ingest-tokens.json", source)
     expected = read_json(source)
@@ -65,7 +66,20 @@ def test_dtcg_values_and_source_provenance_survive_draft_and_save(library, tmp_p
     artifact_root = library.workspace / "artifacts" / artifact
     immutable = tree_hashes(artifact_root)
     source.unlink()
-    root, document, _ = draft(library, [artifact], "from-tokens")
+    if missing_browser:
+        # P3 unavailable-preview contract: imported data still yields a valid
+        # draft, but unverified visual choices cannot be advertised as usable.
+        # Force the real Playwright boundary; do not replace the browser code.
+        empty_installation = tmp_path / "empty-playwright-installation"
+        empty_installation.mkdir()
+        library.command_env["PLAYWRIGHT_BROWSERS_PATH"] = str(empty_installation)
+    root, document, summary = draft(library, [artifact], "from-tokens")
+    if missing_browser:
+        assert summary["questions"] == 0 and summary["question_items"] == []
+        assert library.json("questions", "from-tokens", cwd=library.project) == []
+        evidence = [f for f in summary["findings"] if f["rule"] == "ingest-question-preview"]
+        assert evidence and all(f["type"] == "coverage" and f["observed"] and f["message"] for f in evidence)
+        assert read_json(root / "questions.json"), "Private question evidence must survive unavailable verification"
     provenance = read_json(root / "provenance.json")
     assert_provenance(document, provenance)
     assert_source_tokens(library, document, provenance, expected)

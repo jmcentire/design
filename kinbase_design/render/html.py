@@ -24,7 +24,7 @@ def element(tag, attrs, content=''):
     return start if tag in {'img', 'input'} else start + content + '</' + tag + '>'
 
 
-def definition_fragments(fragments):
+def definition_fragments(fragments,pair_style=None):
     """Keep captured definition fields and inline runs, without inventing copy."""
     def inline(fragment):
         href=captured_href(fragment.get('href'))
@@ -44,9 +44,9 @@ def definition_fragments(fragments):
         pairs=[];pair=[];has_value=False
         for _,tag,content in fields:
             if tag=='dt' and has_value:
-                pairs.append(element('div',{'data-kd-part':'pair'},''.join(pair)));pair=[];has_value=False
+                pairs.append(element('div',{'data-kd-part':'pair','style':pair_style},''.join(pair)));pair=[];has_value=False
             pair.append(element(tag,{},content));has_value|=tag=='dd'
-        if pair:pairs.append(element('div',{'data-kd-part':'pair'},''.join(pair)))
+        if pair:pairs.append(element('div',{'data-kd-part':'pair','style':pair_style},''.join(pair)))
         chunks.append(element('dl',{},''.join(pairs)))
     return ''.join(chunks)
 
@@ -142,7 +142,8 @@ class SampleRenderer:
             content=element('pre',{},element('code',{},''.join(escape(f['text']) for f in fragments)))
         elif fragments and any(f.get('definition') for f in fragments):
             tag='div'
-            content=definition_fragments(fragments)
+            pair_style=declaration(resolve(treatment,self.vocabulary,construct+'~pair')['properties']) if treatment is not None else None
+            content=definition_fragments(fragments,pair_style)
         elif fragments:
             chunks=[];previous=None
             for fragment in fragments:

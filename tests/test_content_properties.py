@@ -51,6 +51,31 @@ def test_new_properties_resolve_with_provenance_and_reject_invalid_values(librar
     assert any(f["pointer"] == pointer and f["observed"] == invalid for f in report["findings"])
 
 
+def test_content_relative_widths_resolve_only_nonnegative_token_arithmetic(content_library):
+    # P2 fluid-bleed contract extends the existing closed minus form to plus,
+    # for width and max-width. The authored 8px token determines the CSS value.
+    language = content_library.read("harbor")
+    language["style"]["relative-test"] = {
+        "inset": {"$type": "dimension", "$value": "8px"},
+        "negative": {"$type": "dimension", "$value": "-8px"},
+    }
+    properties = language["components"]["card"]["properties"]
+    for prop in ("width", "max-width"):
+        for sign in ("-", "+"):
+            properties[prop] = f"calc(100% {sign} {{relative-test.inset}})"
+            content_library.write(language)
+            content_library.validate("harbor")
+            actual = content_library.json("resolve", "harbor", "card")["properties"][prop]
+            assert "".join(str(actual["value"]).split()) == f"calc(100%{sign}8px)"
+        for invalid in ("calc(100% + {relative-test.negative})", "calc(100% + 8px)"):
+            properties[prop] = invalid
+            content_library.write(language)
+            report = content_library.validate("harbor", accepted=False)
+            assert any(f["pointer"] == f"/components/card/properties/{prop}" and
+                       f["observed"] == invalid for f in report["findings"])
+        del properties[prop]
+
+
 @pytest.mark.parametrize("where", ["construct", "slot", "part", "override"])
 def test_content_cannot_be_hidden_at_any_scope(library, language, where):
     component = language["components"]["listing-card"]

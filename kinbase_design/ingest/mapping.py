@@ -76,7 +76,7 @@ def map_view(view,vocabulary,suggestions=()):
                 add(node,'card',parent)
                 roots[node['selector']]['group_members']=[peer['selector'] for peer in peers]
     for node in nodes:
-        if construct_for(node)!='card' or long_form(node,descendants(node)):continue
+        if construct_for(node)!='card' or landmark_content(node) or long_form(node,descendants(node)):continue
         if any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):continue
         root=node;parent=by.get(node.get('parent'));desc=descendants(node)
         if sum(n['tag']=='article' for n in desc)>1:continue

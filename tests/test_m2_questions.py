@@ -68,13 +68,16 @@ def assert_rendered_questions(library, root, questions, vocabulary, page):
 
 
 def test_missing_value_candidates_answer_supersession_and_private_save(
-        library, fixture_site, ingest_config, vocabulary, page):
+        library, fixture_site, ingest_config, page):
     url = fixture_site.url + "/missing/index.html"
     artifact, artifact_root, captured = capture(library, [url])
     immutable = tree_hashes(artifact_root)
     fixture_site.available = False
     request_count = len(fixture_site.requests)
     root, document, summary = draft(library, [artifact], "partial")
+    # New drafts declare the current vocabulary; the hand-authored language
+    # fixture intentionally stays on its older version (amendment 04).
+    vocabulary = library.json("vocabulary", "--vocabulary", document["vocabulary"])
     initial_questions = library.json("questions", "partial", cwd=library.project)
     assert initial_questions and summary["questions"] == len(initial_questions)
     # Even before any answer, the sparse capture must produce a valid language

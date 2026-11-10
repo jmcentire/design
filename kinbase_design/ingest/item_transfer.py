@@ -97,22 +97,42 @@ def transfer(document,vocabulary,view,treatments,properties,token,space_token,or
         root=props('card');root.update(clear)
         root.update({k:v for k,v in measured.items() if k in {'background-color','border-color','border-width','border-style','border-radius','box-shadow','padding','padding-inline','padding-block'}})
         inner=props('card~content')
-        # A root inset belongs to every child, including inset media. Otherwise
-        # the text wrapper supplies the sole inset beside full-bleed media.
-        for axis,side in [('padding-inline','padding-left'),('padding-block','padding-top')]:
-            amount=px(surface.get('styles',{}).get(side)) or 0
-            root[axis]=space_token(amount,origin(view,surface,side))
-            if amount>0:inner[axis]=zero
+        # Reconstruction and the reusable card share the same measured owners.
+        from .reconstruction_card import insets,bleed_properties
+        measured_insets,content_group,full=insets(item,view,surface)
+        for axis,(outer,inset) in measured_insets.items():
+            root['padding-'+axis]=space_token(outer,origin(view,surface,'item inset'))
+            inner['padding-'+axis]=space_token(inset,origin(view,content_group or surface,'content inset'))
+        if full:props('card.media').update(bleed_properties(item,view,surface,token,origin,measured_insets))
         owned=[n for n in nodes if within(n,surface['selector'])]
         paragraphs=[n for n in owned if n['tag']=='p' and visible_text(n)]
         primary=[n for n in paragraphs if hex_color(n.get('styles',{}).get('color'))==body_color]
         card_body=max(primary or paragraphs,key=lambda n:len(n.get('text','')),default=None)
+        # Definition fields share the meta slot, but do not replace the source's
+        # secondary-copy treatment with their ordinary body colour.
+        def secondary_copy(node):
+            current=node
+            while current and current['selector']!=surface['selector']:
+                if current['tag'] in {'a','button','dl'}:return False
+                current=by.get(current.get('parent'))
+            return bool(visible_text(node))
+        secondary=[n for n in owned if secondary_copy(n)
+                   and (px(n.get('styles',{}).get('font-size')) or body_size)<body_size
+                   and hex_color(n.get('styles',{}).get('color')) not in {None,body_color}]
         for slot in vocabulary['constructs']['card']['slots']:
             if slot['kind']!='text':continue
             scope='card.'+slot['id'];witness=item['nodes'].get(slot['id'])
+            if slot['id'] in {'meta','eyebrow'} and secondary and (not witness or witness['tag'] in {'dt','dd'}
+                    or hex_color(witness.get('styles',{}).get('color'))==body_color):witness=secondary[0]
             own_paint(scope,witness)
             if witness:
                 props(scope).update({k:v for k,v in properties(view,witness).items() if k in {'font-family','font-weight','color'}})
+                if slot['id'] in {'meta','eyebrow'}:
+                    props(scope).update({k:v for k,v in properties(view,witness).items() if k=='line-height'})
+                    if (size:=px(witness.get('styles',{}).get('font-size'))) is not None:
+                        props(scope)['font-size']=token('dimension',f'{size:g}px',origin(view,witness,'font-size'))
+                    if color:=hex_color(witness.get('styles',{}).get('color')):
+                        props(scope)['color']=token('color',color,origin(view,witness,'color'))
             props(scope).update({'padding':zero,'padding-inline':zero,'padding-block':zero})
         paragraph('card.body',card_body)
         # Meta is a new semantic list, not the painted paragraph used as its
@@ -121,17 +141,22 @@ def transfer(document,vocabulary,view,treatments,properties,token,space_token,or
             candidates=[n for n in owned if n['selector']!=surface['selector'] and children
                         and all(c['selector'].startswith(n['selector']+' > ') for c in children)]
             return max(candidates,key=lambda n:len(n['selector']),default=None)
+        def nested_group(scope,node):
+            own_paint(scope,node)
+            props(scope).update({'padding':zero,'padding-inline':zero,'padding-block':zero})
+            if node and node not in (surface,content_group):
+                props(scope).update({k:v for k,v in properties(view,node).items() if k in {'padding','padding-inline','padding-block'}})
         dl=next((n for n in owned if n['tag']=='dl'),None)
         pair=[n for n in owned if dl and within(n,dl['selector']) and n['tag'] in {'dt','dd'}][:2]
         pair_group=inner_group(pair)
-        own_paint('card.meta',dl)
-        own_paint('card~pair',pair_group if pair_group!=dl else None)
+        nested_group('card.meta',dl)
+        nested_group('card~pair',pair_group if pair_group!=dl else None)
         text=[n for n in item['nodes'].values() if n['tag'] not in {'a','button','img','svg'}]
         own_paint('card~content',inner_group(text))
         actions=[by[a['selector']] for group in item.get('action_items',{}).values() for a in group if a['selector'] in by]
         action_group=inner_group(actions)
         if action_group and any(visible_text(n) and within(n,action_group['selector']) and not any(within(n,a['selector']) for a in actions) for n in owned):action_group=None
-        own_paint('card~actions',action_group)
+        nested_group('card~actions',action_group)
         props('listing-card').update({k:v for k,v in root.items() if k in set(clear)|{'border-color','border-radius','padding','padding-inline','padding-block'}})
         props('listing-card~content').update({k:v for k,v in inner.items() if k in set(clear)|{'border-color','border-radius','padding','padding-inline','padding-block'}})
         for slot in vocabulary['constructs']['listing-card']['slots']:

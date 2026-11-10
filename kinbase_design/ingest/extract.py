@@ -386,7 +386,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                     fragment['properties']={k:v for k,v in properties(view,node).items() if k in CONTROL_TEXT_PROPERTIES}
             if scope=='card' and vocabulary.get('composition_rules'):
                 from .reconstruction_card import treatment as card_reconstruction
-                card_reconstruction(item,view,card_surface,token,origin)
+                card_reconstruction(item,view,card_surface,token,origin,properties)
 
         if view['unmapped']:notes.append({'rule':'ingest-mapping','message':f'{view["page"]}@{view["width"]}: {len(view["unmapped"])} elements have no matching Vocabulary slot','locations':view['unmapped']})
     if vocabulary.get('content_pages'):

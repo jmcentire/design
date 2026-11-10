@@ -50,7 +50,7 @@ class Validator:
                     self.issue('content-hidden',p,value,'content-bearing constructs, slots and parts must remain rendered')
             elif key in OPTIONAL_KEYWORDS and isinstance(value,str) and value in OPTIONAL_KEYWORDS[key]:
                 continue
-            elif key=='width' and self.vocab.get('content_pages') and isinstance(value,str) and value.startswith('calc('):
+            elif key in {'width','max-width'} and self.vocab.get('content_pages') and isinstance(value,str) and value.startswith('calc('):
                 try:fluid_width(self.tokens,value)
                 except (KeyError,ValueError,TypeError) as exc:
                     self.issue('R2',p,value,'a closed fluid width backed by a nonnegative dimension token',str(exc))

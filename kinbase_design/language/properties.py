@@ -34,7 +34,7 @@ for choices in KEYWORDS.values():
 
 def property_value(document, tokens, name, value):
     """Single value-computation path for root, slot, role, override and part CSS."""
-    if name=='width' and document.get('vocabulary')!='v1' and isinstance(value,str) and value.startswith('calc('):
+    if name in {'width','max-width'} and document.get('vocabulary')!='v1' and isinstance(value,str) and value.startswith('calc('):
         return fluid_width(tokens,value)
     if name in KEYWORDS:
         return value
@@ -75,11 +75,11 @@ class LayoutValueError(ValueError):
 
 def fluid_width(tokens,value):
     """One closed relative-width form; arbitrary CSS arithmetic is not accepted."""
-    match=re.fullmatch(r'calc\(100% - (\{[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\})\)',value)
-    if not match:raise LayoutValueError('calc(100% - {nonnegative-dimension-token})')
-    kind,amount=tokens.reference(match[1])
+    match=re.fullmatch(r'calc\(100% ([+-]) (\{[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\})\)',value)
+    if not match:raise LayoutValueError('calc(100% +/- {nonnegative-dimension-token})')
+    kind,amount=tokens.reference(match[2])
     if kind!='dimension' or amount.startswith('-'):raise LayoutValueError('a nonnegative dimension token')
-    return 'calc(100% - '+amount+')'
+    return 'calc(100% '+match[1]+' '+amount+')'
 
 
 def layout_value(tokens, name, value):

@@ -7,6 +7,25 @@ from ..language.tokens import Tokens
 from ..vocabulary import slot_map
 
 
+def usable(document,vocabulary,question):
+    """A heading correction must remain compliant after preview exposure."""
+    from ..language.resolver import Resolver
+    from .composition import pixels
+    resolver=Resolver(document,vocabulary)
+    for target in question.get('targets') or [question]:
+        if 'flow-binding-' not in target['pointer']:continue
+        construct=target['construct'];parts=vocabulary['constructs'][construct].get('parts',{})
+        content=construct+'~content' if 'content' in parts else construct
+        heading=construct+'~heading' if 'heading' in parts else content
+        for bp in [None,*[name.removeprefix('breakpoint.') for name in resolver.tokens.nodes if name.startswith('breakpoint.')]]:
+            def props(scope):return {k:v['value'] for k,v in resolver.resolve(scope,breakpoint=bp)['properties'].items()}
+            before=props(heading);after=props(content);title=props(construct+'.title')
+            leading=(pixels(before.get('row-gap',before.get('gap'))) or 0)+(pixels(title.get('margin-block-start',title.get('margin-block'))) or 0)
+            trailing=(pixels(after.get('row-gap',after.get('gap'))) or 0)+(pixels(title.get('margin-block-end',title.get('margin-block'))) or 0)
+            if leading<=trailing:return False
+    return True
+
+
 def expose(before,after,vocabulary,instances,question):
     left,right=Tokens(before['style']),Tokens(after['style'])
     targets=question.get('targets') or [question]
@@ -87,3 +106,38 @@ def expose(before,after,vocabulary,instances,question):
             if (other.construct,other.slot,other.part)==(target.construct,target.slot,target.part):
                 for prop,raw in props.items():
                     if prop in override['properties']:override['properties'][prop]=deepcopy(raw)
+
+
+def render(job):
+    """Compare actual local previews in one bounded, offline browser session."""
+    import hashlib
+    from io import BytesIO
+    from PIL import Image
+    from ..artifacts.runtime import chromium
+    from ..checks.browser import prepare
+    from ..config import CHECK_TIMEOUT_MS
+    from ..storage import inside
+    result=[]
+    with chromium(timeout_ms=CHECK_TIMEOUT_MS) as browser:
+        context=browser.new_context(java_script_enabled=False,viewport={'width':320,'height':352})
+        context.route('**/*',lambda route:route.continue_() if route.request.url.startswith(('file:','data:')) else route.abort())
+        try:
+            page=context.new_page()
+            for candidate in job['candidates']:
+                prepare(page,inside(job['root'],candidate['preview']))
+                if not page.locator('[data-kd-construct]').count():raise ValueError('The advertised question specimen is absent')
+                pixels=Image.open(BytesIO(page.screenshot(full_page=True,animations='disabled',timeout=CHECK_TIMEOUT_MS))).convert('RGB')
+                digest=hashlib.sha256(str(pixels.size).encode()+pixels.tobytes())
+                result.append({'question':candidate['question'],'candidate':candidate['candidate'],'pixels':digest.hexdigest()})
+        finally:context.close()
+    return {'candidates':result}
+
+
+if __name__=='__main__':
+    import json
+    import sys
+    from pathlib import Path
+    from ..artifacts.runtime import read_job,watch_parent
+    watch_parent()
+    try:print(json.dumps(render(read_job(Path(sys.argv[1])))))
+    except Exception as exc:print(json.dumps({'error':str(exc)}));sys.exit(2)

@@ -3,3 +3,5 @@
 :where([data-kd-content]) [data-kd-slot="card.meta"]{display:grid;gap:1rem}
 :where([data-kd-content]) [data-kd-slot="card.meta"]>div{display:grid;grid-template-columns:1fr;gap:0}
 :where([data-kd-content]) [data-kd-slot="card.meta"] :where(dt,dd){margin:0;overflow-wrap:anywhere}
+/* Captured fact lists use the same content inset as their surrounding copy. */
+:where([data-kd-captured="true"]) [data-kd-slot="card.meta"] :where(dl,dt,dd){margin:0;overflow-wrap:anywhere}

@@ -38,6 +38,10 @@ def summary(library,workspace,draft_id):
         findings.append(Finding('coverage',note.get('rule','ingest-coverage'),f'drafts/{draft_id}/state.json',
                                 pointer('notes',index),note,'review source fidelity',note['message']).to_dict())
     items=questions(workspace,draft_id)
+    for index,question in enumerate(read_document(inside(root,'questions.json'))):
+        if question.get('preview_problem'):
+            findings.append(Finding('coverage','ingest-question-preview',f'drafts/{draft_id}/questions.json',
+                                    pointer(index,'preview_problem'),question['preview_problem'],'verified distinct visual alternatives',question['preview_problem']).to_dict())
     result={**report(draft_id,findings),'draft':draft_id,'mapping':'llm' if state['mapping']=='configured-command' else state['mapping'],'facts':state['facts'],
             'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':state.get('standards','unknown (Kinbase unconnected)'),
             'views':state['views'],'references':state['references'],'version':digest(document),

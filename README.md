@@ -253,10 +253,14 @@ metadata or an eyebrow by position; short accent text becomes a highlight. Speci
 constructs such as `listing-card` remain available for explicit mappings and authored languages.
 
 Choosing again supersedes the value and its chosen provenance. Candidate preview paths are relative to
-the draft directory. Every candidate names a preview. A null (unmeasured) or invalid alternative
-uses `preview_kind: "current-draft"` and a `preview_note` explaining why it shows the unchanged
-current draft; it cannot be chosen. Applicable alternatives use `preview_kind: "candidate"`
-and show their own value. Choosing an answer refreshes these previews.
+the draft directory. Offered candidates use `preview_kind: "candidate"` and show their own value.
+Unmeasured, invalid and visually identical alternatives remain private evidence, not substitute
+previews of the current draft. A local, offline Chromium batch compares rendered alternatives;
+only questions with two to four usable, visibly distinct choices are offered; excess alternatives
+remain private evidence with their original IDs. If that verification
+is unavailable, the summary reports an `ingest-question-preview` coverage finding with the error,
+retains the draft and question evidence, and offers no unverified choices. Saving a valid draft
+remains available. Choosing an answer refreshes these previews.
 Heading-binding corrections also offer a compliant next spacing step, so an unusable measured
 alternative does not leave the question with only one visible choice.
 The value-provenance panel marks erased originals as “source removed”.
@@ -731,13 +735,16 @@ private renderer. The repository contains only synthetic section records and map
 
 ### Closed responsive layout grammar
 
-For content-page vocabularies, `width` also accepts `calc(100% - {dimension.token})`,
+For content-page vocabularies, `width` and `max-width` also accept
+`calc(100% - {dimension.token})` and `calc(100% + {dimension.token})`,
 where the token is a nonnegative px/rem dimension. This is a closed expression;
 other arithmetic and raw CSS lengths remain invalid. Ingest uses it with a centred
 `margin-inline: auto` and a measured `max-width`: between captures the container
 keeps the lower capture's combined side margins, grows with the viewport, and caps
 at the next capture's column width. At each captured width, its measured width and
 inline padding are restored; above the final capture its final width is the cap.
+The addition form lets full-bleed media span a card's measured inset while retaining
+the card's padding and adapting to the actual containing width.
 
 These properties use the same validator, resolver, provenance and declared breakpoint overrides
 as existing properties. All strings are parsed against this closed grammar:
@@ -753,8 +760,8 @@ as existing properties. All strings are parsed against this closed grammar:
 | `align-self`, `justify-self` | auto, start, end, center, stretch |
 | `row-gap`, `column-gap`, `margin-inline` | Dimension aliases under space.*; margin-inline also accepts auto |
 | `margin-block-start`, `margin-block-end` | Dimension aliases under space.* |
-| `width` | Dimension alias; content vocabularies also accept `calc(100% - {dimension.token})` |
-| `max-width` | Dimension alias, or `100%` for the containing extent |
+| `width` | Dimension alias; content vocabularies also accept `calc(100% - {dimension.token})` or `calc(100% + {dimension.token})` |
+| `max-width` | Dimension alias, `100%`, or the same closed relative forms as `width` |
 | `box-shadow` | none, or a DTCG shadow alias whose value has color, offsetX, offsetY, blur, spread |
 
 `outline-color` accepts a color-token alias and controls the safety focus outline, including
