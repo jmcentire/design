@@ -29,6 +29,7 @@ fallback to another project's environment variable.
 ```
 .venv/bin/kinbase-design figma identity
 .venv/bin/kinbase-design figma pull --file-key FILE_KEY --version VERSION_ID
+.venv/bin/kinbase-design figma pull --file-key FILE_KEY --version VERSION_ID --source-node 1:2 --source-node 3:4
 ```
 
 `identity` reads Figma's `/me`; check its result before selecting files. Reading a file requires
@@ -38,9 +39,20 @@ any particular file. No credentials have been validated by this implementation's
 `pull` records the actual returned version and immutable raw file tree in the private workspace.
 Observed solid fills and text styles become DTCG tokens, routed through the existing artifact and
 draft operations. Use the returned artifact id with `draft --from ID --language NAME`.
-Identical source bytes and version produce the same artifact identity; changed API metadata is retained as a new snapshot. This is a source snapshot,
+Identical source bytes, version and requested selection produce the same artifact identity; changed API metadata is retained as a new snapshot. This is a source snapshot,
 not synchronization, a Figma plugin, or an approved design standard. Optional PNG node renders, live variables and comments are available through explicit flags.
 Model-based semantic interpretation of images/layout is not implemented.
+
+Repeat `--source-node ID` to request source nodes through the `ids` query on Figma's
+[file endpoint](https://developers.figma.com/docs/rest-api/file-endpoints/), together with
+`version` when supplied. Without it, acquisition keeps its whole-file behavior. This differs
+from `--render-node`, which requests optional PNGs. The Python operation appends the optional
+`snapshot(..., source_nodes=())` argument; existing positional arguments retain their meanings.
+IDs are trimmed, deduplicated and sorted. The normalized list appears as `source_nodes` in the
+receipt and `details.source.source_nodes` in the immutable artifact metadata, only when selected.
+Figma may include ancestors, dependencies and pages: the complete returned response is retained,
+not filtered to an exclusive subtree. A missing requested node fails before capture artifacts are
+created. The existing 100 MiB response and 100,000-node traversal limits still apply.
 
 ## Company learning: one service, separate evidence and authority
 
@@ -79,8 +91,11 @@ that file. PNGs feed existing image sampling and visual-reference ingestion. API
 travel to image hosts. Failed/denied optional endpoints are reported as gaps without discarding
 the core snapshot. A partial pull is not complete evidence.
 
-Variables and comments endpoints return **live, unversioned** state, even when the document was
-requested at an older version. Their observation timestamps and this limitation are retained.
+Variables and comments endpoints return **file-wide, live, unversioned** state, even when the
+document was requested with source-node selection or at an older version. Their observation
+timestamps and this limitation are retained. The optional local variables endpoint requires
+full Enterprise organization membership and `file_variables:read`, as described in Figma's
+[variables documentation](https://developers.figma.com/docs/rest-api/variables-endpoints/).
 Color variables preserve mode identity; same-mode aliases resolve without inventing cross-mode
 values. Other variable types and unresolved aliases remain raw source evidence. Comments stay in private artifacts until explicitly exported to the private Company corpus;
 a commenter name or Figma account ID is not automatically Company authority. Exports label

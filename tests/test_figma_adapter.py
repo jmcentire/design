@@ -21,6 +21,7 @@ def test_snapshot_is_immutable_versioned_and_feeds_existing_ingest(tmp_path):
     assert first['artifact'] == second['artifact']
     assert api.requests[0] == ('files/example', {'version': '42'})
     assert json.loads(read_member(tmp_path, first['artifact'], 'figma.json')) == SOURCE
+    assert 'source_nodes' not in first
     meta = metadata(tmp_path, first['artifact'])
     assert meta['details']['source'] == {'provider': 'figma', 'file_key': 'example', 'version': '42'}
     result = collect(tmp_path, [first['artifact']])
@@ -33,6 +34,68 @@ def test_version_and_input_validation_prevents_wrong_source(tmp_path):
     with pytest.raises(ValueError, match='different version'): snapshot(tmp_path, 'example', '43', api)
     with pytest.raises(ValueError): snapshot(tmp_path, 'https://evil.example/', api=api)
     assert len(api.requests) == 1
+
+def test_source_selection_preserves_server_context_and_versioned_evidence(tmp_path):
+    # Native files(ids=...) selects the source server-side; returned ancestors,
+    # other pages and component dependencies remain immutable source evidence.
+    from copy import deepcopy
+    from kinbase_design.design_evidence import export
+    source = deepcopy(SOURCE)
+    first = source['document']['children'][0]
+    second = deepcopy(first); second['id'] = 'component-A'
+    dependency = deepcopy(first); dependency['id'] = '9:9'
+    source['document']['children'] = [
+        {'id': '0:2', 'type': 'CANVAS', 'children': [first, second]},
+        {'id': '0:3', 'type': 'CANVAS', 'children': [dependency]}]
+    class SelectedAPI(API):
+        def get(self, path, **query):
+            self.requests.append((path, query))
+            return source
+    api = SelectedAPI()
+    selected = snapshot(tmp_path, 'example', '42', api, source_nodes=['component-A', ' 1:2 ', 'component-A'])
+    assert api.requests == [('files/example', {'version': '42', 'ids': '1:2,component-A'})]
+    assert json.loads(read_member(tmp_path, selected['artifact'], 'figma.json')) == source
+    again = snapshot(tmp_path, 'example', '42', api, source_nodes=['1:2', 'component-A'])
+    narrower = snapshot(tmp_path, 'example', api=api, source_nodes=['1:2'])
+    assert api.requests[-1] == ('files/example', {'ids': '1:2'})
+    assert again['artifact'] == selected['artifact'] != narrower['artifact']
+    assert selected['source_nodes'] == ['1:2', 'component-A']
+    assert metadata(tmp_path, selected['artifact'])['details']['source'] == {
+        'provider': 'figma', 'file_key': 'example', 'version': '42', 'source_nodes': ['1:2', 'component-A']}
+    assert metadata(tmp_path, narrower['artifact'])['details']['source']['version'] == '42'
+    out = tmp_path / 'observations.jsonl'
+    receipt = export(tmp_path, selected['artifact'], out)
+    observations = [json.loads(line) for line in out.read_text().splitlines()]
+    assert receipt['status'] == 'prepared-not-submitted'
+    assert {r['source']['node_id'] for r in observations} == {'1:2', 'component-A', '9:9'}
+    assert all(r['source']['version'] == '42' and r['source']['digest'] == selected['artifact']
+               for r in observations)
+    assert '#0080ff' in collect(tmp_path, [selected['artifact']])['colors']
+
+def test_missing_selected_source_node_leaves_no_artifact(tmp_path):
+    api = API()
+    for invalid in (' ', '1:2,4:5'):
+        with pytest.raises(ValueError):
+            snapshot(tmp_path, 'example', api=api, source_nodes=[invalid])
+    assert api.requests == []
+    with pytest.raises(ValueError, match='4:5'):
+        snapshot(tmp_path, 'example', api=API(), source_nodes=['1:2', '4:5'])
+    assert not (tmp_path / 'artifacts').exists() or not list((tmp_path / 'artifacts').iterdir())
+
+def test_cli_forwards_repeated_source_nodes_to_native_file_query(library, monkeypatch, capsys):
+    from kinbase_design import cli, figma
+    api = API()
+    # Authorized external-client construction seam: run the real CLI, snapshot,
+    # query construction and artifact writer; only the external API is synthetic.
+    monkeypatch.setattr(figma, 'client', lambda: api)
+    cli.main(['figma', 'pull', '--file-key', 'example', '--version', '42',
+              '--source-node', '1:2', '--source-node', ' 0:1 ', '--source-node', '1:2',
+              '--library', str(library.library), '--workspace', str(library.workspace)])
+    result = json.loads(capsys.readouterr().out)
+    assert api.requests == [('files/example', {'version': '42', 'ids': '0:1,1:2'})]
+    assert result['source_nodes'] == ['0:1', '1:2']
+    assert metadata(library.workspace, result['artifact'])['details']['source']['source_nodes'] == ['0:1', '1:2']
+    assert json.loads(read_member(library.workspace, result['artifact'], 'figma.json')) == SOURCE
 
 def test_no_cross_project_credential_fallback(monkeypatch):
     from kinbase_design.figma import client

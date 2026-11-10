@@ -57,9 +57,10 @@ def identifier(value):
     return value
 
 
-def tokens_from(document):
+def tokens_from(document, required_nodes=()):
     """Observed node-local values, not inferred brand rules or authority."""
     tokens = {}
+    missing = set(required_nodes)
     stack = [document]
     count = 0
     while stack:
@@ -71,6 +72,7 @@ def tokens_from(document):
             raise ValueError('Figma document exceeds node limit')
         stack.extend(node.get('children', []))
         node_id = str(node.get('id', ''))
+        missing.discard(node_id)
         key = 'node_' + node_id.encode().hex()
         values = {}
         for index, paint in enumerate(node.get('fills', [])):
@@ -91,22 +93,35 @@ def tokens_from(document):
         if values:
             values['$extensions'] = {'figma': {'nodeId': node_id, 'name': node.get('name', '')}}
             tokens[key] = values
+    if missing:
+        raise ValueError('Figma response lacks requested source nodes: ' + ', '.join(sorted(missing)))
     return tokens
 
 
-def snapshot(workspace, file_key, version=None, api=None, nodes=(), variables=False, comments=False):
+def snapshot(workspace, file_key, version=None, api=None, nodes=(), variables=False, comments=False, source_nodes=()):
     """Fetch a versioned source and feed observed tokens into existing import/draft."""
     file_key = identifier(file_key)
     if version:
         identifier(version)
+    if isinstance(source_nodes, str):
+        raise ValueError('Source nodes must be a collection of node IDs')
+    selected = set()
+    for node in source_nodes:
+        if not isinstance(node, str) or not node.strip() or ',' in node:
+            raise ValueError('Each source node must be a nonempty node ID without commas')
+        selected.add(node.strip())
+    source_nodes = sorted(selected)
+    query = {'version': version} if version else {}
+    if source_nodes:
+        query['ids'] = ','.join(source_nodes)
     api = api or client()
-    source = api.get('files/'+file_key, **({'version': version} if version else {}))
+    source = api.get('files/'+file_key, **query)
     actual = source.get('version')
     if not actual or not isinstance(source.get('document'), dict):
         raise ValueError('Figma file response lacks document or version')
     if version and actual != version:
         raise ValueError('Figma returned a different version than requested')
-    tokens = tokens_from(source['document'])
+    tokens = tokens_from(source['document'], source_nodes)
     encode = lambda value: json.dumps(value, sort_keys=True, ensure_ascii=False).encode()
     children = []
     if tokens:
@@ -116,10 +131,11 @@ def snapshot(workspace, file_key, version=None, api=None, nodes=(), variables=Fa
     files, extras, observations, gaps = acquire(api, workspace, file_key, actual, source['document'], nodes, variables, comments)
     children.extend(extras)
     files.update({'figma.json': encode(source), 'tokens.json': encode(tokens), 'observations.json': encode(observations)})
+    selection = {'source_nodes': source_nodes} if source_nodes else {}
     artifact = import_bundle(workspace, files,
                              'figma-export', {'children': children, 'source': {'provider': 'figma',
-                             'file_key': file_key, 'version': actual}, 'authority': 'observation-only', 'observations': observations, 'gaps': gaps})
-    return {'artifact': artifact, 'version': actual, 'observed_token_groups': len(tokens),
+                             'file_key': file_key, 'version': actual, **selection}, 'authority': 'observation-only', 'observations': observations, 'gaps': gaps})
+    return {'artifact': artifact, 'version': actual, **selection, 'observed_token_groups': len(tokens),
             'learning': 'Not submitted to Kinbase; source observations are not approved standards',
             'gaps': gaps + ['Visual references feed existing image sampling; semantic vision interpretation is not enabled',
                             'Comments are private observations, not approved standards']}

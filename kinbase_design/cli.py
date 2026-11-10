@@ -72,6 +72,7 @@ def parser():
     figma.add_argument('action', choices=['identity', 'pull'])
     figma.add_argument('--file-key')
     figma.add_argument('--version')
+    figma.add_argument('--source-node', action='append', default=[])
     figma.add_argument('--render-node', action='append', default=[])
     figma.add_argument('--variables', action='store_true')
     figma.add_argument('--comments', action='store_true')
@@ -149,7 +150,7 @@ def main(argv=None):
                 output({k: identity.get(k) for k in ('id', 'handle', 'email')})
             else:
                 if not args.file_key: raise ValueError('figma pull requires --file-key')
-                output(figma.snapshot(workspace, args.file_key, args.version, nodes=args.render_node, variables=args.variables, comments=args.comments))
+                output(figma.snapshot(workspace, args.file_key, args.version, nodes=args.render_node, variables=args.variables, comments=args.comments, source_nodes=args.source_node))
         elif args.command == 'generate':
             from . import generate
             action=args.generate_action
