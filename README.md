@@ -314,6 +314,13 @@ and measured container insets carry to navigation. Navigation and action treatme
 and line height where needed for the existing target-size rule. These inferred adjustments remain
 subject to the rendered checker; they do not constitute a browser pass.
 
+The draft palette groups colors only when retained token paths or Figma source names identify
+an unambiguous numeric scale with an explicit `.`, `/`, `_`, or `-` separator before the
+numeric step (for example `color.blue.50` or `Neutral / 50`); a name such as `Rectangle 1`
+is not scale evidence. Named steps
+are displayed in ascending numeric order; other colors retain measured order. This is a
+view-only arrangement, with no hue inference or changes to tokens, aliases, or role bindings.
+
 Captured originals are offered for promotion, never automatically approved. Saving copies the
 working language and approved assets into the library; shared provenance keeps opaque source
 ids and safe selectors/JSON pointers, with private URLs and filesystem locations removed.
