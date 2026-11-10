@@ -27,7 +27,9 @@ class Client:
         url = 'https://api.figma.com/v1/' + path
         if query:
             url += '?' + urlencode(query)
-        request = Request(url, headers={'X-Figma-Token': self.token, 'Accept': 'application/json'})
+        # Figma OAuth tokens (figu_) are only accepted as Bearer; personal access tokens use X-Figma-Token.
+        auth = {'Authorization': 'Bearer ' + self.token} if self.token.startswith('figu_') else {'X-Figma-Token': self.token}
+        request = Request(url, headers={**auth, 'Accept': 'application/json'})
         try:
             with self.opener.open(request, timeout=30) as response:
                 data = response.read(MAX_RESPONSE + 1)
