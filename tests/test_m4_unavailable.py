@@ -13,7 +13,8 @@ import pytest
 from tests.m2_support import capture, draft
 from tests.m3_support import start, pair
 from tests.m4_workbench_support import submit, workbench
-from tests.m4_kinbase_support import assert_read_calls, calls, configure, executable_seam, seam_environment
+from tests.m4_kinbase_support import (assert_read_calls, calls, configure, executable_seam,
+                                     machine_fact, seam_environment, update_responses)
 from tests.m4_support import site_repository
 from tests.test_m2_workbench import visible
 from tests.test_m3_derive import derive
@@ -22,11 +23,18 @@ from tests.test_versions_assets import expected_hash
 pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(420)]
 
 
-@pytest.fixture(params=["missing-binary", "uninitialized-repository"])
+@pytest.fixture(params=["missing-binary", "uninitialized-repository", "uninitialized-zero-exit"])
 def unavailable(library, tmp_path, request):
     unknown = {"state": "unknown", "current": None, "trusted": True, "unknowns": []}
     seam = executable_seam(tmp_path / "kinbase-seam", {
         "fixture.direction": unknown, "fixture.standard": unknown}, initialized=False)
+    if request.param == "uninitialized-zero-exit":
+        # Live fsck receipt: process success does not imply an initialized repo.
+        # B13/B17 require unknown standards and no fixed facts or submission.
+        update_responses(seam, fsck={"exit_code": 0, "stdout": {
+            "status": "unverified", "reason": "repo-uninitialized", "event_count": 0}},
+            explain={"fixture.direction": unknown, "fixture.standard": machine_fact(
+                dimensions={"hue-family": 200}, scope="site")})
     library.command_env.update(seam_environment(seam))
     if request.param == "missing-binary":
         binary = library.project / "no-such-kinbase"
@@ -52,7 +60,7 @@ def unknown_badges(page, reason):
         if "unknown" not in value.lower():
             value = notice.locator("..").inner_text()
         assert re.search(r"unknown\s*\(\s*Kinbase unavailable:\s*[^)\s][^)]*\)", value, re.I), value
-        if reason == "uninitialized-repository":
+        if reason.startswith("uninitialized"):
             assert re.search(r"initiali[sz]|repository|repo|fsck", value, re.I), value
         else:
             assert re.search(r"binary|executable|not found|no such file|missing", value, re.I), value
@@ -77,6 +85,9 @@ def test_unavailable_kinbase_keeps_preview_ingest_generate_and_export_working(li
     _, document, _ = draft(library, [artifact], "unconnected-capture")
     assert document["id"] == "unconnected-capture"
     session, root, _ = start(library)
+    settled = library.json("generate", "settled", session, cwd=library.project)
+    assert "hue-family" in settled["unsettled"] and "hue-family" not in settled["settled"], \
+        "An unavailable repository cannot supply a fixed design fact"
     offered = pair(library, session, root)
     assert not offered.get("done")
     _, generated, _ = derive(library, session, "unconnected-generated")
@@ -135,6 +146,6 @@ def test_feedback_without_kinbase_is_recorded_locally_and_never_changes_validati
 
     assert not [call for call in calls(tmp_path / "kinbase-seam") if call["executable"] == "kin"], \
         "Feedback was submitted while Kinbase was unavailable"
-    if unavailable == "uninitialized-repository":
+    if unavailable.startswith("uninitialized"):
         assert_read_calls(tmp_path / "kinbase-seam", tmp_path / "independent-target",
                           {"fixture.standard", "fixture.direction"}, required_keys=())

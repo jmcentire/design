@@ -119,6 +119,8 @@ def status(library=None,settings=None):
     repo=configured_repo(library,settings)
     verified=command([settings.binary,'fsck','--repo',str(repo),'--json'],cwd=repo)
     if not verified['ok']:return unavailable('fsck failed (repository not initialized or unavailable): '+str(verified['error']))
+    receipt=verified['receipt']
+    if isinstance(receipt,dict) and receipt.get('reason')=='repo-uninitialized':return unavailable('fsck reports repo-uninitialized')
     facts=[];unknowns=[]
     for kind,keys in (('standards',settings.standard_keys),('direction',settings.direction_keys)):
         for scope,key in sorted(keys.items()):

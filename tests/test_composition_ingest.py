@@ -7,7 +7,7 @@ The public exclusion/correction records are pinned by clarification Q-0050.
 import pytest
 
 from tests.content_browser_support import rgba
-from tests.m2_support import capture, draft, dereference, dimension_px, token_values, color_distance
+from tests.m2_support import capture, draft, dereference, dimension_px, token_values, color_distance, read_json
 from tests.support import PAGES, pointer_value
 from tests.test_composition_shipped import COMPOSITION_RULES, composition_report, assert_composition_passes
 from tests.test_m2_capture import tree_hashes
@@ -85,14 +85,29 @@ def assert_correction_links(library, document, summary):
     questions = library.json("questions", document["id"], cwd=library.project)
     by_id = {question["id"]: question for question in questions}
     assert len(by_id) == len(questions)
+    root = library.workspace / "drafts" / document["id"]
+    retained = read_json(root / "questions.json")
+    retained_by_id = {question["id"]: question for question in retained}
+    assert len(retained_by_id) == len(retained) and set(by_id) <= set(retained_by_id)
+    for question in questions:
+        assert 2 <= len(question["candidates"]) <= 4
+        assert all(c["value"] is not None and c.get("preview_kind") == "candidate"
+                   for c in question["candidates"]), question
     for correction in summary["corrections"]:
         assert {"rule", "pointer", "selector", "measured", "chosen", "question"} <= correction.keys()
         assert correction["rule"] in COMPOSITION_RULES, correction
         assert pointer_value(document, correction["pointer"]) == correction["chosen"], correction
-        assert correction["question"] in by_id, correction
-        candidates = by_id[correction["question"]]["candidates"]
+        # P3 supersedes Q-0050's requirement to offer an unusable measured
+        # alternative. The private correction/evidence link must still survive.
+        assert correction["question"] in retained_by_id, correction
+        question = retained_by_id[correction["question"]]
+        if question["id"] not in by_id:
+            assert question["reason"].strip(), question
+        assert all(candidate.get("preview_note", "").strip()
+                   for candidate in question.get("evidence_candidates", [])), question
+        candidates = question["candidates"] + question.get("evidence_candidates", [])
         assert any(candidate["value"] == correction["measured"] for candidate in candidates), (
-            "Correction question lost the measured alternative", correction, candidates)
+            "Correction question lost its measured source evidence", correction, candidates)
         if correction["selector"] is None:
             assert correction["measured"] is None, correction
         else:

@@ -542,6 +542,9 @@ state, current statement/standing/scope/fact ID, trust, and owned Unknowns. Avai
 a configured executable and a successful read-only `kinbase fsck --repo <repo> --json`; failure
 reports the failing step. No repository-marker or version probe substitutes for fsck. Kinbase
 itself remains responsible for trust and authority. Calls use argument arrays, bounded time/output, and no credential lookup.
+An explicit `repo-uninitialized` fsck receipt reports unavailable even when the command exits
+successfully. An initialized but `unverified` repository remains reachable; its receipt grants
+no authority. Other successful fsck responses retain the existing availability behavior.
 A conflict or untrusted projection supplies no fixed values. Scope matching is exact against
 the configured scope; no organization-wide authority is inferred.
 
