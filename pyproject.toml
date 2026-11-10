@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinbase-design"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local design language library and visual workbench"
 requires-python = ">=3.12"
 dependencies = ["jinja2", "rfc8785", "fonttools", "pillow", "playwright"]
@@ -17,3 +17,6 @@ include = ["kinbase_design*"]
 
 [tool.setuptools.package-data]
 kinbase_design = ["workbench/templates/*.html", "workbench/*.css", "render/*.css", "checks/*.js", "artifacts/*.js", "checks/vendor/*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "kinbase_design.__version__"}

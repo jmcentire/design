@@ -62,6 +62,10 @@ def assert_theme_namespaces(css):
 def export_headers(files, reference, adapter):
     versions = set()
     for name, data in files.items():
+        if name == "hooks.json":
+            # Amendment 02: vocabulary contract, not language/adapter metadata.
+            # Its contents and agreement are checked by test_content_hooks_mapping.
+            continue
         if name.startswith("assets/"):
             continue  # Supplied asset bytes must remain byte-identical, including SVG/XML.
         text = data.decode("utf-8")

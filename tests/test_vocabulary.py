@@ -6,7 +6,7 @@ Nav/listing-card and amendment 13's generic card are pinned here.
 """
 
 
-def test_vocabulary_pins_and_declared_defaults(vocabulary):
+def test_v1_vocabulary_pins_and_declared_defaults(vocabulary):
     assert vocabulary["version"] == "v1"
     assert set(vocabulary["roles"]) == {"title", "subtitle", "body", "subtext", "label", "caption", "media", "action", "control"}
     assert set(vocabulary["emphasis"]) == {"neutral", "primary", "attention", "muted"}
@@ -52,3 +52,19 @@ def test_generic_card_contract(vocabulary):
         assert by_id[name]["role"] == role
     assert by_id["media"]["kind"] == "media" and by_id["media"]["asset_kind"] == "image"
     assert by_id["highlight"]["emphasis"] == "primary"
+
+
+def test_vocabulary_and_hooks_default_to_newest_explicit_version(library):
+    """Amendment 04: stale defaults and ignored version options must fail."""
+    import re
+    versions = [path.name for path in (library.library / "vocabulary").iterdir()
+                if path.is_dir() and re.fullmatch(r"v[0-9]+", path.name)]
+    assert {"v1", "v2"} <= set(versions), "Amendment 04 requires both public versions"
+    newest = max(versions, key=lambda name: int(name[1:]))
+    for command, version_field in (("vocabulary", "version"), ("hooks", "vocabulary")):
+        default = library.json(command)
+        explicit = library.json(command, "--vocabulary", newest)
+        assert default == explicit
+        assert default[version_field] == newest
+        assert library.json(command, "--vocabulary", "v1")[version_field] == "v1"
+        library.cli(command, "--vocabulary", "not-a-version", code=2)

@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/">Library</a> / Content pages</p><h1>One page, different designs</h1>
+{% if not documents %}<p>Place a content JSON document and its local images in your private workspace's <code>content/</code> folder. Reload this page to choose it.</p>{% else %}
+<form method="get" class="toolbar">
+<label>Content<select name="document">{% for key,doc in documents.items() %}<option value="{{ key }}" {% if key==selected %}selected{% endif %}>{{ doc.name }}</option>{% endfor %}</select></label>
+<label>Language<select name="a">{% for language in languages %}<option value="{{ language.id }}" {% if language.id==a %}selected{% endif %}>{{ language.name }}</option>{% endfor %}</select></label>
+<label>Compare with<select name="b"><option value="">Single preview</option>{% for language in languages %}<option value="{{ language.id }}" {% if language.id==b %}selected{% endif %}>{{ language.name }}</option>{% endfor %}</select></label>
+<label>Width<select name="width">{% for size in widths %}<option value="{{ size }}" {% if size==width %}selected{% endif %}>{{ size }} CSS px</option>{% endfor %}</select></label><button>View content</button>
+</form>
+<div class="compare">{% for preview in previews %}<section><h2>{{ preview.id }}</h2>{% if preview.report.validated %}
+<p>Static validation passed. Rendered check: {{ preview.report.rendered_check }}.</p><p><a href="{{ preview.src }}">Open page</a></p><div class="viewport" tabindex="0" role="region" aria-label="Scrollable preview area"><div class="preview-canvas"><iframe title="{{ preview.id }} content preview" width="{{ width }}" src="{{ preview.src }}"></iframe></div></div>
+{% else %}<p class="error">Content preview unavailable.</p>{% endif %}
+{% for finding in preview.report.findings %}<p>{{ finding.type }}: {{ finding.message }} <code>{{ finding.pointer }}</code></p>{% endfor %}
+</section>{% endfor %}</div>{% endif %}
+{% endblock %}

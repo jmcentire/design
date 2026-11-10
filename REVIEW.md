@@ -32,6 +32,10 @@ Use `docs/design/SPEC.md` and the ratified public-contract amendments as the beh
 - Constrain reads/writes to their configured roots, escape rendered data, and preserve immutable
   artifacts and content hashes. The complete workbench journey must work without JavaScript.
 
+- Capture the runtime version when generating output; preserve it through later
+  hand-offs. Compare attribution using existing Git evidence, report absent/conflicting
+  identity without inventing it, and distinguish Design artifacts from the entire PR.
+
 ## Style
 
 Keep modules cohesive, pass roots/configuration explicitly, and keep extraction/comparison logic

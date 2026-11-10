@@ -24,6 +24,51 @@ def element(tag, attrs, content=''):
     return start if tag in {'img', 'input'} else start + content + '</' + tag + '>'
 
 
+def structured_fragments(fragments):
+    """Rebuild bounded semantic groups from escaped captured text, never HTML."""
+    root=[];paths={}
+    for fragment in fragments:
+        children=root
+        for entry in fragment.get('structure',[]):
+            key=entry['selector']
+            if key not in paths:
+                branch={'tag':entry['tag'],'children':[]};paths[key]=branch
+                children.append(branch)
+            children=paths[key]['children']
+        href=captured_href(fragment.get('href'))
+        children.append(element('a' if href else 'span',{'href':href,'style':declaration(fragment.get('resolved_properties',{})) or None},escape(fragment['text'])))
+    def render(children):
+        return ''.join(element(child['tag'],{},render(child['children'])) if isinstance(child,dict) else child for child in children)
+    return render(root)
+
+
+def definition_fragments(fragments,pair_style=None):
+    """Keep captured definition fields and inline runs, without inventing copy."""
+    def inline(fragment):
+        href=captured_href(fragment.get('href'))
+        return element('a' if href else 'span',{'href':href,'style':declaration(fragment.get('resolved_properties',{})) or None},escape(fragment['text']))
+    chunks=[];index=0
+    while index<len(fragments):
+        fragment=fragments[index];definition=fragment.get('definition')
+        if not definition:
+            chunks.append(inline(fragment));index+=1;continue
+        fields=[]
+        while index<len(fragments):
+            fragment=fragments[index];field=fragment.get('definition')
+            if not field and fragment['text'].isspace():index+=1;continue
+            if not field or field['list']!=definition['list']:break
+            if not fields or fields[-1][0]!=field['field']:fields.append([field['field'],field['tag'],''])
+            fields[-1][2]+=inline(fragment);index+=1
+        pairs=[];pair=[];has_value=False
+        for _,tag,content in fields:
+            if tag=='dt' and has_value:
+                pairs.append(element('div',{'data-kd-part':'pair','style':pair_style},''.join(pair)));pair=[];has_value=False
+            pair.append(element(tag,{},content));has_value|=tag=='dd'
+        if pair:pairs.append(element('div',{'data-kd-part':'pair','style':pair_style},''.join(pair)))
+        chunks.append(element('dl',{},''.join(pairs)))
+    return ''.join(chunks)
+
+
 def captured_href(value):
     if not isinstance(value,str):return None
     try:
@@ -44,16 +89,20 @@ class SampleRenderer:
         self.sequence = 0
 
     def links(self):
-        return ''.join(element('a', {'href':file}, escape(label)) for file, label in self.context['pages'].items())
+        return ''.join(element('a', {'href':file,'data-kd-part':'link' if self.vocabulary.get('content_pages') else None}, escape(label)) for file, label in self.context['pages'].items())
 
-    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None,heading_level=None):
+    def slot(self, construct, definition, state, values, missing_image, media=None, treatment=None,hrefs=None,icon=None,accessible_name=None,fragments=None,heading_level=None,action_items=None):
         name, role, emphasis = definition['id'], definition['role'], definition['emphasis']
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
-        if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
+        if definition.get('focusable'):
+            attrs.update(tabindex='0', **{'aria-label':definition['accessible-name']})
+        if treatment is not None:attrs['style']='all:revert;box-sizing:border-box;'+declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
         if accessible_name:attrs['aria-label']=accessible_name
         binding = self.document.get('components', {}).get(construct, {}).get('assets', {}).get(name)
         if binding:
             attrs['data-kd-asset'] = binding
+        if action_items:
+            return ''.join(element(item['element'],{**attrs,'href':captured_href(item.get('href')) if item['element']=='a' else None,'type':'button' if item['element']=='button' else None},escape(item['text'])) for item in action_items)
         copy = str(values.get(name, '' if icon else self.context['copy'][role]))
         tag = definition['element']
         if re.fullmatch('h[1-6]',tag) and type(heading_level) is int and 1<=heading_level<=6:tag='h'+str(heading_level)
@@ -67,6 +116,8 @@ class SampleRenderer:
                 detail = self.document['assets'][asset]['variants'][variant]
                 image = element('img', {'src':f'assets/{asset}-{variant}.{detail["format"]}', 'alt':self.context['copy']['media'] if definition.get('asset_kind') != 'logo' else 'Home', 'loading':'lazy'})
             if not image:
+                if state is None and not missing_image and media is None and not definition['required'] and self.samples.get('omit-unbound-optional-media'):
+                    return ''
                 image = element('span', {'class':'kd-placeholder', 'role':'img', 'aria-label':self.context['image-missing']}, escape(self.context['image-missing']))
             if tag == 'a':
                 attrs['href'] = definition['href']
@@ -79,7 +130,7 @@ class SampleRenderer:
                 labels=values[name] if isinstance(values[name],list) else [values[name]]
                 def link(label):
                     href=captured_href(hrefs.get(name,{}).get(label)) if hrefs is not None else 'index.html'
-                    return element('a' if href else 'span',{'href':href},escape(str(label)))
+                    return element('a' if href else 'span',{'href':href,'data-kd-part':'link' if self.vocabulary.get('content_pages') else None},escape(str(label)))
                 return element(tag,attrs,''.join(link(label) for label in labels))
             return element(tag, attrs, self.links())
         if name == 'options':
@@ -106,7 +157,20 @@ class SampleRenderer:
         if state == 'selected' and definition['kind'] == 'control':
             attrs['aria-selected'] = 'true'
         content=escape(copy)
-        if fragments:
+        if fragments and any(f.get('preformatted') for f in fragments):
+            if tag=='p':tag='div'
+            content=element('pre',{},element('code',{},''.join(escape(f['text']) for f in fragments)))
+        elif fragments and any(f.get('structure') for f in fragments):
+            tag='div';attrs['class']='kd-captured-prose'
+            # Scrolling belongs to this semantic group, regardless of the
+            # source's visible overflow or the surrounding captured reset.
+            attrs['style']=attrs.get('style','')+';display:block;max-width:100%;min-width:0;overflow-x:auto'
+            content=structured_fragments(fragments)
+        elif fragments and any(f.get('definition') for f in fragments):
+            tag='div'
+            pair_style=declaration(resolve(treatment,self.vocabulary,construct+'~pair')['properties']) if treatment is not None else None
+            content=definition_fragments(fragments,pair_style)
+        elif fragments:
             chunks=[];previous=None
             for fragment in fragments:
                 if previous is not None and previous!=fragment.get('block'):chunks.append('<br><br>')
@@ -123,17 +187,32 @@ class SampleRenderer:
         if not fragments and tag!='a' and hrefs is not None and (href:=captured_href(hrefs.get(name))):content=element('a',{'href':href},content)
         return element(tag, attrs, content)
 
-    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False,heading_levels=None,provided_only=False):
+    def construct(self, construct, state=None, values=None, missing_image=False, media=None, captured=False, treatment=None, children='',background=None,box=None,geometry=None,hrefs=None,action_icons=None,accessible_names=None,fragments=None,flow=False,heading_levels=None,provided_only=False,content_document=False,content_id=None,action_items=None):
         self.sequence += 1
         contract = self.vocabulary['constructs'][construct]
         copy = dict(values or {}) if captured or provided_only else {**self.context.get('construct-copy', {}).get(construct, {}), **(values or {})}
-        slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name) if captured else None) if not (captured or provided_only) or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
-                 for name, definition in slot_map(contract).items()}
+        if content_document:
+            from .content import slot as content_slot
+            slots = {}
+            for name, definition in slot_map(contract).items():
+                if name not in values and not definition.get('content-required',definition['required']):continue
+                attrs = {'data-kd-slot':construct+'.'+name,'data-kd-role':definition['role'],'data-kd-emphasis':definition['emphasis']}
+                slots[name] = content_slot(definition,attrs,values.get(name,{'kind':'inline','value':''}),(heading_levels or {}).get(name))
+        else:
+            slots = {name:self.slot(construct, definition, state, copy, missing_image, media,treatment,(hrefs or {}) if captured else None,(action_icons or {}).get(name),(accessible_names or {}).get(name),(fragments or {}).get(name),(heading_levels or {}).get(name),(action_items or {}).get(name)) if not (captured or provided_only) or name in copy or name in (media or {}) or name in (action_icons or {}) else ''
+                     for name, definition in slot_map(contract).items() if not definition.get('content-only')}
+            if construct=='collection' and self.vocabulary.get('composition_rules') and not (captured or provided_only):
+                slots['items']=element('div',{'data-kd-slot':'collection.items','data-kd-role':'body','data-kd-emphasis':'neutral'},
+                                      ''.join(self.construct('card',state=state,heading_levels={'title':3}) for _ in range(self.samples['collection-size'])))
         attrs = {'data-kd-construct':construct, 'data-kd-state':state,
                  'aria-label':contract.get('accessible-name')}
+        if content_document:
+            attrs = {'data-kd-construct':construct,'id':content_id}
         if captured:attrs['data-kd-captured']='true'
         if flow:attrs['data-kd-flow']='true'
-        if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct)['properties'])
+        # A captured context owns omitted properties too. Otherwise reusable
+        # section/card CSS leaks paint and spacing into every synthetic wrapper.
+        if treatment is not None:attrs['style']='all:revert;box-sizing:border-box;'+declaration(resolve(treatment,self.vocabulary,construct)['properties'])
         if geometry:
             attrs['style']=attrs.get('style','')+';'+geometry_style(geometry)
         backdrop=''
@@ -148,13 +227,19 @@ class SampleRenderer:
         if contract['root'] == 'form':
             attrs.update(action=contract['action'], method='get')
         component = self.document.get('components', {}).get(construct, {})
-        variant = component.get('variant', 'default')
-        if variant == 'default':
+        variant = 'default' if content_document else component.get('variant', 'default')
+        content_template = contract.get('content-template') if content_document or variant=='default' and (not captured or construct=='card') and self.vocabulary.get('composition_rules') else None
+        if variant == 'default' and not content_template:
             return element(contract['root'], attrs, backdrop+''.join(slots.values())+children)
-        template = self.document['layout']['variants'][construct][variant]['template']
+        template = content_template or self.document['layout']['variants'][construct][variant]['template']
         Template(template, contract)
+        if treatment is not None:
+            def part_style(match):
+                props=resolve(treatment,self.vocabulary,construct+'~'+match[2])['properties']
+                return '<'+match[1]+attributes({'data-kd-part':match[2],'style':declaration(props)})+'>'
+            template=re.sub(r'<(div|span) data-kd-part="([a-z0-9-]+)">',part_style,template)
         # This is the restricted parser's placeholder syntax, never executable Jinja.
-        rendered = SLOT.sub(lambda match:slots[match[1]], template)
+        rendered = SLOT.sub(lambda match:slots.get(match[1],''), template)
         rendered=re.sub(r'<' + contract['root'] + r'\s*>', lambda match:'<' + contract['root'] + attributes(attrs) + '>'+backdrop, rendered, count=1, flags=re.IGNORECASE)
         return re.sub(r'</'+contract['root']+r'\s*>\s*$',lambda match:children+match[0],rendered,flags=re.IGNORECASE)
 
@@ -163,28 +248,48 @@ class SampleRenderer:
         self.sequence=0
         def render(item):
             children=''.join(render(child) for child in item.get('children',[]))
+            if page.get('content_document'):
+                values = dict(item.get('values',{}))
+                if item.get('children_slot'):
+                    values[item['children_slot']] = {'kind':'children','value':children}
+                    children = ''
+                result = self.construct(item['construct'],values=values,children=children,
+                    heading_levels=item.get('heading_levels'),provided_only=True,
+                    content_document=True,content_id=item.get('id'))
+                return result
             if item.get('group') is True:
                 layout=item['layout'];style=f'width:auto;--kd-columns:{int(layout["columns"])};'+geometry_style(item.get('geometry',{}))
                 style+=';'+ ';'.join(f'{prop}:{max(0,float(layout[prop])):g}px' for prop in ('row-gap','column-gap') if prop in layout)
                 return element('div',{'class':'kd-captured-children','data-kd-group':item['selector'],'style':style},children)
             if children:
                 columns=max(1,min(INGEST_MAX_COLUMNS,int(item.get('columns',1))))
-                children=element('div',{'class':'kd-captured-children','style':f'--kd-columns:{columns}'},children)
-            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'),provided_only=page.get('provided_only',False))
+                children=element('div',{'class':'kd-captured-children','style':'display:block' if item.get('flow') else f'--kd-columns:{columns}'},children)
+            return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'),provided_only=page.get('provided_only',False),action_items=item.get('action_items'))
         content=''.join(render(item) for item in page['instances'])
+        if page.get('content_document'):
+            head = '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            head += element('title',{},escape(page['title']))
+            head += '<meta'+attributes({'name':'description','content':page.get('description','')})+'>'
+            head += '<link rel="stylesheet" href="language.css">'
+            return ('<!doctype html>\n'+element('html',{'lang':page.get('lang','en')},element('head',{},head)+element('body',{'data-kd-content':'1'},content))+'\n').encode('utf-8')
         env=Environment(autoescape=select_autoescape(default_for_string=True))
         body_style=f'--kd-captured-space:{max(0,float(page["spacing_base"])):g}px' if page.get('captured') and 'spacing_base' in page else ''
         return env.from_string(PAGE).render(title=page.get('title','Captured page'),navigation='',content=Markup(content),footer='',body_style=body_style).encode('utf-8')
 
+    def collection_group(self,content):
+        if not self.samples.get('collection-hooks'):return element('div',{'class':'kd-grid'},content)
+        items=element('div',{'data-kd-slot':'collection.items','data-kd-role':'body','data-kd-emphasis':'neutral'},content)
+        return element('section',{'data-kd-construct':'collection','data-kd-state':'default'},items)
+
     def stress(self):
         sections = []
         for sample in self.samples['stress']:
-            label = element('h2', {'class':'kd-context-heading'}, escape(sample['name']))
+            label = element('div' if self.vocabulary.get('composition_rules') else 'h2', {'class':'kd-context-heading'}, escape(sample['name']))
             if 'items' in sample:
                 content = ''.join(self.construct('listing-card') for _ in range(sample['items']))
                 if not sample['items']:
                     content = self.construct('empty-state')
-                content = element('div', {'class':'kd-grid'}, content)
+                content = self.collection_group(content)
             else:
                 values = {sample['slot']:self.context[sample['context']]} if 'slot' in sample else {}
                 content = self.construct(sample['construct'], values=values, missing_image=sample.get('missing-image',False))
@@ -193,19 +298,23 @@ class SampleRenderer:
 
     def page(self, filename):
         self.sequence = 0
+        ordinary_title=' '.join([self.context['long-title']]*2)
+        ordinary_stress=self.vocabulary.get('composition_rules') and self.samples.get('ordinary-stress-content',True)
         navigation = self.construct('nav')
         if filename == 'states.html':
-            content = element('h1', {'class':'kd-context-heading'}, escape(self.context['state-gallery-title']))
+            content = '' if self.vocabulary.get('composition_rules') else element('h1', {'class':'kd-context-heading'}, escape(self.context['state-gallery-title']))
             for construct in self.samples['pages'][filename]:
                 for state in self.vocabulary['constructs'][construct]['states']:
-                    heading = element('h2', {}, escape(construct + ' · ' + state))
+                    heading = element('div' if self.vocabulary.get('composition_rules') else 'h2', {'class':'kd-context-heading'} if self.vocabulary.get('composition_rules') else {}, escape(construct + ' · ' + state))
                     content += element('section', {'class':'kd-state'}, heading + self.construct(construct,state))
             content += self.stress()
+            if self.vocabulary.get('composition_rules'):
+                content = self.construct('page-shell',values={'title':self.context['state-gallery-title']},provided_only=True)+content
         else:
             content = ''
             for construct in self.samples['pages'][filename]:
                 if construct == 'listing-card':
-                    content += element('div', {'class':'kd-grid'}, ''.join(self.construct(construct) for _ in range(self.samples['collection-size'])))
+                    content += self.collection_group(''.join(self.construct(construct,values={'title':ordinary_title} if index==0 and ordinary_stress else None) for index in range(self.samples['collection-size'])))
                 else:
                     content += self.construct(construct)
             if 'page-shell' in self.samples['pages'][filename]:
@@ -213,10 +322,19 @@ class SampleRenderer:
                 shell_end = content.index('</main>')
                 content = content[:shell_end] + content[shell_end + len('</main>'):] + '</main>'
             else:
-                content = element('main', {}, content)
+                content = element('main', {'data-kd-construct':'page-shell'} if self.samples.get('page-shell-hook') or filename=='listing.html' and self.vocabulary.get('composition_rules') else {}, content)
         if filename == 'listing.html':
             texts = [self.context['construct-copy']['listing-card']['title']] + [self.context[s['context']] for s in self.samples['stress'] if s.get('construct') == 'listing-card' and s.get('slot') == 'title']
-            content += element('section', {'class':'kd-full-content','aria-label':self.context['full-content-label']}, ''.join(element('p',{},escape(text)) for text in texts))
+            if ordinary_stress:texts.append(ordinary_title)
+            if self.vocabulary.get('composition_rules'):
+                # Full copies share the main column and its prose cap, without
+                # adding the inset of a second construct around each paragraph.
+                body=slot_map(self.vocabulary['constructs']['page-shell'])['body']
+                full_copy=''.join(self.slot('page-shell',body,None,{'body':text},False) for text in texts)
+                full_copy=element('section',{'class':'kd-full-content','aria-label':self.context['full-content-label']},full_copy)
+                end=content.rindex('</main>');content=content[:end]+full_copy+content[end:]
+            else:
+                content += element('section', {'class':'kd-full-content','aria-label':self.context['full-content-label']}, ''.join(element('p',{},escape(text)) for text in texts))
         footer = self.construct('footer')
         env = Environment(autoescape=select_autoescape(default_for_string=True))
         return env.from_string(PAGE).render(title=self.context['pages'][filename], navigation=Markup(navigation), content=Markup(content), footer=Markup(footer)).encode('utf-8')

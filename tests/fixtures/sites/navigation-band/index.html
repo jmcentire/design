@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic navigation surface source</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: #182534; font: 16px/1.5 sans-serif; }
+    header, main, footer { width: 800px; max-width: calc(100% - 32px); margin: 24px auto; }
+    header { background: transparent; }
+    .navbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+              padding: 16px; background: #212529; }
+    nav { display: flex; flex-wrap: wrap; gap: 16px; background: transparent; }
+    nav a { display: inline-block; color: #fff; background: transparent;
+            border: 0; padding: 8px; text-decoration: underline; }
+    button { font: inherit; color: #fff; background: #8b2030;
+             border: 1px solid #8b2030; border-radius: 4px; padding: 8px 16px; }
+    body.light header { background: #fff; }
+    body.light .navbar { background: transparent; }
+    body.light nav a { color: #173e8f; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 20px; }
+    p { max-width: 480px; }
+    main, section, article { display: flex; flex-direction: column; gap: 16px; }
+    #leading { background: #e3edf5; padding: 24px; border-radius: 8px; }
+    .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    article { padding: 16px; background: #fff; border: 1px solid #687888; border-radius: 8px; }
+    @media (max-width: 600px) { .items { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="dark">
+  <header>
+    <div class="navbar">
+      <nav aria-label="Main navigation"><a href="#notes">Notes</a><a href="#ending">About</a></nav>
+      <button type="button">Open notebook</button>
+    </div>
+  </header>
+  <main>
+    <section id="leading">
+      <h1>Field notebook</h1>
+      <p>A small notebook records changes in the garden through the seasons and invites readers to look closely at the next visit.</p>
+    </section>
+    <section id="notes">
+      <h2>Recent observations</h2>
+      <p>These invented observations provide ordinary body text for a local design source with independently authored navigation colours.</p>
+      <div class="items">
+        <article><h3>Morning light</h3><p>Soft light crossed the garden wall while a small bird rested beside the gate.</p></article>
+        <article><h3>Quiet branches</h3><p>The branches moved gently above a path covered with fallen leaves.</p></article>
+      </div>
+    </section>
+  </main>
+  <footer id="ending"><p>All text and styles on this page are synthetic test material.</p></footer>
+</body>
+</html>

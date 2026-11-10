@@ -37,6 +37,8 @@ def group_rendered(findings):
         occurrence = {field: finding[field] for field in ('page', 'width', 'screenshot')}
         evidence = {field: value for field, value in finding.items()
                     if field not in {'page', 'width', 'screenshot', 'occurrences'}}
+        if finding['rule']=='word-break':
+            evidence.update(occurrence)
         if key not in groups:
             finding['occurrences'] = []
             finding['evidence'] = []

@@ -1,10 +1,10 @@
-<section class="panel"><h2>Feedback</h2>
+<section class="panel"><h2>Comments</h2><p>Comments record feedback without changing the language. Use Update language to apply exact visual changes.</p>
 <form method="post" action="/languages/{{ language.id }}/feedback">
 <label>Author <input name="author" required maxlength="200"></label>
 <label>Page or construct <select name="target">{% for file in pages %}<option>{{ file }}</option>{% endfor %}{% for construct in constructs %}<option>{{ construct }}</option>{% endfor %}</select></label>
 <label>Comment <textarea name="text" rows="4" required maxlength="16000"></textarea></label>
 <label><input type="checkbox" name="flag" value="yes"> Flag as a question</label><button>Record feedback</button>
-</form><p>Feedback is recorded locally and submitted with agent provenance when Kinbase is available. It never changes validation or fixed inputs by itself.</p>
+</form><p>Feedback is recorded locally and submitted as repository evidence with agent provenance when Kinbase is available. A receipt does not establish Company publication or adoption; the author field is an attribution, not verified identity. It never changes validation or fixed inputs by itself.</p>
 {% if direction_scopes %}<h2>Propose as direction</h2><form method="post" action="/languages/{{ language.id }}/propose"><label>Scope <select name="scope">{% for scope in direction_scopes %}<option>{{ scope }}</option>{% endfor %}</select></label><button>Submit direction proposal</button></form><p>A received proposal is not current direction. Only Kinbase explain establishes current direction.</p>{% endif %}
 {% if receipt %}<h3>Submission result</h3><p>{{ receipt.status }}</p>{% if receipt.reason %}<p>{{ receipt.reason }}</p>{% endif %}{% if receipt.error %}<p>{{ receipt.error }}</p>{% endif %}<pre>{{ receipt.receipt|tojson(indent=2) }}</pre>{% if receipt.stderr %}<pre>{{ receipt.stderr }}</pre>{% endif %}{% endif %}
 </section>

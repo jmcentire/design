@@ -350,3 +350,85 @@ def test_same_structure_and_presentation_map_identically_when_domain_words_chang
         assert len(fixture_site.requests) == count
         assert tree_hashes(artifact_root) == immutable
     assert mappings[0] == mappings[1], "Domain words changed construct/slot/role mapping despite identical structure and presentation"
+
+
+def test_reconstructed_prose_keeps_local_rhythm_surfaces_and_structured_content(
+        library, fixture_site, ingest_config, page):
+    # This compact reading group deliberately uses 12px paragraph gaps, 4px
+    # list gaps and a 24px line height. Section spacing remains unconstrained.
+    source = fixture_site.root / "centred-prose" / "index.html"
+    text = source.read_text().replace("<p>This introduction", "<div class=\"intro-copy\"><p>This introduction").replace(
+        "place in the record.</p>", "place in the record.</p></div>").replace("</style>", """
+      #reading p { margin:12px 0; } #reading li { margin:4px 0; }
+      table { border-collapse:collapse; display:block; max-width:100%; overflow-x:auto; }
+      th, td { padding:8px; border:1px solid; }
+    </style>""").replace("</article>", """
+      <div id="reading"><p>First ordinary reading paragraph.</p>
+      <p>Second ordinary reading paragraph.</p>
+      <ul><li>Observe the weather.</li><li>Record the change.</li></ul>
+      <table><caption>Field measurements</caption><thead><tr><th>Month</th><th>Rain</th><th>Record</th></tr></thead>
+      <tbody><tr><th>April</th><td>12</td><td>OBS202604GARDENSTATIONNORTHDAILYRAINFALL0001</td></tr><tr><th>May</th><td>18</td><td>OBS202605GARDENSTATIONNORTHDAILYRAINFALL0002</td></tr></tbody></table>
+      <dl><dt>Observer</dt><dd>Garden team</dd><dt>Interval</dt><dd>One day</dd></dl></div>
+    </article>""")
+    source.write_text(text)
+    ingest_config["widths"] = [375, 1280]
+    (library.project / "kinbase-design.toml").write_text(
+        "[ingest]\n" + "\n".join(f"{k} = {v}" for k, v in ingest_config.items()))
+    page.set_viewport_size({"width": 375, "height": 900})
+    page.goto(fixture_site.url + "/centred-prose/index.html")
+    assert page.get_by_role("table").evaluate("e => e.scrollWidth > e.clientWidth")
+    assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+    assert page.locator("#reading p").evaluate_all(
+        "els=>els.map(e=>[getComputedStyle(e).lineHeight,getComputedStyle(e).marginBottom])") == [["24px", "12px"]] * 2
+    assert page.get_by_role("table").get_by_role("row").count() == 3
+    artifact, _, _ = capture(library, [fixture_site.url + "/centred-prose/index.html"])
+    fixture_site.available = False
+    root, _, _ = draft(library, [artifact], "reading-rhythm")
+    report = library.json("fidelity", "reading-rhythm", cwd=library.project, timeout=90)
+    observations = []
+    for pair in report["pairs"]:
+        if pair["width"] not in (375, 1280):
+            continue
+        page.set_viewport_size({"width": pair["width"], "height": 900})
+        page.goto(confined(root / "fidelity", pair["html"]).as_uri())
+        first = page.get_by_text("First ordinary reading paragraph.", exact=True)
+        second = page.get_by_text("Second ordinary reading paragraph.", exact=True)
+        a, b = first.bounding_box(), second.bounding_box()
+        items = page.get_by_role("listitem").filter(has_text="Observe the weather.").or_(
+            page.get_by_role("listitem").filter(has_text="Record the change."))
+        boxes = [item.bounding_box() for item in items.all()]
+        intro = page.get_by_text("This introduction offers a short route into the notebook and explains why each observation has a place in the record.", exact=True)
+        observations.append({"width": pair["width"], "paragraph_gap": b["y"] - a["y"] - a["height"],
+            "list_gap": boxes[1]["y"] - boxes[0]["y"] - boxes[0]["height"] if len(boxes) == 2 else None,
+            "intro_surface": solid_background(intro),
+            "page_contained": page.evaluate("document.documentElement.scrollWidth <= innerWidth"),
+            "table_scroll": page.get_by_role("table").evaluate_all("""els => els.map(e => {
+              let owner=e;
+              for(let n=e;n && n!==document.body;n=n.parentElement)
+                if(n.scrollWidth>n.clientWidth && ['auto','scroll'].includes(getComputedStyle(n).overflowX)) {
+                  owner=n; break;
+                }
+              owner.scrollLeft=owner.scrollWidth;
+              return [owner.scrollWidth,owner.clientWidth,owner.scrollLeft];
+            })"""),
+            "rows": page.get_by_role("table").get_by_role("row").evaluate_all(
+                "rows=>rows.map(r=>[...r.querySelectorAll('th,td')].map(c=>c.textContent.trim()))"),
+            "definitions": page.locator("dl dt,dl dd").all_text_contents()})
+    assert {o["width"] for o in observations} == {375, 1280}
+    for o in observations:
+        assert 0 <= o["paragraph_gap"] <= 24, observations
+        assert o["list_gap"] is not None and 0 <= o["list_gap"] <= o["paragraph_gap"], observations
+        # Retain the authored #e3edf5 surface through transparent prose; do not
+        # introduce an inner white panel. Reuse capture's color tolerance.
+        color = "#" + "".join(f"{v:02x}" for v in o["intro_surface"])
+        assert color_distance(color, "#e3edf5") <= ingest_config["color_delta_e"], observations
+        assert o["page_contained"], observations
+        assert len(o["table_scroll"]) == 1, observations
+        extent, available, reached = o["table_scroll"][0]
+        if o["width"] == 375:
+            assert extent > available, observations  # Fixture deliberately requires local scrolling.
+        assert extent <= available or reached > 0, observations
+        assert o["rows"] == [["Month", "Rain", "Record"],
+            ["April", "12", "OBS202604GARDENSTATIONNORTHDAILYRAINFALL0001"],
+            ["May", "18", "OBS202605GARDENSTATIONNORTHDAILYRAINFALL0002"]], observations
+        assert o["definitions"] == ["Observer", "Garden team", "Interval", "One day"], observations

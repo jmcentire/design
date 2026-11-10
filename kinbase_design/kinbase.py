@@ -119,6 +119,8 @@ def status(library=None,settings=None):
     repo=configured_repo(library,settings)
     verified=command([settings.binary,'fsck','--repo',str(repo),'--json'],cwd=repo)
     if not verified['ok']:return unavailable('fsck failed (repository not initialized or unavailable): '+str(verified['error']))
+    receipt=verified['receipt']
+    if isinstance(receipt,dict) and receipt.get('reason')=='repo-uninitialized':return unavailable('fsck reports repo-uninitialized')
     facts=[];unknowns=[]
     for kind,keys in (('standards',settings.standard_keys),('direction',settings.direction_keys)):
         for scope,key in sorted(keys.items()):
@@ -218,7 +220,8 @@ def submit(library,text,kind,settings=None):
     repo=configured_repo(library,settings)
     result=command(['kin','kinbase','submit','--repo',str(repo),'--type',kind,text,'--json'],cwd=repo)
     return {'status':'received' if result['ok'] else 'not sent (Kinbase command failed)',
-            'receipt':result['receipt'],'error':result.get('error'),'stderr':result.get('stderr','')}
+            'receipt':result['receipt'],'error':result.get('error'),'stderr':result.get('stderr',''),
+            'delivery_scope':'repository-evidence', 'company_publication':'not-verified', 'adoption':'not-verified'}
 
 
 def ask(library,question_id,settings=None):

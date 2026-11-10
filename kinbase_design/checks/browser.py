@@ -4,7 +4,7 @@ import logging
 import time
 from ..config import (CHECK_TIMEOUT_MS, CHECK_VIEWPORT_HEIGHT, CHECK_PIXEL_TOLERANCE,
                       CHECK_TARGET_SIZE, CHECK_MAX_TAB_STEPS)
-from ..language.properties import TOKEN_PROPERTIES, KEYWORDS
+from ..language.properties import TOKEN_PROPERTIES, KEYWORDS, LAYOUT_PROPERTIES
 from .evaluate import Evaluation
 from .math import color, contrast, effective_background
 from .grouping import group_rendered, observation_context
@@ -49,11 +49,18 @@ def decode_backgrounds(page):
 
 def observe(page, vocabulary=None):
     source = Path(__file__).with_name('observe.js').read_text().replace(
-        '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text())
+        '__NATIVE_CONTROL__', Path(__file__).with_name('native-control.js').read_text()).replace(
+        '__COMPOSITION__', Path(__file__).with_name('composition.js').read_text()).replace(
+        '__READABILITY__', Path(__file__).with_name('readability.js').read_text()).replace(
+        '__BINDING__', Path(__file__).with_name('binding.js').read_text())
     snapshot = page.evaluate(source,{
-        'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys())-{'surface'}),
+        'compositionRules':(vocabulary or {}).get('composition_rules',[]),
+        'measureMinimumEm':(vocabulary or {}).get('measure_minimum_em',0),
+        'properties':sorted((TOKEN_PROPERTIES.keys() | KEYWORDS.keys() | LAYOUT_PROPERTIES)-{'surface'}),
         'controlSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
                         for slot in contract['slots'] if slot['kind']=='control'],
+        'mediaSlots':[construct+'.'+slot['id'] for construct,contract in (vocabulary or {}).get('constructs',{}).items()
+                      for slot in contract['slots'] if slot['kind']=='media'],
         'tolerance':CHECK_PIXEL_TOLERANCE,'targetSize':CHECK_TARGET_SIZE})
     for node in snapshot['nodes']:
         node['nativeControl'] = unmodified_native(node.pop('nativeAppearance'))
@@ -164,7 +171,7 @@ def inspect(document, vocabulary, preview, output, widths):
         if 'engine' in locals(): engine.stop()
         raise BrowserUnavailable('Chromium is unavailable or cannot start: '+str(exc)[:1000]) from exc
     try:
-        for width in widths:
+        for width in sorted(widths) if 'word-break' in vocabulary.get('composition_rules',[]) else widths:
             snapshots={}
             for js in (False,True):
                 context=browser.new_context(java_script_enabled=js,viewport={'width':width,'height':CHECK_VIEWPORT_HEIGHT},device_scale_factor=1)
@@ -181,7 +188,7 @@ def inspect(document, vocabulary, preview, output, widths):
                                 snapshots[filename]=snapshot
                                 page.screenshot(path=str(Path(output)/(filename.removesuffix('.html')+f'@{width}.png')),full_page=True,animations='disabled',timeout=CHECK_TIMEOUT_MS)
                                 linked={l['href'].split('#')[0].split('?')[0] for l in snapshot['links'] if l['visible']}
-                                if not snapshot['text'].strip() or not set(pages)<=linked:
+                                if not snapshot['text'].strip() or not snapshot.get('contentPage') and not set(pages)<=linked:
                                     evaluation.add('no-js',filename,width,measured={'text':bool(snapshot['text'].strip()),'links':sorted(linked)},threshold=pages,expected='page renders and links to every preview page without JavaScript')
                                 if filename=='states.html':
                                     expected={(c,s) for c,contract in vocabulary['constructs'].items() for s in contract['states']}

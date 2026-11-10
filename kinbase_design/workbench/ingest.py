@@ -78,7 +78,9 @@ def handle(library,workspace,environ,segments,query,html):
         if action is None and method=='GET':
             result=summary(library,workspace,draft_id)
             slots=[{'scope':c+'.'+s['id'],'kind':s['asset_kind']} for c,v in load(library)['constructs'].items() for s in v['slots'] if s.get('asset_kind')]
-            return page('draft.html',title='Draft '+draft_id,result=result,slots=slots,provenance_entries=inspect_sources(workspace,read_document(inside(root,'provenance.json'))))
+            from .palette import palette_groups
+            palette=palette_groups(result['facts']['palette'],load_draft(workspace,draft_id)['style'])
+            return page('draft.html',title='Draft '+draft_id,result=result,palette_groups=palette,slots=slots,provenance_entries=inspect_sources(workspace,read_document(inside(root,'provenance.json'))))
         if action=='preview' and method=='GET' and len(tail)>=4:
             with stage(library,workspace,draft_id) as staged:files=preview_files(staged,draft_id)
             name='/'.join(tail[3:])

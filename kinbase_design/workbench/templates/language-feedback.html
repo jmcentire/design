@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/languages/{{ language.id }}">Back to current language</a></p>
+<h1>{{ 'Clarify the design change' if result.status == 'clarification' else 'Design change not applied' }}</h1>
+<p>The current language has not changed.</p>
+{% if result.summary %}<p>{{ result.summary }}</p>{% endif %}
+{% if result.error %}<p class="error">{{ result.error }}</p>{% endif %}
+{% if result.questions %}<ul>{% for question in result.questions %}<li>{{ question }}</li>{% endfor %}</ul>{% endif %}
+{% if result.findings %}<ul>{% for finding in result.findings %}<li>{{ finding.pointer }} · {{ finding.message }}</li>{% endfor %}</ul>{% endif %}
+<p>Revise the request below to include the clarification. Each submission uses the current language.</p>
+{% include 'language-feedback-form.html' %}
+{% endblock %}

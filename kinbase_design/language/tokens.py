@@ -5,7 +5,7 @@ from ..config import REM_PX
 
 ALIAS = re.compile(r"^\{([a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*)\}$")
 DIMENSION = re.compile(r"^(-?(?:\d+(?:\.\d+)?|\.\d+))(px|rem)$")
-TYPES = {"color", "dimension", "fontFamily", "fontWeight", "number", "duration", "gradient"}
+TYPES = {"color", "dimension", "fontFamily", "fontWeight", "number", "duration", "gradient", "shadow"}
 
 
 class GradientError(ValueError):
@@ -41,6 +41,8 @@ def number_text(value):
 
 
 def normalize(kind, value):
+    if kind=='shadow':
+        return Tokens({'literal':{'$type':'shadow','$value':value}}).evaluate('literal')[1]
     if kind == "color":
         if isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?", value):
             value = value.lower()
@@ -99,7 +101,29 @@ class Tokens:
             return kind, result
         if kind == 'gradient':
             return kind, self.gradient(value, (*trail, path))
+        if kind == 'shadow':
+            return kind, self.shadow(value, (*trail, path))
         return kind, normalize(kind, value)
+
+    def shadow(self, value, trail):
+        fields = {'color','offsetX','offsetY','blur','spread'}
+        if not isinstance(value,dict) or set(value)!=fields:
+            raise GradientError('R2',(), 'A shadow needs color, offsetX, offsetY, blur and spread')
+        computed = {}
+        for field in fields:
+            kind = 'color' if field=='color' else 'dimension'
+            raw = value[field]
+            alias = ALIAS.fullmatch(raw) if isinstance(raw,str) else None
+            try:
+                if alias:
+                    actual,result = self.evaluate(alias[1],trail)
+                    if actual!=kind:raise ValueError('Shadow field has the wrong token type')
+                else:result = normalize(kind,raw)
+                if field=='blur' and result.startswith('-'):raise ValueError('Shadow blur must be nonnegative')
+                computed[field] = result
+            except (ValueError,KeyError) as exc:
+                raise GradientError('R1' if alias else 'R2',(field,),str(exc)) from exc
+        return ' '.join(computed[field] for field in ('offsetX','offsetY','blur','spread','color'))
 
     def gradient(self, value, trail):
         if not isinstance(value, list) or len(value) < 2:

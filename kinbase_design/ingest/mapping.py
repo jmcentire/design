@@ -4,12 +4,13 @@ from urllib.parse import urljoin
 from ..artifacts.capture import public_url
 from ..vocabulary import slot_map
 from .arrangement import groups
-from .flow import long_form,split_flow,block,inline_role,level
+from .flow import long_form,split_flow,block,inline_role,level,structure
 from .presentation import visible_text,chroma,repeated_candidate,card_slots,clipped_media,heading
 
 
 def semantic_role(node):
     tag=node['tag'];attrs=node.get('attributes',{})
+    if node.get('preformatted'):return 'body'
     if tag in {'img','svg'}:return 'media'
     if tag in {'input','textarea','select'}:return 'control'
     if tag in {'a','button'}:return 'action'
@@ -47,25 +48,35 @@ def map_view(view,vocabulary,suggestions=()):
     def landmark_content(node):
         parent=by.get(node.get('parent'))
         while parent:
-            if parent['tag'] in {'nav','footer','form'} or parent.get('attributes',{}).get('role') in {'navigation','contentinfo','search'}:return True
+            # Definition-list wrappers describe one fact, not a repeated card.
+            # Keep them inside their owning item before selecting leaf groups.
+            if parent['tag'] in {'nav','footer','form','dl'} or parent.get('attributes',{}).get('role') in {'navigation','contentinfo','search'}:return True
             parent=by.get(parent.get('parent'))
         return False
-    repeated={}
+    repeated=[]
     for parent,peers in children.items():
-        patterns={}
+        run=[];pattern=None
+        def finish():
+            if len(run)>=2:repeated.append((parent,list(run)))
         for node in peers:
             desc=descendants(node)
-            if not landmark_content(node) and not long_form(node,desc) and repeated_candidate(node,desc):
-                patterns.setdefault((node['tag'],any(n['tag']=='img' for n in desc)),[]).append(node)
-        items=[node for group in patterns.values() if len(group)>=2 for node in group]
-        if items:repeated[parent]=items
+            eligible=not landmark_content(node) and not long_form(node,desc) and repeated_candidate(node,desc)
+            # Comparable adjacent items form a group. A later callout elsewhere
+            # in the same article is not a sibling card merely sharing its tag.
+            shape=(node['tag'],tuple(n['tag'] for n in desc if n['tag'] in {'img','p','dl','ul','ol','h1','h2','h3','h4','h5','h6'})) if eligible else None
+            if shape is None or shape!=pattern:finish();run=[]
+            if eligible:run.append(node)
+            pattern=shape
+        finish()
     # Prefer complete leaf groups over repeated rows/grids that contain them.
     # Media-only carousel frames do not meet the text/grouping criteria.
-    for parent,peers in sorted(repeated.items(),key=lambda pair:len(pair[0] or ''),reverse=True):
+    for parent,peers in sorted(repeated,key=lambda pair:len(pair[0] or ''),reverse=True):
         for node in peers:
-            if not any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):add(node,'card',parent)
+            if not any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):
+                add(node,'card',parent)
+                roots[node['selector']]['group_members']=[peer['selector'] for peer in peers]
     for node in nodes:
-        if construct_for(node)!='card' or long_form(node,descendants(node)):continue
+        if construct_for(node)!='card' or landmark_content(node) or long_form(node,descendants(node)):continue
         if any(node['selector']==key or node['selector'].startswith(key+' > ') or key.startswith(node['selector']+' > ') for key in roots):continue
         root=node;parent=by.get(node.get('parent'));desc=descendants(node)
         if sum(n['tag']=='article' for n in desc)>1:continue
@@ -112,6 +123,14 @@ def map_view(view,vocabulary,suggestions=()):
         matches=[key for key in roots if node['selector']==key or node['selector'].startswith(key+' > ')]
         return roots[max(matches,key=len)] if matches else None
     assigned,flow_parents=split_flow(nodes,roots,owner)
+    def definition(node):
+        field=None;current=node
+        while current:
+            if current['tag'] in {'dt','dd'} and field is None:field=current
+            if current['tag']=='dl':
+                return {'list':current['selector'],'field':field['selector'],'tag':field['tag']} if field else None
+            current=by.get(current.get('parent'))
+        return None
     def href_for(node):
         while node and node['tag']!='a':node=by.get(node.get('parent'))
         if node and node.get('attributes',{}).get('href'):
@@ -124,15 +143,31 @@ def map_view(view,vocabulary,suggestions=()):
             labels=item['values'].setdefault(slot,[])
             if text not in labels:labels.append(text)
         else:item['values'][slot]=(item['values'].get(slot,'')+' '+text).strip()
-        item['nodes'].setdefault(slot,node)
-        if chroma(node)>chroma(item['nodes'][slot]):item['nodes'][slot]=node
+        text_block=by.get(block(node,by),node)
+        representative=text_block if slot in {'body','title','meta'} and text_block['tag'] in {'p','pre','blockquote','h1','h2','h3','h4','h5','h6'} else node
+        structured=structure(node,by) if item.get('flow') else []
+        if structured:representative=by[structured[0]['selector']]
+        item['nodes'].setdefault(slot,representative)
+        if slot in {'highlight','eyebrow','action'} and chroma(node)>chroma(item['nodes'][slot]):item['nodes'][slot]=node
+        if slot_map(vocabulary['constructs'][item['construct']])[slot]['kind']=='action' and slot!='links':
+            control=node
+            while control and control['tag'] not in {'a','button'}:control=by.get(control.get('parent'))
+            if control:
+                actions=item.setdefault('action_items',{}).setdefault(slot,[])
+                action=next((a for a in actions if a['selector']==control['selector']),None)
+                if action is None:
+                    action={'selector':control['selector'],'text':'','href':href_for(control),'element':control['tag']};actions.append(action)
+                action.setdefault('segments',[]).extend(node.get('text_segments') or [{'text':text,'order':order[node['selector']]}])
         if href:=href_for(node):
             if slot=='links':item.setdefault('hrefs',{}).setdefault(slot,{})[text]=href
             else:item.setdefault('hrefs',{})[slot]=href
         if slot!='links':
             segments=node.get('text_segments') or [{'text':text,'order':order[node['selector']]}]
             for segment in segments:
-                item.setdefault('fragments',{}).setdefault(slot,[]).append({**segment,'block':block(node,by),'href':href_for(node),'node':node})
+                fragment={**segment,'block':block(node,by),'href':href_for(node),'node':node,'preformatted':node.get('preformatted',False)}
+                if structured:fragment['structure']=structured
+                if item['construct']=='card' and (field:=definition(node)):fragment['definition']=field
+                item.setdefault('fragments',{}).setdefault(slot,[]).append(fragment)
         spec=slot_map(vocabulary['constructs'][item['construct']])[slot]
         if re.fullmatch('h[1-6]',spec.get('element','')):
             source_heading=heading(node,by)
@@ -152,8 +187,8 @@ def map_view(view,vocabulary,suggestions=()):
         if re.search(r'(?:^| > )svg(?=:| > )',node['selector']) and node['tag']!='svg':continue
         if 'sr-only' in node.get('attributes',{}).get('class','').split():continue
         tag=node['tag'];slots=slot_map(vocabulary['constructs'][item['construct']]);text=visible_text(node)
-        if tag=='img' and node.get('src'):
-            if not node['src'].startswith(('http://','https://')):continue
+        if (tag=='img' or tag=='svg' and item['construct'] not in {'nav'} and not any(n['tag'] in {'a','button'} and node['selector'].startswith(n['selector']+' > ') for n in nodes)) and node.get('src'):
+            if not node['src'].startswith(('http://','https://','inline:')):continue
             if clipped_media(node,by):continue
             slot=next((s for s,d in slots.items() if d['kind']=='media'),None)
             image={'url':node['src'],'alt':node.get('attributes',{}).get('alt',''),'selector':node['selector']}
@@ -185,14 +220,27 @@ def map_view(view,vocabulary,suggestions=()):
                         if href:=href_for(control):item.setdefault('hrefs',{})['action']=href
             continue
         if not text:continue
-        role=inline_role(node,by) or semantic_role(node)
+        control=node
+        while control and control['tag'] not in {'a','button','p','li','pre'}:control=by.get(control.get('parent'))
+        style=control.get('styles',{}) if control else {}
+        explicit_action=control and (control['tag']=='button' or control['tag']=='a' and (style.get('display') in {'inline-block','inline-flex'} or control.get('attributes',{}).get('role')=='button'))
+        if control and control['tag']=='a' and not explicit_action:
+            parent=by.get(control.get('parent'))
+            if parent and parent['tag'] in {'p','div'}:
+                contents=[parent,*descendants(parent)]
+                controls=[n for n in contents if n['tag'] in {'a','button'}]
+                # Flex/grid can blockify a link's computed display. A group
+                # consisting solely of controls still supplies action evidence.
+                explicit_action=bool(controls) and all(any(n['selector']==a['selector'] or n['selector'].startswith(a['selector']+' > ') for a in controls)
+                    for n in contents if visible_text(n))
+        role='action' if explicit_action else inline_role(node,by) or semantic_role(node)
         slot=None
         if item['construct']=='card':
-            slot=roles[item['selector']].get(node['selector'])
+            slot='meta' if definition(node) and 'meta' in slots else roles[item['selector']].get(node['selector'])
         else:
             if role in {'title','subtitle'} and 'title' in slots:slot='title'
             elif role=='action' and 'links' in slots:slot='links'
-            elif role in {'body','caption'} and 'body' in slots:slot='body'
+            elif (role in {'body','caption'} or tag in {'li','dt','dd','th','td','caption'}) and 'body' in slots:slot='body'
             else:slot=next((s for s,d in slots.items() if d['role']==role),None)
         proposal=proposals.get(node['selector'])
         if proposal:
@@ -213,7 +261,12 @@ def map_view(view,vocabulary,suggestions=()):
         matches=[fragments for fragments in item.get('fragments',{}).values() if any(f['block']==parent_block for f in fragments)]
         if len(matches)==1:
             for segment in node.get('text_segments',[]):
-                if segment['text'].isspace():matches[0].append({**segment,'block':parent_block,'href':None,'node':node})
+                if segment['text'].isspace():
+                    fragment={**segment,'block':parent_block,'href':None,'node':node}
+                    if item.get('flow'):
+                        if grouped:=structure(node,by):fragment['structure']=grouped
+                    if item['construct']=='card' and (field:=definition(node)):fragment['definition']=field
+                    matches[0].append(fragment)
     ordered=[]
     for key,item in roots.items():
         root=item['root_node'];box=root.get('box')
@@ -232,6 +285,9 @@ def map_view(view,vocabulary,suggestions=()):
                     if prior is not None and prior!=f['block']:parts.append(' ')
                     parts.append(f['text']);prior=f['block']
                 item['values'][slot]=' '.join(''.join(parts).split())
+    for item in ordered:
+        for actions in item.get('action_items',{}).values():
+            for action in actions:action['text']=''.join(s['text'] for s in sorted(action.pop('segments',[]),key=lambda s:s['order']))
     ordered.sort(key=lambda i:order.get(i['selector'],0))
     available={p['selector'] for p in ordered}
     for item in ordered:

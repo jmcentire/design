@@ -47,7 +47,13 @@ def paint_snapshot(page):
         const css = Object.fromEntries(properties.map(p => [p, s.getPropertyValue(p)]));
         // Typed OM preserves computed auto/percentage widths. CSSOM's used px
         // width changes with reflow even when no width treatment changed.
-        css.width = String(e.computedStyleMap().get('width'));
+        const computed = e.computedStyleMap();
+        css.width = String(computed.get('width'));
+        // Grid CSSOM exposes used track pixels, which follow padding/container
+        // width even with an unchanged 1fr treatment. Typed OM exposes computed
+        // track definitions, retaining the leak check for actual grid changes.
+        // https://drafts.css-houdini.org/css-typed-om/#computed-stylepropertymapreadonly-objects
+        css['grid-template-columns'] = String(computed.get('grid-template-columns'));
         rows.push({tag: e.tagName, construct: e.getAttribute('data-kd-construct'),
           slot: e.getAttribute('data-kd-slot'), part: e.getAttribute('data-kd-part'),
           role: e.getAttribute('data-kd-role') || (slot && slot.getAttribute('data-kd-role')),

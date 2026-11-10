@@ -87,6 +87,7 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     for role,power in [('title',2),('subtitle',1),('body',0),('subtext',-.5),('label',0),('caption',-1),('action',0),('control',0),('media',0)]:
         sizes[role]=put('type',role,'dimension',f'{16*ratio**power:.5f}px','type-scale')
     display_size=put('type','display','dimension',f'{16*ratio**3:.5f}px','type-scale')
+    narrow_display=put('type','narrow-display','dimension',f'{min(32,16*ratio**2):.5f}px','type-scale') if 'word-break' in vocabulary.get('composition_rules',[]) else display_size
     line=put('line','body','number',1.6);heading_line=put('line','heading','number',1.25)
     tracking=put('type','tracking','dimension',f'{values["formality"]*.6:g}px','formality')
     spacing={}
@@ -95,6 +96,11 @@ def language(language_id,vocabulary,values,resources,preferences=None):
     radius=put('shape','radius','dimension',f'{values["shape"]:g}px','shape')
     line_width=put('shape','line','dimension','1px')
     logo_width=put('shape','logo','dimension','96px')
+    page_width=put('shape','page-width','dimension','1200px')
+    if vocabulary.get('content_pages'):
+        spacing['inset']=put('space','inset','dimension',f'{max(8,values["density"]*2):g}px','density')
+        spacing['separation']=put('space','separation','dimension',f'{max(8 if "gutter" in vocabulary.get("composition_rules",[]) else 4,values["density"]):g}px','density')
+        sizes['card']=put('type','card','dimension',f'{16*ratio**.5:.5f}px','type-scale')
     put('breakpoint','md','dimension','768px');put('breakpoint','lg','dimension','1200px')
     for role in vocabulary['roles']:
         doc['roles'][role]={}
@@ -111,6 +117,8 @@ def language(language_id,vocabulary,values,resources,preferences=None):
             doc['roles'][role][emphasis]=props
     for construct,spec in vocabulary['constructs'].items():
         treatment={'variant':'default','properties':{'padding':spacing['double'],'gap':spacing['base']},'slots':{}}
+        if vocabulary.get('content_pages'):
+            treatment['properties'].update({'padding':spacing['inset'],'gap':spacing['separation']})
         if construct in {'page-shell','listing-card','card','nav'}:treatment['properties']['background-color']=paper
         if construct=='hero':treatment['properties'].update({'padding-block':spacing['quad'],'background-color':wash,'border-radius':radius})
         if construct=='error-state':treatment['properties'].update({'background-color':accent_wash,'border-radius':radius})
@@ -128,7 +136,21 @@ def language(language_id,vocabulary,values,resources,preferences=None):
 
         if construct=='nav':treatment['properties'].update({'display':'flex','flex-wrap':'wrap','align-items':'center','justify-content':'space-between'})
         if construct in {'form','search-bar'}:treatment['properties']['display']='grid'
+        if vocabulary.get('composition_rules') and construct=='gallery':treatment['properties']['display']='grid'
+        if construct=='page-shell':treatment['properties'].update({'max-width':page_width,'margin-inline':'auto'})
+        if construct=='collection':
+            treatment['slots']['items']={'properties':{'display':'grid','gap':spacing['double'],'grid-template-columns':'1fr'}}
+            for bp,count in [('md',2),('lg',3)]:
+                doc['overrides'].append({'scope':'collection.items@'+bp,'properties':{'grid-template-columns':f'repeat({count}, 1fr)'},
+                    'reason':'Inferred responsive collection layout; not a measured source claim.'})
         if construct in {'listing-card','card'}:treatment['properties'].update({'border-radius':radius,'border-color':border,'border-width':line_width,'border-style':'solid'})
+        if 'word-break' in vocabulary.get('composition_rules',[]) and construct in {'listing-card','card'}:
+            treatment['properties'].update({'display':'grid','grid-template-columns':'1fr','align-items':'start'})
+            treatment.setdefault('parts',{})['content']={'display':'flex','flex-direction':'column','align-items':'stretch','justify-content':'start','gap':spacing['separation']}
+            pair_part=next((s.get('fact-part') for s in spec['slots'] if s['id']=='meta'),None)
+            if pair_part:
+                treatment['parts'][pair_part]={'display':'grid','grid-template-columns':'1fr','gap':put('space','none','dimension','0px')}
+                treatment['slots']['meta']={'properties':{'display':'grid','gap':spacing['separation']}}
         for slot in spec['slots']:
             props={}
             if slot['kind']=='action' and slot['element']!='div':
@@ -141,14 +163,44 @@ def language(language_id,vocabulary,values,resources,preferences=None):
                 asset=resources.get('bindings',{}).get(slot['asset_kind'])
                 if asset:treatment.setdefault('assets',{})[slot['id']]=asset
                 if slot['asset_kind']=='logo':props={'width':logo_width}
+                elif slot['asset_kind']=='image':props.update({'aspect-ratio':'3 / 2','object-fit':'cover'})
+            if vocabulary.get('content_pages') and slot['element'] in {'h1','h2','h3','h4','h5','h6'}:
+                props['font-size']=sizes['card' if construct in {'card','listing-card'} else 'title' if slot['element']=='h1' else 'subtitle']
             if props:treatment['slots'][slot['id']]={'properties':props}
         doc['components'][construct]=treatment
     # Make the attention and formality decisions visible on the common A/B screen.
-    doc['components']['hero']['slots']['eyebrow']={'role':'label','emphasis':'attention','properties':{'display':'inline-block','padding':spacing['base'],'border-radius':radius,'background-color':accent_wash}}
-    doc['components']['hero']['slots']['title']={'properties':{'font-size':display_size,'color':primary,'margin-block':spacing['base']}}
+    doc['components']['hero']['slots']['eyebrow']={'role':'label','emphasis':'attention','properties':{'display':'inline-block','padding':spacing.get('inset',spacing['base']),'border-radius':radius,'background-color':accent_wash}}
+    doc['components']['hero']['slots']['title']={'properties':{'font-size':narrow_display,'color':primary,'margin-block':spacing['base']}}
+    if narrow_display!=display_size:
+        doc['overrides'].append({'scope':'hero.title@md','properties':{'font-size':display_size},
+                                 'reason':'Use the display scale when the column is wide; retain whole words at phone widths.'})
     doc['components']['hero']['slots']['body']={'properties':{'margin-block':spacing['double']}}
     doc['components']['hero']['slots'].setdefault('action',{})['emphasis']='primary'
     doc['components']['listing-card']['slots'].setdefault('rating',{})['emphasis']='attention'
+    if 'heading-binding' in vocabulary.get('composition_rules',[]):
+        for construct,spec in vocabulary['constructs'].items():
+            for slot in spec['slots']:
+                if slot['element'] in {'h1','h2','h3','h4','h5','h6'}:
+                    doc['components'][construct]['slots'].setdefault(slot['id'],{}).setdefault('properties',{}).update({
+                        'margin-block-start':spacing['separation'],'margin-block-end':put('space','none','dimension','0px')})
+        doc['components']['hero']['slots']['body']['properties']['margin-block']='{space.none}'
+        doc['components']['hero'].setdefault('parts',{})['content']={'display':'flex','flex-direction':'column','gap':spacing['separation']}
+        doc['components']['content-section'].setdefault('parts',{})['heading']={'display':'flex','flex-direction':'column','gap':spacing['separation']}
+    if vocabulary.get('composition_rules'):
+        from .dimensions import DOMAINS
+        # Fixed measure limits cover the entire offered type domain. A type or
+        # density choice changes its advertised properties, never paragraph caps.
+        powers={'title':2,'subtitle':1,'body':0,'subtext':-.5,'label':0,'caption':-1,'action':0,'control':0,'media':0}
+        for construct,spec in vocabulary['constructs'].items():
+            for slot in spec['slots']:
+                if slot['element']!='p':continue
+                role=slot['role'];power=powers[role]
+                cap=40*16*min(ratio**power for ratio in DOMAINS['type-scale'])
+                measure=put('shape','measure-'+role,'dimension',f'{cap:.5f}px')
+                doc['components'][construct]['slots'].setdefault(slot['id'],{}).setdefault('properties',{})['max-width']=measure
+        # The collection owns the gutter; items own their inset. Avoid nesting
+        # a second density-sized inset around the already padded card surfaces.
+        doc['components']['collection']['properties']['padding']=put('space','none','dimension','0px')
     if palette_refs:
         # Visible fixed source swatches on existing constructs.
         for i,construct in enumerate(('hero','content-section','footer')):

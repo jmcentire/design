@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Synthetic composition source</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #fff; color: #182534; font: 16px/1.5 sans-serif; }
+    header, main, footer { width: 800px; max-width: calc(100% - 32px); margin: 24px auto; }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+    nav { display: flex; gap: 16px; }
+    nav a { color: #173e8f; background: transparent; text-decoration: underline;
+            border: 0; border-radius: 0; padding: 8px; }
+    button, .actions a { font: inherit; color: #fff; background: #204f31;
+                         border: 1px solid #204f31; border-radius: 4px; padding: 8px 16px; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 32px; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 20px; }
+    p { max-width: 480px; }
+    #leading { display: flex; flex-direction: column; gap: 16px; background: #e3edf5;
+               border: 2px solid #2d4256; border-radius: 12px; padding: 24px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; background: #fff; }
+    #notes { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+    .items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+    .item { display: flex; flex-direction: column; gap: 12px; padding: 16px;
+            border: 1px solid #687888; border-radius: 8px; background: #f4f4f4; }
+    #utility { position: fixed; right: 8px; bottom: 8px; width: 48px; height: 48px;
+               padding: 8px; color: #182534; background: #ff00ee; border: 1px solid #182534; }
+    @media (max-width: 600px) { .items { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <nav aria-label="Main navigation"><a href="#notes">Notes</a><a href="#ending">About</a></nav>
+    <button type="button">Open notebook</button>
+  </header>
+  <main>
+    <section id="leading">
+      <h1>Field observatory</h1>
+      <p id="intro">The observatory records changes in a small garden through the seasons. Each notebook entry describes an observation and invites the reader to look closely on the next visit.</p>
+      <div class="actions"><a href="#notes">Read entries</a><a href="#ending">Learn more</a></div>
+    </section>
+    <section id="notes">
+      <h2>Recent observations</h2>
+      <p id="prose">A collection of invented observations supplies a local source for testing composition transfer. The words describe no real person, place, organisation, property or service.</p>
+      <div class="items">
+        <article class="item"><h3>Morning light</h3><p>A small patch of light moved across the garden wall as the morning passed.</p></article>
+        <article class="item"><h3>Quiet branches</h3><p>The branches swayed gently above a path covered with fallen leaves.</p></article>
+      </div>
+    </section>
+  </main>
+  <footer id="ending"><p>All text and styles in this page are synthetic test material.</p></footer>
+  <button type="button" id="utility" aria-label="Utility toggle">U</button>
+</body>
+</html>

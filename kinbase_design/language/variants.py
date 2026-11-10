@@ -15,6 +15,9 @@ class Template(HTMLParser):
         self.roots = 0
         self.slots = []
         self.parts = set()
+        self.part_stack = []
+        self.content_parts = set()
+        self.slot_paths = {}
         self.feed(text)
         self.close()
         if self.stack or self.roots != 1:
@@ -40,10 +43,12 @@ class Template(HTMLParser):
             if attrs:
                 self.parts.add(attrs[0][1])
         self.stack.append(tag)
+        self.part_stack.append(dict(attrs).get('data-kd-part'))
 
     def handle_endtag(self, tag):
         if not self.stack or self.stack.pop() != tag:
             raise ValueError('Unbalanced template')
+        self.part_stack.pop()
 
     def handle_startendtag(self, tag, attrs):
         raise ValueError('Self-closing elements are not in the template grammar')
@@ -57,6 +62,9 @@ class Template(HTMLParser):
         if any(s not in slot_map(self.contract) for s in slots):
             raise ValueError('Unknown slot')
         self.slots.extend(slots)
+        for slot in slots:
+            self.slot_paths[slot] = ''.join(' > '+tag+(f'[data-kd-part="{part}"]' if part else '') for tag,part in zip(self.stack[1:],self.part_stack[1:]))
+        if slots:self.content_parts.update(part for part in self.part_stack if part)
 
     def handle_comment(self, data):
         raise ValueError('Comments are not in the template grammar')

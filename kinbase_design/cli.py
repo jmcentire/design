@@ -23,6 +23,7 @@ def parser():
         sub = commands.add_parser(name, parents=[common])
         if name in {'validate','resolve','build-preview','mint','promote','check','export','inventory-check','apply'}:
             sub.add_argument('language_id')
+        if name == 'vocabulary':sub.add_argument('--vocabulary')
         if name == 'resolve':
             sub.add_argument('scope')
             sub.add_argument('--state', default='default')
@@ -41,6 +42,7 @@ def parser():
         if name == 'check':
             sub.add_argument('--out')
             sub.add_argument('--widths')
+            sub.add_argument('--content')
         if name == 'import-artifact':
             sub.add_argument('--file', required=True)
             sub.add_argument('--kind', choices=['image','mock','wireframe','figma-export','dtcg','asset','brief'])
@@ -66,6 +68,45 @@ def parser():
         if name == 'serve':
             sub.add_argument('--host', choices=['127.0.0.1'], default='127.0.0.1')
             sub.add_argument('--port', type=int, default=8765)
+    for name in ('revise-language','restore-language','language-history'):
+        sub=commands.add_parser(name,parents=[common]);sub.add_argument('language_id')
+        if name=='language-history':continue
+        if name=='revise-language':sub.add_argument('--changes',required=True)
+        else:sub.add_argument('version')
+        sub.add_argument('--reason',default='');sub.add_argument('--expected-version')
+        sub.add_argument('--out');sub.add_argument('--content')
+    feedback=commands.add_parser('feedback-language',parents=[common])
+    feedback.add_argument('language_id');feedback.add_argument('--feedback',required=True)
+    feedback.add_argument('--scope');feedback.add_argument('--expected-version')
+    feedback.add_argument('--out');feedback.add_argument('--content')
+    figma = commands.add_parser('figma', parents=[common])
+    figma.add_argument('action', choices=['identity', 'pull'])
+    figma.add_argument('--file-key')
+    figma.add_argument('--version')
+    figma.add_argument('--source-node', action='append', default=[])
+    figma.add_argument('--render-node', action='append', default=[])
+    figma.add_argument('--variables', action='store_true')
+    figma.add_argument('--comments', action='store_true')
+    evidence = commands.add_parser('evidence-export', parents=[common])
+    evidence.add_argument('--artifact', required=True)
+    evidence.add_argument('--out', required=True)
+    page = commands.add_parser('render-page', parents=[common])
+    page.add_argument('language_id')
+    page.add_argument('--content', required=True)
+    page.add_argument('--out', required=True)
+    hooks = commands.add_parser('hooks', parents=[common])
+    hooks.add_argument('--vocabulary')
+    factory = commands.add_parser('factory-task', parents=[common])
+    factory.add_argument('handoff_id')
+    factory.add_argument('--run', required=True)
+    factory.add_argument('--factory')
+    factory.add_argument('--runs')
+    factory.add_argument('--budget')
+    factory.add_argument('--dry-run', action='store_true')
+    mapping = commands.add_parser('map-sections', parents=[common])
+    mapping.add_argument('--mapping', required=True)
+    mapping.add_argument('--sections', required=True)
+    mapping.add_argument('--out', required=True)
     generate = commands.add_parser('generate', parents=[common])
     actions = generate.add_subparsers(dest='generate_action', required=True)
     for name in ('start','interview','moodboard','pair','choose','settled','derive'):
@@ -93,7 +134,47 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'generate':
+        if args.command in {'revise-language','restore-language','language-history','feedback-language'}:
+            from .language.revisions import revise,restore,history
+            if args.command=='feedback-language':
+                from .language.feedback import feedback
+                result=feedback(library,args.language_id,args.feedback,scope=args.scope,expected_version=args.expected_version,out=args.out,content=args.content)
+            elif args.command=='language-history':result=history(library,args.language_id)
+            else:
+                operation=revise if args.command=='revise-language' else restore
+                value=json.loads(args.changes) if args.command=='revise-language' else args.version
+                result=operation(library,args.language_id,value,reason=args.reason,expected_version=args.expected_version,out=args.out,content=args.content)
+            output(result)
+            return 1 if result.get('accepted') is False or result.get('rendered',{}).get('built') is False or result.get('rendered',{}).get('validated') is False else 0
+        elif args.command == 'factory-task':
+            from .export.factory import submit
+            result = submit(library,workspace,args.handoff_id,args.run,args.factory,args.runs,args.budget,args.dry_run)
+            output(result)
+            return 0 if args.dry_run or result['exit']==0 else 1
+        elif args.command == 'render-page':
+            from .content import render_page
+            result = render_page(library,args.language_id,args.content,args.out)
+            output(result)
+            return 0 if result['validated'] else 1
+        elif args.command == 'map-sections':
+            from .content.mapping import map_sections
+            result = map_sections(args.mapping,args.sections,args.out)
+            output({key:result[key] for key in ('out','blocks','unmapped','findings')})
+            return 0 if result['accepted'] else 1
+        elif args.command == 'hooks':
+            output(vocabulary.hook_contract(vocabulary.load(library,args.vocabulary)))
+        elif args.command == 'evidence-export':
+            from .design_evidence import export
+            output(export(workspace, args.artifact, args.out))
+        elif args.command == 'figma':
+            from . import figma
+            if args.action == 'identity':
+                identity = figma.client().get('me')
+                output({k: identity.get(k) for k in ('id', 'handle', 'email')})
+            else:
+                if not args.file_key: raise ValueError('figma pull requires --file-key')
+                output(figma.snapshot(workspace, args.file_key, args.version, nodes=args.render_node, variables=args.variables, comments=args.comments, source_nodes=args.source_node))
+        elif args.command == 'generate':
             from . import generate
             action=args.generate_action
             if action=='start':result=generate.start(library,workspace,args.brief,args.artifact)
@@ -106,23 +187,24 @@ def main(argv=None):
             output(result)
             if isinstance(result,dict) and result.get('accepted') is False:return 1
         elif args.command == 'vocabulary':
-            output(vocabulary.load(library))
+            output(vocabulary.load(library,args.vocabulary))
         elif args.command == 'validate':
             result = validate(library, args.language_id)
             output(result)
             return 0 if result['accepted'] else 1
         elif args.command in {'resolve', 'build-preview'}:
-            result = validate(library, args.language_id)
+            document = load_language(library,args.language_id)
+            result = validate(library, args.language_id,document)
             if not result['accepted']:
                 output(result)
                 return 1
-            document = load_language(library, args.language_id)
             if args.command == 'resolve':
                 output(resolve(document, vocabulary.load(library, document['vocabulary']), args.scope, args.state, args.breakpoint))
             else:
                 from .render import build_preview
-                build_preview(library, args.language_id, args.out)
-                output({'language': args.language_id, 'built': True})
+                identity={}
+                build_preview(library, args.language_id, args.out,document=document,render_inputs=identity)
+                output({'language': args.language_id, 'built': True,'render_inputs':identity})
         elif args.command == 'apply':
             from .export.handoff import apply
             output(apply(library,workspace,args.language_id,args.site,args.adapter,args.target_dir,args.page_url,args.branch))
@@ -140,7 +222,7 @@ def main(argv=None):
             output(export(library, args.language_id, args.adapter, args.out))
         elif args.command == 'check':
             from .checks import check
-            result = check(library, args.language_id, args.out, args.widths)
+            result = check(library, args.language_id, args.out, args.widths,args.content)
             output(result)
             return 0 if result['accepted'] else 1
         elif args.command == 'mint':
@@ -176,6 +258,9 @@ def main(argv=None):
                 server.serve_forever()
         return 0
     except (ValueError, OSError, KeyError) as exc:
+        if args.command == 'factory-task':
+            print(' '.join(str(exc).split()), file=sys.stderr)
+            return 1
         output({'error': str(exc)})
         logging.getLogger(__name__).error('operation_failed command=%s language=%s error=%s', args.command, getattr(args,'language_id','-'), str(exc)[:300])
         return 2

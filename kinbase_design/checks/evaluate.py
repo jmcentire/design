@@ -4,7 +4,7 @@ from ..findings import Finding, location
 from ..language.resolver import resolve, property_pointer
 from ..language.tokens import Tokens, ALIAS, number_text
 from ..language.behaviors import matching, property_exception
-from ..language.properties import CONTROL_BOX_PROPERTIES
+from ..language.properties import CONTROL_BOX_PROPERTIES, IMAGE_PROPERTIES
 from .math import color, contrast, effective_background, text_threshold, spacing_exception, css_equal
 from .grouping import observation_context
 
@@ -39,6 +39,12 @@ class Evaluation:
         return finding
 
     def snapshot(self, page, width, snapshot, full_text):
+        from .composition import evaluate
+        if self.vocabulary.get('composition_rules'):
+            evaluate(self,page,width,snapshot.get('composition',{}))
+        for item in snapshot.get('preservation',[]):
+            self.add(item['kind'],page,width,item['target'],measured=item['text'],
+                     expected='content text, media and controls remain visible in accessible reading order')
         bp = breakpoint_at(self.document,width)
         tokens = Tokens(self.document['style'])
         for node in snapshot['nodes']:
@@ -48,14 +54,21 @@ class Evaluation:
                 if node['image'] or node.get('backgroundAsset'):
                     self.add('asset-load',page,width,target,measured={'decoded':node['decoded'],'box':node['box']},threshold='decoded and visible',expected='bound image has a visible box')
                 continue
-            if node['slot']:
-                props = resolve(self.document,self.vocabulary,node['slot'],node['state'],bp)['properties']
+            if node['slot'] or node.get('part'):
+                scope=node['slot'] or node['part']
+                if node.get('heading') and node['slot']:scope+='.h'+str(node['heading'])
+                props = resolve(self.document,self.vocabulary,scope,node['state'],bp)['properties']
                 for prop, treatment in props.items():
                     observations = node.get('controlStyles') if prop in CONTROL_BOX_PROPERTIES and node.get('controlStyles') is not None else [node]
+                    if prop in IMAGE_PROPERTIES and node.get('imageStyles') is not None:
+                        observations = node['imageStyles']
+                        if not observations:continue  # A missing-media placeholder has no image treatment.
                     for observation in observations or [{'css':{},'fontSize':node['fontSize']}]:
                         actual = observation['css'].get(prop,'')
-                        if not css_equal(prop,treatment['value'],actual,observation['fontSize'],snapshot['rootSize']):
+                        equal = css_equal(prop,treatment['value'],actual,observation['fontSize'],snapshot['rootSize'],blockified=observation.get('blockified',False))
+                        if not equal:
                             self.add('role-conformance',page,width,target,measured={'property':prop,'value':actual},threshold=treatment['value'],
+                                     type='needs-review' if equal is None else 'violation',
                                      expected=f'{prop} = {treatment["value"]}',message=f'{prop}: computed {actual}; resolved {treatment["value"]}',
                                      exception=property_exception(self.document,target,prop),
                                      pointer=property_pointer(self.document,self.vocabulary,prop,treatment))

@@ -16,11 +16,16 @@ def digest(document):
     return hashlib.sha256(rfc8785.dumps(version_document(document))).hexdigest()
 
 
-def mint(library, language_id):
-    result = validate(library, language_id)
+def mint(library, language_id, document=None, vocabulary=None):
+    document = load_language(library, language_id) if document is None else document
+    result = validate(library, language_id, document, vocabulary=vocabulary)
     if not result['accepted']:
         return result
-    document = load_language(library, language_id)
+    return archive(library, language_id, document)
+
+
+def archive(library, language_id, document):
+    """Preserve a supplied snapshot; callers own validation and current selection."""
     version = digest(document)
     path = inside(library, 'languages', language_id, 'versions', version + '.json')
     data = rfc8785.dumps(version_document(document))

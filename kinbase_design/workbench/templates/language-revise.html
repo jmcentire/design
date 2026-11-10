@@ -1,0 +1,9 @@
+<section class="panel"><h2>Update language</h2>
+<p>Changes are saved to the current language before the preview is rendered. They set the selected scope’s default treatment; explicit state, breakpoint, or more specific component overrides still take precedence.</p>
+<form method="post" action="/languages/{{ language.id }}/revise">
+<input type="hidden" name="expected_version" value="{{ current_version }}">
+<label>Apply to <select name="scope">{% for value,label in edit_scopes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+<label>Property <select name="property">{% for value,label in edit_properties.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+<label>Exact value <input name="value" required placeholder="For example: 0.5px, 1.5, or #354652"></label>
+<label>Reason <input name="reason" maxlength="4000"></label><button>Update language and preview</button>
+</form><p><a href="/languages/{{ language.id }}/history">View history or restore an earlier iteration</a></p></section>

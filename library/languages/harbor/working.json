@@ -1,7 +1,7 @@
 {
   "id": "harbor",
   "name": "Harbor",
-  "vocabulary": "v1",
+  "vocabulary": "v7",
   "description": "An open, coastal language with quiet greens and generous spacing.",
   "style": {
     "color": {
@@ -72,6 +72,18 @@
       },
       "caption": {
         "$value": "0.75rem"
+      },
+      "section": {
+        "$value": "28px"
+      },
+      "section-md": {
+        "$value": "32px"
+      },
+      "card": {
+        "$value": "22px"
+      },
+      "card-md": {
+        "$value": "24px"
       }
     },
     "space": {
@@ -93,6 +105,18 @@
       },
       "xl": {
         "$value": "4rem"
+      },
+      "none": {
+        "$type": "dimension",
+        "$value": "0px"
+      },
+      "action-block": {
+        "$type": "dimension",
+        "$value": "0.75rem"
+      },
+      "action-inline": {
+        "$type": "dimension",
+        "$value": "1rem"
       }
     },
     "shape": {
@@ -108,6 +132,23 @@
       },
       "container": {
         "$value": "72rem"
+      },
+      "page": {
+        "$type": "dimension",
+        "$value": "1248px"
+      },
+      "prose": {
+        "$type": "dimension",
+        "$value": "720px"
+      },
+      "measure-576": {
+        "$value": "576px"
+      },
+      "measure-504": {
+        "$value": "504px"
+      },
+      "measure-432": {
+        "$value": "432px"
       }
     },
     "line": {
@@ -449,7 +490,21 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}",
-        "background-color": "{color.paper}"
+        "background-color": "{color.paper}",
+        "max-width": "{shape.page}",
+        "margin-inline": "auto"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.title}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        }
       }
     },
     "nav": {
@@ -471,6 +526,13 @@
           "properties": {
             "width": "{shape.logo}"
           }
+        },
+        "links": {
+          "properties": {
+            "display": "flex",
+            "flex-wrap": "wrap",
+            "gap": "{space.sm}"
+          }
         }
       }
     },
@@ -487,7 +549,9 @@
             "background-color": "{color.primary}",
             "color": "{color.white}",
             "padding": "{space.sm}",
-            "border-radius": "{shape.radius}"
+            "border-radius": "{shape.radius}",
+            "align-self": "start",
+            "justify-self": "start"
           },
           "states": {
             "hover": {
@@ -523,12 +587,33 @@
       "slots": {
         "title": {
           "properties": {
-            "font-size": "{type.subtitle}"
+            "font-size": "{type.card}"
           }
         },
         "media": {
           "properties": {
             "border-radius": "{shape.radius}"
+          }
+        },
+        "location": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "rating": {
+          "properties": {
+            "max-width": "{shape.measure-432}"
+          }
+        },
+        "price": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
           }
         }
       },
@@ -551,10 +636,24 @@
       "variant": "default",
       "properties": {
         "padding": "{space.md}",
-        "gap": "{space.sm}"
+        "gap": "{space.sm}",
+        "display": "grid"
       },
       "assets": {
         "media": "coastal-stay:primary"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "detail-header": {
@@ -562,6 +661,29 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.title}"
+          }
+        },
+        "location": {
+          "properties": {
+            "max-width": "{shape.measure-504}"
+          }
+        },
+        "description": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "form": {
@@ -577,7 +699,9 @@
             "background-color": "{color.primary}",
             "color": "{color.white}",
             "padding": "{space.sm}",
-            "border-radius": "{shape.radius}"
+            "border-radius": "{shape.radius}",
+            "align-self": "start",
+            "justify-self": "start"
           },
           "states": {
             "hover": {
@@ -590,6 +714,11 @@
               "background-color": "{color.muted}"
             }
           }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
         }
       }
     },
@@ -598,6 +727,24 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "error-state": {
@@ -605,6 +752,24 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        },
+        "action": {
+          "properties": {
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        }
       }
     },
     "footer": {
@@ -612,21 +777,96 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-432}"
+          }
+        },
+        "links": {
+          "properties": {
+            "display": "flex",
+            "flex-wrap": "wrap",
+            "gap": "{space.sm}"
+          }
+        }
       }
     },
     "hero": {
       "variant": "default",
       "properties": {
         "padding": "{space.md}",
-        "gap": "{space.sm}",
-        "padding-block": "{space.xl}",
-        "background-color": "{color.wash}"
+        "gap": "{space.md}",
+        "padding-block": "{space.lg}",
+        "background-color": "{color.wash}",
+        "display": "grid"
       },
       "slots": {
         "title": {
           "properties": {
-            "max-width": "{shape.container}"
+            "max-width": "{shape.container}",
+            "font-size": "{type.title}",
+            "color": "{color.primary}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
           }
+        },
+        "media": {
+          "properties": {
+            "object-fit": "cover",
+            "aspect-ratio": "3 / 2"
+          }
+        },
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "secondary-action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-432}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}",
+            "margin-inline": "{space.none}"
+          }
+        }
+      },
+      "parts": {
+        "content": {
+          "display": "flex",
+          "gap": "{space.md}",
+          "flex-direction": "column"
+        },
+        "actions": {
+          "display": "flex",
+          "flex-wrap": "wrap",
+          "gap": "{space.xs}",
+          "align-items": "center"
         }
       }
     },
@@ -635,10 +875,243 @@
       "properties": {
         "padding": "{space.md}",
         "gap": "{space.sm}"
+      },
+      "slots": {
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-432}"
+          }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        }
+      },
+      "parts": {
+        "actions": {
+          "display": "flex",
+          "flex-wrap": "wrap",
+          "gap": "{space.xs}",
+          "align-items": "center"
+        },
+        "heading": {
+          "display": "flex",
+          "flex-direction": "column",
+          "gap": "{space.sm}"
+        }
+      }
+    },
+    "collection": {
+      "properties": {
+        "padding": "{space.md}",
+        "gap": "{space.md}",
+        "padding-inline": "{space.sm}"
+      },
+      "slots": {
+        "items": {
+          "properties": {
+            "display": "grid",
+            "gap": "{space.md}",
+            "grid-template-columns": "1fr"
+          }
+        },
+        "title": {
+          "properties": {
+            "font-size": "{type.section}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        }
+      }
+    },
+    "card": {
+      "properties": {
+        "display": "grid",
+        "gap": "{space.sm}",
+        "padding": "{space.none}",
+        "border-style": "solid",
+        "border-width": "{shape.line}",
+        "background-color": "{color.white}",
+        "border-color": "{color.line}",
+        "border-radius": "{shape.radius}"
+      },
+      "slots": {
+        "title": {
+          "properties": {
+            "font-size": "{type.card}",
+            "margin-block-start": "{space.sm}",
+            "margin-block-end": "{space.none}"
+          }
+        },
+        "media": {
+          "properties": {
+            "object-fit": "cover",
+            "aspect-ratio": "3 / 2",
+            "border-radius": "{shape.radius}"
+          }
+        },
+        "action": {
+          "properties": {
+            "border-style": "solid",
+            "border-width": "{shape.line}",
+            "border-color": "{color.ink}",
+            "padding-block": "{space.action-block}",
+            "padding-inline": "{space.action-inline}",
+            "text-decoration-line": "none",
+            "display": "inline-block",
+            "align-self": "start",
+            "justify-self": "start"
+          }
+        },
+        "eyebrow": {
+          "properties": {
+            "max-width": "{shape.measure-432}"
+          }
+        },
+        "body": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        },
+        "meta": {
+          "properties": {
+            "max-width": "{shape.measure-504}",
+            "display": "grid",
+            "gap": "{space.sm}"
+          }
+        },
+        "highlight": {
+          "properties": {
+            "max-width": "{shape.measure-576}"
+          }
+        }
+      },
+      "parts": {
+        "content": {
+          "display": "flex",
+          "gap": "{space.sm}",
+          "flex-direction": "column",
+          "padding": "{space.md}"
+        },
+        "pair": {
+          "display": "grid",
+          "gap": "{space.none}",
+          "grid-template-columns": "1fr"
+        }
       }
     }
   },
-  "overrides": [],
+  "overrides": [
+    {
+      "scope": "collection.items@md",
+      "properties": {
+        "grid-template-columns": "repeat(2, minmax({space.none}, 1fr))"
+      },
+      "reason": "Two columns retain a readable paragraph measure at medium widths."
+    },
+    {
+      "scope": "hero@md",
+      "properties": {
+        "grid-template-columns": "1fr 1fr",
+        "align-items": "center"
+      },
+      "reason": "Place the introduction beside its content image on wider screens."
+    },
+    {
+      "scope": "listing-card.title@md",
+      "properties": {
+        "font-size": "{type.card-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "gallery.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "form.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "empty-state.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "error-state.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "content-section.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "card.title@md",
+      "properties": {
+        "font-size": "{type.card-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "collection.title@md",
+      "properties": {
+        "font-size": "{type.section-md}"
+      },
+      "reason": "Construct-aware heading hierarchy preserves page, section and card order."
+    },
+    {
+      "scope": "collection.items@lg",
+      "properties": {
+        "grid-template-columns": "repeat(3, minmax({space.none}, 1fr))"
+      },
+      "reason": "Three columns fit the paragraph measure on wide screens."
+    },
+    {
+      "scope": "collection@lg",
+      "properties": {
+        "padding-inline": "{space.md}"
+      },
+      "reason": "Restore the generous collection inset when three columns have room."
+    }
+  ],
   "behaviors": [],
   "assets": {
     "harbor-mark": {

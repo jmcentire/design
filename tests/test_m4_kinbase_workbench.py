@@ -36,6 +36,9 @@ def start_in_ui(page, server, library):
 def feedback(page, text, kind):
     candidates = []
     for form in visible(page.locator("form")):
+        if not visible(form.get_by_role("button", name=re.compile(
+                r"record feedback|comment|flag|question", re.I))):
+            continue
         textboxes = visible(form.get_by_role("textbox", name=re.compile(r"feedback|comment|message|observation", re.I)))
         if not textboxes:
             textboxes = visible(form.locator("textarea"))

@@ -1058,3 +1058,756 @@ whitespace checks pass; all 233 tests collect. Non-browser product execution
 remains blocked by absent candidate vocabulary (132 prerequisite errors, 101
 browser cases deselected). Logs: `/tmp/kinbase-tester-m4-source-collection.log`
 and `/tmp/kinbase-tester-m4-source.log`. Integrated verification awaits the Validator.
+
+## Content-page examples — 2026-11-08
+
+Authority: task `design-examples-20261108`, public contract amendments 01 and 02
+(Q-0001-db56bbe351a4). `test_content_pages.py` exercises the real render-page CLI
+and output files using synthetic content created by `content_support.py`. The
+fixture contains guide prose and optional collection cards, PNG pixels generated
+locally and a hand-authored SVG; no real customer or third-party content is stored.
+
+The first increment checks byte-identical HTML across Harbor/Lantern, semantic
+landmarks/headings/lists/captions/links, literal hostile text, domain-word structure
+invariance, image decoding and moved-bundle references, precise input findings,
+path/symlink/URL refusals, and refusal to overwrite a non-bundle directory. Each
+negative family has a valid source control. These catch lost content, broken
+portable output, executable text, arbitrary file access and overwritten user work.
+CSS reference parsing covers ordinary URL/import serialization; actual browser
+loading, content visibility, contrast and non-color distinction remain pending.
+Packaged font/license inclusion and offline syscall-level observation are also
+not established by these file checks. No doubles, masks or mutation claims.
+
+Local command: supplied runtime `python -m pytest tests/test_content_pages.py
+--collect-only -q` collected 21 cases; compilation and `git diff --check` passed.
+`python -m pytest tests/test_content_pages.py -x -q --tb=short` attempted the first
+case, which failed because this lane has no `kinbase_design` module. That is a
+prerequisite failure, not semantic red evidence. All product claims remain **gap**
+until the Validator runs this test commit with an identified candidate commit.
+No inherited tests were removed or changed in this increment.
+
+Amendment 03 (Q-0006-94f04e2ae242) adds nine export cases through the declared
+`figma.snapshot(..., api=...)` seam. Synthetic API JSON supplies conditions; the
+real snapshot, exporter CLI and JSONL files supply observations. The publisher
+oracle checks the exact fields, metadata lengths, id, refs, timezone and flattened
+UTF-8 byte limit. Cases include metadata at/over 256 characters, a naive source
+time, a long multibyte comment, a useful positive export and byte-idempotent
+re-export. Every hazardous case first exports a valid control. There is no claim
+about the real Figma wire protocol. Ref-count/id-format checks inspect every
+written record but do not yet have an input capable of forcing each invalid form.
+Command stdout/stderr are recorded for semantic omission-reason review; the suite
+does not equate nonempty status output with a proven useful reason.
+
+This increment also narrows the domain-word relation to tags, semantic hooks and
+resource/link addresses. Generated accessibility labels may legitimately contain
+the changed words; pinning all attributes would have overconstrained the contract.
+No candidate result motivated this correction. Both modules collect 30 cases and
+compile. Product evidence remains **gap** (implementation absent); no new product
+run or sensitivity success is claimed.
+
+Hook/mapping/grammar increment: `test_content_hooks_mapping.py` checks public hook
+agreement with page/export contracts and validates nearest-construct slot ownership,
+required slots and declared parts. Mapping cases test variant precedence, nested
+collection fields, action arrays, wrapped/unwrapped source pointers, unmapped
+sections/fields, literal hostile text, nonstring refusal and renderable output.
+`test_content_properties.py` adds valid/invalid pairs from amendment 02, provenance,
+resolvable findings, hidden-content refusal at four scopes and the eight forbidden
+reordering/replacement properties. Existing Harbor/Lantern validation remains a
+positive control. Compilation and collection succeeded (37 cases in these modules).
+All runtime claims remain **gap** in this implementation-free lane.
+
+Two inherited expectations are updated solely for amendment 02: the closed resolver
+property set now includes the ratified additions; adapter header checking excludes
+`hooks.json` because that artifact describes vocabulary, not language/version
+metadata. Its exact contract/agreement is checked by the new hook test. No prior
+behavior coverage is deleted. The shared content fixture now copies all shipped
+languages so browser checks can enumerate the delivered library without asserting
+a fixed language count or deriving expected design values from it.
+
+Rendered acceptance increment adds `test_content_browser.py`,
+`content_browser_support.py` and `test_content_layout_browser.py`. The Validator
+must run these outside the lane sandbox. For every shipped language at collection
+time, guide/card pages are checked at 375 and 1280 CSS px with JavaScript disabled:
+actual image decode (including scrolling lazy images), visible unclipped text and
+controls, source copy, local anchors, page overflow and browser network requests.
+Harbor/Lantern must preserve HTML, accessibility order and links while differing
+in horizontal construct geometry and typography. Hook selectors are exercised by
+Chromium. A real loopback request proves the source observer is live before local
+rendering and remote-src rejection are required to leave its request count alone.
+This is bounded evidence for the supplied source, not a syscall audit of all egress.
+
+Layout tests use independently authored consumer HTML plus real generic export
+CSS. They measure grid columns/gaps at 767/768/769/1279/1280, row/column spans,
+self-alignment, centering and aspect ratio, and inspect actual authored stripe
+pixels for cover/contain/position and black shadow paint. A part override changes
+columns at 768. The consumer is an export boundary test; it does not pretend to
+prove arbitrary content-page wrapper choices. Solid-surface contrast composites
+real ancestor backgrounds with WCAG math; image/gradient/group-opacity cases are
+reported as **gap requiring pixel/manual assessment**, never accepted using a
+made-up background. Pseudo-element overlays are not comprehensively modeled.
+
+Additional CLI checks cover the remaining supported image formats, required
+members, retained seeded truncation corpus, licence notices, and vocabulary markup
+ownership despite a valid language variant. Synthetic SVG is parsed here and the
+shared SVG logo is decoded in Chromium. The shared library fixture now includes
+its shipped FONT-LICENSE.txt, preserving the actual export input. Browser
+compilation/collection is successful; no Chromium execution or semantic mutation
+result is claimed from this sandbox. New product checks remain **gap** until the
+Validator supplies an integrated run. No inherited assertions were weakened here.
+
+Amendment 04 repair, from the Validator's first integrated review: the shared
+fixture combined a declared v1 language with the CLI's now-v2 default vocabulary,
+causing R1 unknown construct/slot failures. This was a test setup defect under the
+changed version-selection contract. The `vocabulary` fixture now requests the
+version declared in the hand-authored language.json, and completion asserts that
+the versions agree. Existing v1 slot/role/state pins remain intact and explicitly
+name v1. A separate test requires default vocabulary/hooks to equal the newest
+installed version, explicit v1 to remain available, and unknown versions to exit 2.
+The existing content hook round trip now explicitly requires the content-capable
+v2 contract.
+
+`test_vocabulary_versions.py` adds the amendment's compatibility relation: the
+same authored v1 language with only v1 installed versus with v1/v2 coexisting must
+have equal validation findings, resolution, preview HTML/CSS, and rendered-check
+outcomes/coverage/findings. The browser comparison masks only screenshot paths,
+whose artifacts run_check separately decodes and checks. A valid v1 language is
+also required to receive a vocabulary finding when asked for a content page.
+These expose consumers accidentally following a global newest version instead of
+the language's declared version; no captured product baseline supplies expectations.
+
+Rechecked compilation, whitespace, collection (330 total cases), synthetic image
+fixture decoding and contrast arithmetic; all passed. The representative command
+`python -m pytest tests/test_vocabulary.py -x -q --tb=short` now visibly requests
+`vocabulary --vocabulary v1`, then stops at this lane's absent kinbase_design module
+(one setup error). No integrated pass or new semantic red is claimed. The Validator
+has not yet supplied other content results or an exact candidate commit for the
+first run. Repaired execution, including the new compatibility relation, remains
+**gap** pending integration; prior reported cascading failures are retained above.
+
+Amendment 05 corrects the Validator's earlier hook-value ambiguity. Hook contract
+slot keys remain bare, while selectors and rendered attributes now must carry
+`construct.slot`. The HTML round trip resolves that qualified construct against
+actual ancestors (including an outer owner across nested constructs), rejects
+undeclared or unqualified slots, and retains required-slot evidence per construct
+instance. Allowed element declarations accept either a single tag or a nonempty
+array; the browser selector check applies the same rule. The existing round trip
+now includes captioned and uncaptioned media together. No other expectations moved.
+
+Compilation, whitespace checks and all 330-case collection pass again. Bounded
+helper-only diagnostics accepted qualified outer-owner slots and figure/img
+alternatives, and rejected unqualified slots, absent owners, undeclared slots,
+wrong tags and missing required slots. These establish helper behavior only; they
+are not product sensitivity evidence. Integrated product/browser execution of this
+repair remains **gap**, pending the Validator's next source-free report.
+
+Amendment 06 adds honest acceptance status to every successful render-page helper
+call: `validated` must be true, `rendered_check` must be accepted/rejected/unchecked,
+and `accepted` must be exactly the rendered-accepted predicate for that statically
+valid bundle. The helper still verifies the actual output files. No prior file or
+semantic assertions are removed.
+
+`test_content_acceptance.py` adds a fresh unchecked bundle plus static rejection,
+and a real-check history test. The history uses Lantern's existing accepted narrow
+baseline and an authored wide-only white-on-white slot, so passing at 320 and
+rejecting at 1280 concern the same language version. It checks accepted after the
+real passing report, unchecked after a version change, accepted on restoration
+while that check is still latest, rejected after the same version's newer failing
+check, and unchecked when the latest check is for a different version even though
+an older report for the restored version exists. All check output directories are
+outside the default location. The negative report must identify the seeded contrast
+violation. No report files or timestamps are fabricated, patched or slept around.
+
+Compilation, whitespace, 332-case collection and synthetic fixture/contrast
+arithmetic diagnostics pass. `python -m pytest tests/test_content_acceptance.py
+-m 'not browser' -q --tb=short` reports one failure at the absent kinbase_design
+module, with the browser sequence deselected. Product acceptance-history evidence
+therefore remains **gap**; the Validator must run the real Chromium sequence.
+The prior hook-helper diagnostic evidence is unchanged and retained above.
+
+Amendment 07 adds body-only sections. Two real render-page relations (with a hero
+h1 and with a page-title h1) insert untitled sections before/between titled blocks.
+Their bodies must appear once in the declared section construct with no heading;
+the complete heading text/order/levels must match the original page, with exactly
+one expected h1 and no skipped levels. The full-kind case also runs the hook round
+trip so required-slot metadata cannot contradict the now-optional section title.
+The existing invalid-content cases now reject explicit empty/null/number/list/
+object/boolean section titles at their source pointer. Existing hero-title refusal
+is retained, with CTA and collection-item required-title cases added alongside it.
+
+The existing wrapped/unwrapped mapping fixture now includes a prose record without
+its mapped heading field. It must become an untitled section, retain its paragraph,
+render successfully, and avoid a missing-title finding. Unmapped-source expectations
+are shifted only for the appended fixture record; all prior value and pointer
+assertions remain in place. No candidate output supplied an expected value.
+
+Compilation, whitespace and 342-case collection pass, as do repeated synthetic
+image/contrast diagnostics and a direct fixture-shape diagnostic. The command
+`python -m pytest tests/test_content_pages.py -k untitled -x -q --tb=short` stops in
+the first baseline render because kinbase_design is absent here (one failure,
+40 deselected). Untitled-section behavior remains **gap** pending integrated
+execution; that prerequisite failure is not behavioral sensitivity evidence.
+
+Validator review of integrated candidate `bde66a7` with Tester `d1e0fd9` reported
+330 passed and 14 failed. These are retained as reported integrated results, not a
+local rerun or results for later Tester commits. Most failures were classified as
+product defects and sent to the Coder. The Tester correction concerns the M3
+pair-isolation observation: CSSOM grid-template-columns returned used single-track
+widths (1256.81px versus 1223.22px) that followed the permitted padding change.
+
+`paint_snapshot` now reads grid-template-columns through computedStyleMap, alongside
+its existing Typed OM width observation. The [CSS Typed OM computed-map contract](https://drafts.css-houdini.org/css-typed-om/#computed-stylepropertymapreadonly-objects)
+exposes computed values rather than CSSOM's layout-dependent resolved values. The
+property remains in the leak rule, so a genuinely changed grid treatment is still
+forbidden outside its permitted dimensions. No blanket density exemption or
+numeric tolerance was added. Browser extraction must still be rerun by the
+Validator; it cannot be verified from the author sandbox.
+
+The non-coercion mapping assertion now explicitly requires section content to be
+an array and each entry to be an object before inspecting paragraphs. Both raw
+numeric 17 and coerced string "17" in a paragraph are rejected with a specific
+message. The previously reported malformed-content failure therefore remains a
+product failure rather than an incidental Python TypeError.
+
+Compilation, whitespace and all 342-case collection passed again. A bounded
+oracle diagnostic accepts changing box width plus density padding with unchanged
+computed grid treatment, and still rejects actual grid/color treatment changes.
+This diagnostic verifies the assertion logic only, not browser extraction or
+product sensitivity. The repaired integrated results remain **gap** pending rerun;
+previous source-free failures and the reported 330 passes are preserved above.
+
+## Design-to-Factory — amendment 08
+
+`test_factory_task.py` adds 28 cases using real Apply, CLI subprocesses, disposable
+Git repositories, commits, and linked worktrees. `factory_task_support.py` supplies
+a local executable recorder at the expressly authorized Factory entrypoint seam.
+No real Factory is invoked. The recorder captures the received argv, task bytes,
+and repository HEAD/branch/root at invocation time; it does not claim to simulate
+Factory's agents, orchestration, authority or eventual task execution.
+
+The tests cover deterministic dry-run output without invocation or worktree
+creation; generic and dtcg-tailwind directive metadata; accepted and rejected
+inventory review summaries; sorted file manifests and independently calculated
+SHA-256 digests; first line and designated JSON fence; heading identification;
+finding rule/location data; workspace/library path and synthetic private-input
+exclusion; and matching persisted/stdout submission records. Prose instructions,
+constraints and acceptance semantics are retained for human/Validator review via
+`directive_markdown_for_semantic_review`, not judged by a word-inventory test.
+Using `--junitxml=/tmp/factory-task.xml` retains that property for review.
+
+Submission cases exercise explicit entrypoint selection, environment fallback,
+flag precedence, optional runs/budget arguments, literal spaces/metacharacters,
+verbatim task bytes matching directive_sha256, and the real linked worktree at the
+hand-off's commit containing every export file. The original repository HEAD and
+tracked work stay unchanged. A harmless repository post-checkout hook must not
+run. A recorder exit of 7 produces CLI exit 1, an accurate bounded stderr tail,
+and a retained worktree and submission record.
+
+Refusals cover hand-offs created without --branch, an unknown hand-off, stale
+language, moved/deleted branch, altered/missing/extra export copies, absent/unset/
+nonexecutable/directory entrypoints, existing worktree files/directories, and
+invalid run ids (including empty, uppercase, traversal, newline and overlength).
+Valid run ids exercise both 1 and 64 characters and permitted punctuation. Each
+refusal must return 1 with a single-line reason and no recorder receipt; existing
+user-work sentinels must survive. Q-0043-3da4cc0164b5 authorizes changing the
+hand-off copy to isolate byte mismatch while both the branch tip and recorded
+local_branch.commit remain unchanged. Moved-branch tests change only the branch
+tip with a real new commit. Most negative cases first run a valid dry-run control.
+
+Local results: all 370 tests collect; compilation and whitespace checks pass.
+Standalone recorder/parser diagnostics also passed with real temporary Git and a
+linked worktree, literal argument paths, exact task bytes, and exits 0/7. Those are
+fixture diagnostics, not product results. `python -m pytest tests/test_factory_task.py
+-x -q --tb=short` stops at the missing kinbase_design module while requesting v1
+vocabulary (one setup error). All new product claims remain **gap** pending the
+Validator's integrated `python -m pytest tests/test_factory_task.py -q` run. Existing
+Apply tests and behavior expectations are unchanged.
+
+Limitations: literal argv tests detect interpolation/argument corruption but do
+not prove the absence of a perfectly quoted intermediary shell; the Validator's
+implementation review must establish the no-shell rule. Timeout forcing is not
+run: the contract specifies an internal bounded constant but no public test-time
+configuration, and these tests never leave an intentionally hanging child behind.
+Generic directive prose, absence of unseeded secrets, and real Factory behavior
+are not claimed from the recorder. No semantic mutation success is claimed.
+
+## Rendered composition — amendment 09, first increment
+
+`test_composition_shipped.py` exercises the public `check` command for Harbor and
+Lantern on the five samples and on an authored content page, at 375, 768, 1023,
+1024 and 1280 CSS px. The adjacent wide widths bracket the `measure` activation
+threshold. Content includes long paragraphs, successive heading levels, repeated
+cards and multiple actions. Each result must cover the requested widths and have
+no uncovered `heading-scale`, `text-inset`, `control-separation` or `measure`
+violation, missing measurement or unresolved review. Sample page coverage is also
+checked against the existing public five-page contract.
+
+This is positive regression coverage, not yet evidence that each rule detects its
+own isolated defect. The negative counterparts and ingest-transfer assertions
+remain outstanding. In particular, the public artifact/schema for out-of-flow
+exclusions and compliant-value correction questions needs clarification before
+asserting fields or interpreting prose as structured evidence.
+
+Local checks: all tests compile and 374 tests collect. The focused product run
+stops because this independent lane has no `kinbase_design` module; its missing
+report assertion includes stdout/stderr so this prerequisite failure is explicit.
+No browser or HTTP server was launched locally. Validator command:
+
+```sh
+python -m pytest tests/test_composition_shipped.py -q
+```
+
+Amendment 09's isolated-rule increment adds `composition_support.py` and
+`test_composition_rules.py`. The fixture completes the independent language from
+public vocabulary membership and authors every treatment itself. Real content
+rendering discovers slot ownership; it supplies no expected design values.
+
+Six cases cover both heading bounds (17px h2 over a 16px h1; 15px heading below
+16px paragraph text), 7/8px horizontal text inset, 3/4px painted-target separation,
+and 59/60-character paragraphs at 656/640px with 16px type. Checks at 1023/1024/1280
+also pin the measure rule's viewport threshold. Direct browser observations must
+first prove each seeded size, line-box inset or target gap. Each bad case must
+report only its intended composition rule, as uncovered violations at the
+matching construct/slot pointer and all applicable widths; every counterpart must
+pass all four composition rules. Finding grouping remains free to combine page
+occurrences. The pointer may name the offending construct/slot itself or a value
+inside it, as the amendment does not fix a property suffix.
+
+These are new browser cases for the Validator. Compilation and full collection
+pass. The local focused attempt stops in vocabulary setup with `No module named
+kinbase_design`, before any browser launch. Fixture-only diagnostics confirm
+paragraph character counts and authored content/selector helpers; these are not
+product or mutation results. The inherited positive regressions remain in place.
+
+The ingest increment (`test_composition_ingest.py` and the synthetic
+`fixtures/sites/composition/index.html`) exercises real loopback HTTP capture,
+draft, save, preview and check. Source-authored values are the oracle: 32/24/20px
+headings over 16px paragraphs, an 800px main column, 480px prose, 16px/12px card
+padding/gap, 12px/8px action-group padding/gap, and a 24px-padded leading band with
+a two-pixel border and 12px radius. Blue underlined navigation links contrast
+with a separate green header button; the fixed utility button alone supplies a
+magenta canary. Source preconditions are measured before capture.
+
+The six cases cover transfer, exclusions and corrections. Transfer is checked on
+the saved language's own samples (not just captured fidelity contexts), which must
+retain those treatments and pass the composition checks. A source
+without h2 requires intermediate h2 sizes between its measured h1/h3 neighbours,
+with the missing-level interpolation disclosed. Fixed and sticky utility evidence
+must be excluded; a static counterpart must retain its measured colour. Exclusion
+selectors are evaluated against the actual source DOM, and the magenta colour
+must also be absent from the draft's palette, colour tokens and role references.
+The public `excluded` and `corrections` arrays are always required, using the
+Q-0050 clarification. Every correction pointer must resolve to its chosen value,
+its question must exist, and that question must retain the measured alternative
+(including null for the explicitly specified interpolation case).
+
+Separate unsafe sources require 720px prose to clamp to 640px at 16px type, and a
+background-only band's 4px padding to become 8px. Both require source selectors,
+measured/chosen values and question links, followed by a composition-compliant
+saved language. Capture originals are checked for mutation during draft, and the
+source is made unavailable after capture; later steps must make no source requests.
+
+Validation: all tests compile and 386 collect. Local fixture-only diagnostics
+confirm semantic source structure, local fragment links, intended variant edits,
+and exact 59/60-character inputs. No HTTP server or Chromium was launched in this
+sandbox, and no candidate behavioral or mutation result is claimed. The focused
+rule run remains blocked at the known missing `kinbase_design` prerequisite.
+Validator command for the full amendment increment:
+
+```sh
+python -m pytest tests/test_composition_shipped.py tests/test_composition_rules.py tests/test_composition_ingest.py -q
+```
+
+Additional rule controls exercise the bordered-box inset as well as a changed
+background, both horizontal and vertical target separation, and 40em at both
+16px and 20px paragraph sizes. The bordered case measures from the outer border
+edge (one pixel of border plus six/seven pixels of padding). A mixed-type source
+also places most paragraph characters at 16px and a short paragraph at 20px:
+a 15px heading must fail and an 18px heading must pass. This rejects using the
+largest paragraph size as the body's representative size.
+
+391 tests now collect; compilation and whitespace checks pass. These additions
+still await integrated browser execution. The current heading fixtures do not
+separately discriminate minimum versus maximum when multiple preceding-level
+headings differ; they cover inversion, the body floor and character weighting.
+
+Validator scope clarification repairs the composition fixtures without changing
+the ingest assertions. Measure probes now place their text in the hero's directly
+hooked paragraph and verify that the published selector matches that `p` itself.
+The fixture already set both `width` and `max-width`; applying those properties to
+an enclosing section-body wrapper could leave its child paragraph's own 40em cap
+intact. The new geometry assertion also checks computed `max-width`. For each
+font size, a width-only positive control first confirms the documented default
+cap, followed by explicit wider and boundary measures at the paragraph scope.
+
+Separation probes now use two hero actions. Their nearest common semantic hook is
+found from the real DOM, considering parts alongside slots and construct roots;
+the `actions` part must be published by the bundle's hook contract. Its properties
+are authored through `construct~part`, so both row and column gap probes reach
+the actual target group. Individual content keeps its existing slot ownership,
+and finding pointers also support part scopes. No stylesheet or checker is patched.
+
+Local compilation and collection still pass (391 tests). Fixture-only diagnostics
+exercise part property/pointer mapping, public-contract selector lookup and action
+content generation. The focused product run still stops before browser setup at
+`No module named kinbase_design`. These diagnostics do not establish browser or
+product success; Validator integration must rerun the repaired cases.
+
+The utility-colour exclusion oracle now respects alpha. Fully transparent values
+contribute no colour; any positive alpha is compared by its RGB distance from the
+utility canary. This applies to the excluded palette, draft colour tokens and role
+references, with support for hexadecimal and DTCG sRGB values after alias
+resolution. The source's in-flow positive control and excluded-record assertions
+are unchanged. The opaque-only helper used by earlier source fixtures is also
+unchanged; the composition test no longer applies it to arbitrary draft colours.
+
+Oracle-only diagnostics pass for zero, fractional, minimally positive and full
+alpha, including a transparent alias. They confirm that a partially transparent
+utility RGB is still detected, while zero-alpha utility RGB is ignored. All tests
+compile and 391 collect; whitespace checks pass. These local checks do not replace
+the Validator's browser run. This lane still has no product implementation.
+
+## Composition amendment 10 — regression increment
+
+The shared composition rule set now includes `word-break` and `label-proximity`.
+Harbor and Lantern sample/content checks and saved-ingest sample checks therefore
+reject uncovered failures of either new rule. The shipped content fixture now
+contains three facts per collection item, supplying following labels for proximity
+comparisons instead of a lone pair. Existing amendment 09 failure cases also
+continue to require that no unrelated composition rule fires.
+
+Isolated word-split and stacked/side-by-side label/value negatives and their
+counterparts remain outstanding. The currently published closed property grammar
+does not include `word-break`/`overflow-wrap`, and no independently styleable dt/dd
+hooks or arbitrary-page check input are specified. A public fixture interface or
+hook/property contract is needed to construct those conditions without inventing
+accepted CSS or changing vocabulary-owned content markup.
+
+Compilation and collection of 391 tests pass. Product/browser execution remains
+with the Validator because this independent checkout has no implementation.
+
+Q-0065 resolves the amendment 10 fixture interface. The new
+`test_composition_words_labels.py` uses the renderer's published anywhere wrapping
+and validated paragraph `width`/`max-width`, plus the published `pair` part inside
+a facts slot. No raw CSS or altered vocabulary markup is injected.
+
+The avoidable word case keeps `Observations123456` in a 240px paragraph at the
+smallest checked viewport, then narrows that same slot to 64px only at `lg`.
+Read-only per-character Range rectangles must show one line at 375px and multiple
+lines at 1280px. Only the latter width may report a `word-break` violation. Giving
+the same text 240px at both widths must pass. A separate 300-character word whose
+rendered glyph widths exceed even the widest checked viewport exercises the
+unavoidable case: wrapping must retain every character and report `needs-review`,
+not a violation. The shared finding helper now accepts that expected type while
+preserving all existing violation, pointer, scope and occurrence assertions.
+
+Two proximity cases use three facts and discover their actual facts slot and
+`construct~pair` hook. Both the bundle and CLI hook contracts must publish `pair`,
+and each observed pair must contain one dt and one dd. The facts slot uses a 16px
+inter-pair gap; the part uses 24px (bad) or 8px (good). Both scopes use column layout
+for stacked definitions and row layout for side-by-side definitions. Actual dt/dd
+boxes must show each nonfinal value nearer the next label in the bad case and
+nearer its own in the good case, at 375 and 1280 CSS px. Bad cases require only
+`label-proximity` findings at the corresponding owner/slot/part and both widths;
+counterparts pass the shared six-rule check.
+
+All tests compile and 395 collect. The focused new test run stops in vocabulary
+setup with the known `No module named kinbase_design` prerequisite failure,
+before any Chromium launch. No local rendered result is claimed. Validator run:
+
+```sh
+python -m pytest tests/test_composition_words_labels.py tests/test_composition_shipped.py -q
+```
+
+Q-0074 corrects composition acceptance: advisory `needs-review` findings do not
+reject shipped or saved-language samples. The shared pass assertion continues to
+reject uncovered violations and missing findings. Word-break findings additionally
+require the public top-level `measured` fields: a nonempty `word`, finite positive
+`word_width` and `available_width`, `smallest_width` equal to the minimum requested
+viewport, and an integral `line_boxes` count greater than one. Extra measurement
+members are allowed. A review classification requires `word_width` greater than
+`available_width`; a violation requires the opposite relation. These measurement
+checks also run for the isolated word-rule cases. Existing pointer and grouped
+occurrence checks are retained.
+
+Local oracle diagnostics accept an evidence-backed oversized-word advisory and
+reject a fitting/equal-width word mislabeled advisory, the wrong smallest viewport,
+a one-line word, nonfinite evidence, and an uncovered violation. They validate the
+test helper only. Compilation, whitespace checks and collection of all 395 tests
+pass; real product/browser verification remains with the Validator.
+
+## Composition amendment 11 — rule increment
+
+The shared composition oracle now includes `heading-binding` and `gutter`, so
+Harbor/Lantern samples and content pages and saved-ingest samples must have no
+uncovered violations of either rule. The independent content-language tests use
+public hooks and validated properties to seed equal/farther heading gaps and
+0px/7px gutters, with closer-heading and 8px counterparts. Horizontal cards and
+stacked rows are both exercised. Read-only browser geometry first establishes the
+intended condition at 375px and 1280px; bad cases require only the seeded rule,
+with the existing pointer/target/measurement/grouped-width checks intact.
+
+Compilation, whitespace checks and collection of 399 tests pass. A focused run
+stops at the vocabulary setup prerequisite (`No module named kinbase_design`),
+before browser launch. These are test-authoring checks, not rendered product
+results. The amendment 11 source-transfer increment follows separately.
+
+The amendment 11 ingest increment adds `fixtures/sites/role-surfaces/` and
+`test_composition_role_transfer.py`. The local HTTP source has a blue leading band,
+white bordered/rounded/shadowed repeated items without headings, 20px lead text,
+16px dark body prose and 14px muted metadata. Its aside has a different tinted
+panel; ordinary paragraphs have no background. All source headings have measured
+32px/8px margins. Two cases exchange 16px/24px item padding and column gutter;
+a third uses full-bleed images while preserving the 16px text inset.
+
+The tests observe source geometry and computed styles before capture, then turn
+the HTTP source off. Reconstruction must preserve the item surface, measured
+column gutter, lead/body/metadata roles, unpainted nested facts/actions, and actual
+text/media/fact/action alignment. Full-bleed media must span the item while its
+text retains the measured inset. Saving must retain the draft document. Saved
+sample previews must independently carry the hero/item surfaces, single inset,
+lead/body sizes and body/muted colours. Generated item headings must bind to their
+following block and retain source-derived heading space instead of inheriting the
+uniform item gap. Saved samples run the shared eight-rule composition check.
+
+All 402 tests collect, Python compilation and whitespace checks pass, and the
+synthetic HTML/SVG parse successfully. No product or rendered success is claimed;
+this checkout still lacks `kinbase_design` and cannot launch Chromium or serve
+HTTP. The Validator should run the new rule and transfer modules together with
+the existing composition suite.
+
+## Composition addendum 11a — minimum measure and viewport centring
+
+`test_composition_measure_minimum.py` exercises the 15em floor with 16px and 18px
+text and the 59/60-character boundary. Each negative constrains the paragraph to
+one pixel below 15em at exactly one checked width (375px or 1280px); its identical
+text at exactly 15em passes. Browser geometry verifies the main column is wider
+than the floor, and findings retain the existing scope/pointer/measurement and
+occurrence assertions. A separate 24px-type case at 320px exercises the narrow-main
+exception: spanning the column passes, but an 80px paragraph inside it fails.
+
+`fixtures/sites/centred-prose/` authors a 640px column with viewport auto margins,
+480px prose and 16px paragraph text. Source observations require 16px, 64px and
+320px outer margins at 375px, 768px and 1280px respectively, while prose margins
+remain zero. Real capture/draft/save/build/check must preserve readable saved
+prose at all three widths, the source body size, and the centred 640px container
+at the widest width. The source is unavailable after capture, so saved-language
+operations cannot revisit it. These checks detect viewport-centering space copied
+into an already-centred container without requiring a particular token name.
+
+All 412 tests collect and Python compilation/whitespace checks pass. The focused
+new test run stops at vocabulary setup with `No module named kinbase_design`,
+before Chromium launch. The new source parses as HTML. Browser findings and
+rendered transfer remain for the Validator to execute; no product pass is claimed.
+
+The addendum 11a column clarification is now reflected in the geometry oracle:
+the nearest ancestor grid/flex item's border box determines exemption; otherwise
+it uses the main landmark's content box. The paragraph is not its own ancestor,
+and ordinary nested block margins/padding do not create a column. Existing
+boundary fixtures now verify this actual column instead of assuming the main
+landmark is always the relevant box.
+
+Two additional cases exercise grid and flex groups through public hooks. A 200px
+item with a spanning 16px paragraph is exempt even though the page's main is wider
+than 15em. A 240px item whose 24px padding squeezes that paragraph to 192px must
+produce only `measure` violations; removing its padding gives the exact 15em
+counterpart. Geometry establishes the ancestor layout and border-box width at
+375px, 768px and 1280px. The centred-ingest probe also respects legitimate narrow
+items, while requiring nonexempt long prose at every checked width and retaining
+its saved-container and rendered-check assertions.
+
+All 414 tests collect and compile; whitespace checks pass. Numeric helper-only
+diagnostics accept the narrow-item exemption and exact minimum, and reject
+padding/nested-block squeezes in nonexempt columns. The focused product attempt
+still stops before Chromium at `No module named kinbase_design`. These local
+checks do not establish rendered success; Validator execution remains necessary.
+
+The Validator's correction to the column clarification supersedes the preceding
+nearest-item description: a grid item, or an item in a row-direction flex
+container, qualifies only when another visible item is beside it on the same
+row. The read-only geometry helper now verifies that relation and otherwise uses
+main's content box. Existing single-column minimum-measure probes explicitly
+require `main`, including the 239px paragraph in the 375px viewport.
+
+Grid and flex exemption fixtures now use two actual side-by-side items at 768px
+and 1280px, with geometry checks for the 16px gap and both items fitting inside
+the viewport. A separate phase stacks those same 200px items and requires
+`measure` violations, so single-track grids and column-direction flex stacks
+cannot falsely provide the exemption. The 240px padded violation and unpadded
+counterpart remain intact. The centred-ingest check uses this corrected helper.
+
+The heading-binding fixture now discovers the shared hook containing its eyebrow
+and intro and explicitly gives that parent a column flex layout and 16px gap.
+Its equal/farther/closer comparisons therefore rely on authored spacing rather
+than an unspecified vocabulary default.
+
+Compilation, whitespace checks and collection of all 414 tests pass. A focused
+run of the repaired modules stops at the known missing `kinbase_design` module
+in vocabulary setup before any browser launch. Rendered verification remains
+with the Validator; no local product pass is claimed.
+
+The centred-prose regression now runs twice: with its original inline stylesheet,
+and with those exact CSS bytes moved into a stylesheet served through `localhost`
+while the page is served through `127.0.0.1` on the same fixture server. This uses
+a real second origin, no intercepted responses or substituted capture output.
+The cross-origin link grants no CORS access. Source-side observations require the
+CSS to take effect and CSSOM rule access to raise `SecurityError`; the inline
+control must have readable rules.
+
+Before drafting, the test requires the public capture manifest or per-width style
+samples to report `Cross-origin stylesheet rules unavailable` for the cross-origin
+case, and no such diagnostic for the inline control. Unrelated capture problems
+still fail. It then disables both source origins through the shared HTTP fixture,
+checks immutable capture evidence, saves the draft, and checks the same prose
+minimums and centred container at every width actually recorded by capture,
+including the widest. The saved language still runs the complete composition
+check. Legitimate narrow side-by-side columns retain the clarified exemption.
+
+All 415 tests collect and compile; whitespace checks pass. Static fixture-builder
+diagnostics confirm the inline source is unchanged and the external variant
+preserves the stylesheet bytes exactly. No HTTP server or browser was launched
+locally: this lane lacks the product implementation and cannot bind sockets or
+run Chromium. The Validator must execute both parametrized cases to establish
+cross-origin capture and rendered transfer results.
+
+## Composition addendum 11b — combined measure bounds
+
+The minimum-measure oracle now requires BOTH a width below 15em and a width below
+two thirds of the containing column for a violation. This supersedes the earlier
+11a floor and blanket narrow-column exemption. Inline and cross-origin ingest
+checks use the same combined bound, preserving the actual-column discovery,
+source centring, capture diagnostics, offline checks and rendered composition run.
+
+The 59/60-character and 16px/18px cases now squeeze prose to 64px at exactly one
+checked width (375px or 1280px), verified to be below a third of its column. Their
+exact-15em counterparts remain compliant. At 320px a painted 256px panel with
+16px padding leaves 224px for 16px prose: under 15em but above two thirds of main,
+so it must pass. Grid/flex fixtures retain narrow and stacked controls, add
+ordinary 192px prose in a 240px column and the exact two-thirds boundary (160px),
+and require violations at 158px. Lower-bound findings must retain all seven
+published measurement fields, with numeric measurements matching independently
+observed geometry and the two conjunctive violation conditions.
+
+Ingest correction validation accepts every rule in the shared composition rule
+set. Interpolated corrections still require a null measured value; their rule is
+no longer restricted to heading-scale. Question links, candidates and pointers
+remain checked. Content hook round trips now compare against the explicitly
+published contract for the rendered language's declared vocabulary and validate
+its content-page hooks, without pinning a literal vocabulary version.
+
+All 416 tests collect and compile; whitespace checks pass. Helper-only diagnostics
+exercise both boundaries and reject inconsistent measurement evidence. The focused
+product attempt stops in vocabulary setup with the known missing
+`kinbase_design` module, before Chromium. No local rendered success is claimed.
+
+## Composition addendum 11c — container transfer at every captured width
+
+`fixtures/sites/stepped-container/` authors five centred container steps: 540px at
+576px, 720px at 768px, 960px at 992px, 1140px at 1200px, and 1320px at 1400px.
+Below those breakpoints it uses the viewport minus 32px. Main has 24px inline
+padding at every width. The requested capture widths include all five breakpoints,
+375px and 1600px, so the widest captured viewport is also checked.
+
+`test_composition_container_transfer.py` verifies the authored source geometry,
+performs real HTTP capture, and checks any additionally discovered widths against
+the source CSS's piecewise function. After capture the source is unavailable.
+The saved language's ordinary sample page containers must match each width within
+2px, remain centred, and retain the measured inline padding. Every captured width
+must reach a visible saved container; matching only the widest width cannot pass.
+The saved language also runs the full composition check at those widths, and the
+original capture bytes and absence of later source requests remain asserted.
+
+All 417 tests collect and compile; whitespace checks pass. Static diagnostics
+confirm the authored HTML and breakpoint oracle, including values immediately
+below each breakpoint. No HTTP server, browser or product execution was attempted
+locally: the standalone lane has no product implementation and cannot bind sockets
+or launch Chromium. The Validator must execute the rendered transfer case.
+
+## Composition addendum 11d — growth between captured widths
+
+The new `fluid-to-fixed-container` source uses `width: 90%` and `max-width: 640px`,
+with centred auto margins and 16px inline padding. It has no media queries that
+could introduce extra captured breakpoints. The public capture must record exactly
+375px and 768px, where source geometry establishes a 337.5px container with 18.75px
+side margins and a 640px upper container respectively.
+
+The saved-language test checks both endpoints plus uncaptured 576px and 720px
+viewports. Expected intermediate width comes from the lower endpoint's measured
+side margins, capped at the upper endpoint's container width: approximately
+538.5px at 576px and 640px at 720px. Width, centring and preserved lower margins
+are checked within 2px; inline padding remains measured independently. A frozen
+337.5px width, copying the source's uncaptured 90% width, or uncapped growth cannot
+pass. Saved previews, composition checks, offline source use and immutable capture
+assertions remain real public-interface operations.
+
+All 418 tests collect and compile; whitespace checks pass. Static diagnostics
+confirm the authored source and endpoint-derived expectations. This lane cannot
+run the product, bind HTTP sockets or launch Chromium, so rendered verification
+of the new case remains with the Validator.
+
+## Contrast review fixture — painted text inset
+
+The Lantern needs-review acceptance case now gives its gradient-backed price an
+explicit 8px inline padding through an independently authored space token. This
+keeps the painted text compliant with amendment 09's text-inset requirement while
+preserving the unresolved contrast and accepted-report assertions.
+
+All 418 tests collect and compile; whitespace checks pass. The focused test
+reaches the public check command, which cannot run because this standalone lane
+has no `kinbase_design` module. Rendered acceptance remains for the Validator.
+
+## Container transfer — ordinary page scope
+
+The addenda 11c and 11d container assertions now run on index, search, listing and
+form previews. They exclude `states.html`, where construct examples sit inside
+padded demonstration frames and do not represent the page's own container.
+Width, centring, inline padding, captured-width coverage and intermediate growth
+assertions are retained. The separate composition check still covers all sample
+pages, including states.
+
+All 418 tests collect and compile; whitespace checks and static page-selection
+and source-oracle diagnostics pass. No HTTP server or browser was launched;
+rendered verification remains with the Validator.
+
+The centred-prose ingest case now applies the same ordinary-page scope to its
+container geometry checks in both inline and cross-origin stylesheet variants.
+It still checks paragraph measure and body font sizes on every sample page,
+including states; capture diagnostics and the full composition check are retained.
+All 418 tests collect and compile, and static scope/prose-oracle diagnostics and
+whitespace checks pass. No browser or HTTP execution was attempted locally.
+
+The composition-ingest transfer helper likewise restricts its 800px page-column
+assertion to ordinary pages for both measured and interpolated heading variants.
+Heading sizes, prose measure, hero surface, action/card spacing and navigation
+treatment still run on every sample page, including states, as does the separate
+composition check. All 418 tests collect and compile; whitespace and static scope
+diagnostics pass. Rendered execution remains with the Validator.
+
+## Navigation surface and link evidence
+
+`fixtures/sites/navigation-band/` supplies two source treatments. In the dark
+variant, an unpainted header contains a #212529 navbar wrapper around a transparent
+nav with white links. In the light variant, the header is white, the wrapper and
+links are transparent, and the links are #173e8f. Both place a distinctly #8b2030
+filled button beside the nav inside the wrapper, so copying an interactive child's
+paint cannot satisfy the expected navigation surface or link treatment.
+
+`test_composition_navigation_transfer.py` first verifies the authored source in
+the browser, then runs real capture, takes the source offline, drafts, saves and
+builds sample pages. At 375px and 1280px, saved navigation must retain the dark band
+and light links or an effective white surface and dark-blue links respectively. Link
+backgrounds remain transparent in both cases. Ordinary pages must exercise the
+assertions at each width; visible state examples are also checked. The saved
+language runs the full composition check and must not revisit the offline source.
+
+All 420 tests collect and compile; whitespace checks pass. Static diagnostics
+verify both fixture variants' nesting, local link targets and contrasting colour
+controls. The lane cannot bind HTTP sockets or launch Chromium, and contains no
+product implementation; rendered execution remains with the Validator.
+
+The light variant's effective-white assertion follows the corrected navigation
+contract: either an opaque white nav or a transparent nav over its white ancestor
+is valid. A browser observation of ancestor background layers feeds an independent
+alpha-compositing oracle. It rejects the filled button's paint and a transparent
+nav over a nonwhite background; the dark variant and link-colour assertions are
+unchanged. All 420 tests still collect and compile; whitespace and helper-only
+positive/negative colour diagnostics pass. Browser execution remains external.

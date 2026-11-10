@@ -1,0 +1,16 @@
+{
+  "schema": "kinbase-content/1",
+  "page": {"title": "The Shape Study", "lang": "en", "description": "A synthetic collection of exercises in shape, space and observation."},
+  "site": {"name": "Common Ground", "nav": [{"text": "Studies", "href": "#studies"}, {"text": "Method", "href": "#method"}, {"text": "Begin", "href": "#begin"}]},
+  "blocks": [
+    {"type": "hero", "eyebrow": "Field notes / Volume 01", "title": "A different way to see familiar things.", "body": [{"text": "Slow down.", "strong": true}, " Notice the space between shapes, collect an idea, and make something of your own."], "media": {"src": "shapes.svg", "alt": "Two overlapping geometric mountains beneath an amber circle", "caption": "Shape study No. 01", "credit": "Original synthetic illustration"}, "actions": [{"text": "Explore the studies", "href": "#studies"}]},
+    {"type": "collection", "id": "studies", "title": "Three ways to begin", "intro": "Choose a starting point. Each study uses the same simple materials.", "items": [
+      {"title": "Observe", "eyebrow": "01 / Attention", "body": "Find a quiet corner and draw the outlines you see.", "media": {"src": "shapes.svg", "alt": "Geometric shapes in a blue and amber composition"}, "facts": [{"label": "Duration", "value": "Ten minutes"}, {"label": "Materials", "value": "Paper and pencil"}], "action": {"text": "Read the method", "href": "#method"}},
+      {"title": "Arrange", "eyebrow": "02 / Composition", "body": "Move a few shapes around the page. Pay attention to what changes.", "media": {"src": "shapes.svg", "alt": "Overlapping triangles with an offset circle"}, "facts": [{"label": "Duration", "value": "Twenty minutes"}], "action": {"text": "Read the method", "href": "#method"}},
+      {"title": "Reflect", "eyebrow": "03 / Discovery", "body": "Keep one arrangement. Write a sentence about why it held your attention.", "media": {"src": "shapes.svg", "alt": "A study of geometric balance"}, "action": {"text": "Start a study", "href": "#begin"}}
+    ]},
+    {"type": "section", "id": "method", "eyebrow": "The method", "title": "Make room for a small discovery", "content": [{"paragraph": ["This is an exercise in ", {"text": "looking closely", "em": true}, ", with no right answer."]}, {"list": {"ordered": true, "items": ["Choose three simple shapes.", "Arrange them in more than one way.", ["Keep a note and ", {"text": "return to the studies", "href": "#studies"}, "."]]}}, {"quote": {"text": "The space around a shape belongs to the composition too.", "cite": "A synthetic field note"}}]},
+    {"type": "cta", "id": "begin", "title": "Keep looking. Keep making.", "body": "Start with the materials you already have.", "actions": [{"text": "Choose a study", "href": "#studies"}]}
+  ],
+  "footer": {"text": "Common Ground · An entirely synthetic example", "links": [{"text": "Back to studies", "href": "#studies"}], "notices": ["Example text and shapes.svg are original synthetic material, licensed CC0-1.0."]}
+}

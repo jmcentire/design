@@ -5,13 +5,16 @@ routes come from rendered links/forms. The CLI is used by server fixtures, never
 to execute an ingest step. Persisted public artifacts establish each effect.
 """
 
+import json
 import re
 
 import pytest
 from playwright.sync_api import expect
 
 from tests.browser_support import link_at
-from tests.m2_support import assert_provenance, read_json
+from tests.m2_support import assert_provenance, draft, read_json
+from tests.support import FIXTURES
+from tests.test_language_revision import presentation_hashes
 from tests.test_versions_assets import expected_hash
 
 pytestmark = [pytest.mark.browser, pytest.mark.browser_timeout(420)]
@@ -73,6 +76,70 @@ def choice_controls(page):
                if 2 <= len([value for value in select.locator("option").evaluate_all("els => els.map(e => e.value)") if value]) <= 4]
     buttons = post_controls(page.get_by_role("button", name=re.compile(r"choose|select|pick|use.*candidate", re.I)))
     return radios, selects, buttons
+
+
+def test_palette_groups_named_shades_without_changing_language_or_render(
+        server, library, ingest_config, tmp_path, page):
+    # Display-only contract: explicit names establish scales; numeric shade
+    # order is not lexicographic. Ambiguous/opaque names must not invent a scale.
+    source = read_json(FIXTURES / "ingest-tokens.json")
+    source["color"].update({
+        "blue": {"900": {"$value": "#123456"}, "50": {"$value": "#eaf3ff"},
+                 "100": {"$value": "{color.ink}"}, "200": {"$value": "#33669980"}},
+        "node_9_9": {"$value": "#eeeeee", "$extensions": {"figma": {"name": "Neutral / 50"}}},
+        "node_8_8": {"$value": "#777777", "$extensions": {"figma": {"name": "Neutral / 900"}}},
+        "green-100": {"$value": "#27885d"}, "teal-200": {"$value": "#27885d"},
+        "node_4_5": {"$value": "#b65c82", "$extensions": {"figma": {"name": "Rectangle 1"}}},
+    })
+    original = tmp_path / "palette-tokens.json"
+    original.write_text(json.dumps(source))
+    artifact = library.json("import-artifact", "--file", original, "--kind", "dtcg")["artifact"]
+    root, document, summary = draft(library, [artifact], "palette-scales")
+    before = (root / "working.json").read_bytes()
+    identity = expected_hash(document)
+    library.cli("save-draft", document["id"], cwd=library.project)
+    first = presentation_hashes(library.build(tmp_path / "before-palette-view", document["id"]))
+    named = {"blue": ["#eaf3ff", "#102a43", "#33669980", "#123456"],
+             "Neutral": ["#eeeeee", "#777777"]}
+    named_values = {value for colors in named.values() for value in colors}
+    measured = [entry["value"] for entry in summary["measured"]["palette"]]
+    other = [value for value in measured if value not in named_values]
+    family_order = sorted(named, key=lambda family: min(measured.index(value) for value in named[family]))
+    assert "#27885d" in other and "#b65c82" in other
+    palette_markup = {}
+    for width in (375, 1280):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto(server + "/ingest")
+        page.get_by_role("link", name=document["name"], exact=True).click()
+        positions = []
+        for family in family_order:
+            positions.append(page.get_by_role("heading", name=re.compile(family, re.I)).evaluate(
+                "e => [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')].indexOf(e)"))
+        assert positions == sorted(positions)
+        for family, values in {**named, "Other colors": other}.items():
+            heading = page.get_by_role("heading", name=re.compile(re.escape(family), re.I))
+            expect(heading).to_be_visible()
+            section = heading.locator("xpath=ancestor::section[1]")
+            text = section.inner_text()
+            if family in named:
+                assert all(re.search(r"\b" + step + r"\b", text) for step in
+                           (["50", "100", "200", "900"] if family == "blue" else ["50", "900"]))
+            assert [text.index(value) for value in values] == sorted(text.index(value) for value in values)
+            for value in values:
+                assert section.get_by_text(value, exact=True).count() == 1
+                assert section.evaluate("""(section,value) => {
+                  const probe=document.createElement('span'); probe.style.backgroundColor=value;
+                  document.body.append(probe); const expected=getComputedStyle(probe).backgroundColor; probe.remove();
+                  return [...section.querySelectorAll('*')].some(e=>getComputedStyle(e).backgroundColor===expected &&
+                    e.getBoundingClientRect().width>0 && e.getBoundingClientRect().height>0);
+                }""", value), (family, value)
+            palette_markup.setdefault(family, section.inner_html())
+            assert section.inner_html() == palette_markup[family]
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.screenshot(path=str(tmp_path / f"palette-{width}.png"), full_page=True)
+    assert (root / "working.json").read_bytes() == before
+    assert library.read(document["id"]) == document and expected_hash(library.read(document["id"])) == identity
+    assert presentation_hashes(library.build(tmp_path / "after-palette-view", document["id"])) == first
 
 
 def test_workbench_ingest_capture_draft_fidelity_choice_and_save_without_js(

@@ -38,9 +38,14 @@ def summary(library,workspace,draft_id):
         findings.append(Finding('coverage',note.get('rule','ingest-coverage'),f'drafts/{draft_id}/state.json',
                                 pointer('notes',index),note,'review source fidelity',note['message']).to_dict())
     items=questions(workspace,draft_id)
+    for index,question in enumerate(read_document(inside(root,'questions.json'))):
+        if question.get('preview_problem'):
+            findings.append(Finding('coverage','ingest-question-preview',f'drafts/{draft_id}/questions.json',
+                                    pointer(index,'preview_problem'),question['preview_problem'],'verified distinct visual alternatives',question['preview_problem']).to_dict())
     result={**report(draft_id,findings),'draft':draft_id,'mapping':'llm' if state['mapping']=='configured-command' else state['mapping'],'facts':state['facts'],
             'measured':measured(document,state['facts']),'assets':state['assets'],'questions':len(items),'question_items':items,'standards':state.get('standards','unknown (Kinbase unconnected)'),
-            'views':state['views'],'references':state['references'],'version':digest(document)}
+            'views':state['views'],'references':state['references'],'version':digest(document),
+            'excluded':state.get('excluded',[]),'corrections':state.get('corrections',[])}
     if state.get('generation'):
         result['generation']=state['generation']
         result['checks_complete']=state['generation']['check_status']=='complete'
@@ -78,7 +83,8 @@ def draft(library,workspace,artifact_ids,language_id,settings=None):
     if sources['briefs']:notes.append({'rule':'ingest-brief','message':'Brief text retained as source data; heuristic mapping does not execute its instructions'})
     notes=list({json.dumps(note,sort_keys=True):note for note in notes}.values())
     write_document(inside(root,'state.json'),{'artifacts':list(artifact_ids),'facts':derived['facts'],'views':views,'references':sources['references'],
-                                         'assets':sources['assets'],'notes':notes,'mapping':derived['mapping'],'proposal':proposal,'settings':settings.to_dict()})
+                                         'assets':sources['assets'],'notes':notes,'mapping':derived['mapping'],'proposal':proposal,'settings':settings.to_dict(),
+                                         'excluded':derived['excluded'],'corrections':derived['corrections']})
     render_questions(library,workspace,language_id,derived['questions'])
     return summary(library,workspace,language_id)
 
