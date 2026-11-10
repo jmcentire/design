@@ -19,14 +19,17 @@ class InvalidLanguage(ValueError):
         super().__init__('Language has unresolved validation findings')
 
 
-def preview_files(library, language_id, compositions=None, vocabulary_version=None, builder=None):
+def preview_files(library, language_id, compositions=None, vocabulary_version=None, builder=None, document=None, vocabulary=None, sample_set=None, render_inputs=None):
     builder = current_builder() if builder is None else builder
-    document = load_language(library, language_id)
-    result = validate(library, language_id, document)
+    document = load_language(library, language_id) if document is None else deepcopy(document)
+    if vocabulary is None:
+        try:vocabulary=load(library,vocabulary_version or document.get('vocabulary'))
+        except (OSError,ValueError,TypeError,AttributeError):
+            raise InvalidLanguage(validate(library,language_id,document))
+    result = validate(library, language_id, document, vocabulary=vocabulary)
     if not result['accepted']:
         raise InvalidLanguage(result)
-    vocabulary = load(library, vocabulary_version or document['vocabulary'])
-    sample_set = samples(library, vocabulary_version or document['vocabulary'])
+    sample_set = samples(library, vocabulary_version or document['vocabulary']) if sample_set is None else sample_set
     renderer = SampleRenderer(document, vocabulary, sample_set)
     if compositions is not None:
         compositions=deepcopy(compositions)
@@ -40,7 +43,7 @@ def preview_files(library, language_id, compositions=None, vocabulary_version=No
                 for field in ('role','emphasis'):
                     if field in previous.get('slots',{}).get(slot,{}):entry[field]=previous['slots'][slot][field]
             local['overrides']=[]
-            checked=validate(library,language_id,local)
+            checked=validate(library,language_id,local,vocabulary=vocabulary)
             if not checked['accepted']:raise InvalidLanguage(checked)
             checked_contexts[key]=local
             return local
@@ -64,11 +67,14 @@ def preview_files(library, language_id, compositions=None, vocabulary_version=No
     files = {name: ('<!-- ' + label + ' -->\n').encode() + data for name, data in files.items()}
     files['language.css'] = ('/* ' + label + ' */\n' + stylesheet(document, vocabulary)).encode('utf-8')
     files.update(package_files(library, language_id, document))
+    if render_inputs is not None:
+        from .identity import inputs
+        render_inputs.update(inputs(document,vocabulary,sample_set,compositions,files,builder))
     return files
 
 
-def build_preview(library, language_id, out):
-    files = preview_files(library, language_id)
+def build_preview(library, language_id, out, document=None, vocabulary=None, sample_set=None, render_inputs=None):
+    files = preview_files(library, language_id, document=document,vocabulary=vocabulary,sample_set=sample_set,render_inputs=render_inputs)
     root = Path(out).resolve()
     for name, data in files.items():
         path = inside(root, name)

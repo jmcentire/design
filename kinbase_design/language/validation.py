@@ -388,7 +388,7 @@ class Validator:
                                    f'Font asset {asset} supplies no {weight}/{style} variant', type='missing')
 
 
-def validate(library, language_id, document=None):
+def validate(library, language_id, document=None, vocabulary=None):
     try:
         document = load_language(library, language_id) if document is None else document
     except FileNotFoundError:
@@ -399,7 +399,7 @@ def validate(library, language_id, document=None):
         return report(language_id, [Finding('violation', 'schema', f'languages/{language_id}/working.json', '', document, 'a language object', 'Language must be an object').to_dict()])
     version = document.get('vocabulary')
     try:
-        vocab = vocabulary_store.load(library, version)
+        vocab = vocabulary_store.load(library, version) if vocabulary is None else vocabulary
     except (OSError, ValueError, TypeError) as exc:
         path, observed = location(document, '/vocabulary')
         return report(language_id, [Finding('violation', 'R1', f'languages/{language_id}/working.json', path, observed, 'an existing vocabulary version', str(exc)).to_dict()])

@@ -276,7 +276,10 @@ matches, type ratios and spacing. This is an approximation constrained by the vo
 closed property set; the comparison exposes its gaps. Draft previews and fidelity rendering
 use the existing validator, and promoted draft assets use the existing promotion operation.
 Long-form pages retain heading-led sections, ordered prose and media, and inline link/accent
-fragments. These use structure and presentation signals, including for blogs and travel guides.
+fragments. Lists, definition groups and tables retain their native semantic hierarchy.
+Captured contexts own their paint and spacing, so reusable section defaults do not add
+panels or repeated insets to nested source paragraphs. These use structure and presentation
+signals, including for blogs and travel guides.
 Repeated-group containers retain measured columns and row/column gaps at each captured width.
 The page shell likewise uses each capture’s main container border-box width and inline padding,
 centred at that width; a nested constrained container takes precedence over a full-width main.
@@ -290,6 +293,16 @@ leave absent headings absent. Their captured media/content parts preserve measur
 media separately from the text inset. Navigation links retain their own foreground and transparent paint.
 Their nearest enclosing painted band supplies the navigation background, including a band nested
 inside the header; an interactive child's fill never establishes that surface.
+
+Without captured DOM composition, imported tokens produce a token-inspired specimen, not a
+reconstruction of the source layout. Its inferred role hierarchy, spacing and font fallbacks
+remain distinct from unchanged source tokens. V7 ordinary samples omit optional unbound media
+(including logos and listing images); required gallery media retains an explicit missing state.
+The state gallery still demonstrates missing-image and long-content stress cases. V1–V6 sample
+behavior is retained. Sample copy belongs to the vocabulary and describes a generic resource
+collection. Card-like source groups still map into semantic slots: complex mixed article/list
+ordering within a group can remain approximate.
+
 Ingest keeps measured text foregrounds with their composited surfaces. Reusable role defaults
 use a legible page pair; unresolved or unreadable contextual pairs use an explicitly questioned
 fallback. Code, preformatted text and keyboard/literal styling stay in captured fragments and
@@ -585,6 +598,97 @@ naming its version and configured scope; **received** never implies **current**.
 from explain can be explicitly routed with `kinbase questions ask <id>`. No feedback action
 changes fixed inputs, validation outcomes or current direction on its own. There are no pushes,
 merges, deployments or automatic authority promotions.
+
+## Updating the current language
+
+The workbench **Describe a design change** form interprets free-form feedback through the
+configured JSON command, validates its proposed canonical edits, saves the current language,
+then redirects to the freshly rendered preview. A clear request such as “Give the hero title
+0.5px letter spacing, leaving other text unchanged” can go through this path directly.
+Genuinely ambiguous targets/values or unsupported requests return clarification questions
+without changing the language. Failed, unavailable, or invalid interpretation also leaves
+current state unchanged. Resubmit the request with the clarification included; the interpreter
+receives current presentation and vocabulary, never language history or past feedback.
+
+The existing **Update language** form remains available for exact letter spacing, line height,
+padding, gap, or color controls. Choose a declared role, component, slot, or group. These are
+default scope values: explicit state, breakpoint, or more specific component overrides retain
+their precedence. Controls introduce typed tokens when needed; they do not overwrite a source
+token shared by other scopes. Comments remain comments and do not apply freeform feedback.
+
+```sh
+# Optional adapter using your existing authenticated Codex CLI; no credentials are copied.
+export KINBASE_DESIGN_LLM_COMMAND='python3 "/absolute/path/to/design/scripts/codex-json-command.py"'
+python -m kinbase_design feedback-language harbor --feedback 'Give the hero title 0.5px letter spacing, leaving other text unchanged' --out /tmp/harbor-feedback
+```
+
+`feedback-language` accepts optional `--scope`, `--expected-version`, `--out`, and `--content`
+with the same revision/render semantics as exact edits. Its receipt includes `status`
+(`applied`, `clarification`, `invalid`, or `unavailable`), `questions`, `summary`, and
+`proposal: {base_version, changes}` alongside the revision receipt when applied. CLI exit 0
+means applied (including a validated no-op) with no optional rendering failure; other outcomes
+exit 1. Unsupported requests with no concrete edits are not reported as applied.
+
+The interpreter command receives JSON on stdin with `task: "revise-language"`, `feedback`,
+optional `scope` and its resolved treatment, `version`, current `language` presentation,
+`vocabulary`, `instructions`, and `output_schema`. It returns exactly
+`{"changes": {"/pointer": "value"}, "questions": [], "summary": "explanation"}`.
+Any clarification question prevents all proposed changes from being applied. Otherwise the
+existing canonical validator and expected-version check govern the update. The prompt requires
+effective authored targets, including state/breakpoint overrides, and scoped tokens where
+source tokens are shared. This is interpretation, not a keyword-based substitute or a new
+provider API. Render/build operations never invoke the model command.
+
+The supplied opt-in wrapper uses `codex exec` with the user's existing login, a temporary
+empty working directory, read-only sandbox, an ephemeral session, and a last-message file to
+keep progress output out of the JSON response. It requests interpretation only, without tools.
+No persistent configuration is changed. It has a 110-second process bound; language feedback
+has a 120-second outer bound and the existing 4 MiB input/output bounds. Ingest mapping keeps
+its existing 30-second bound and output contract. Configure the command only for a model/account
+approved to receive the current language and feedback; this tool does not establish provider
+access or spending authority. No command is selected automatically.
+
+```sh
+python -m kinbase_design revise-language harbor --changes '{"/style/review":{"tracking":{"$type":"dimension","$value":"0.5px"}},"/components/hero/slots/title/properties/letter-spacing":"{review.tracking}"}' --reason 'Open the hero title spacing' --out /tmp/harbor-revised
+python -m kinbase_design language-history harbor
+python -m kinbase_design restore-language harbor VERSION_HASH --reason 'Return to the earlier treatment' --out /tmp/harbor-restored
+```
+
+`--changes` is a JSON object mapping JSON pointers to replacement values. Changes address
+versioned presentation members only; a missing dictionary leaf may be added under an existing
+parent, including a complete new token group under `/style`. The shared validator must accept
+the complete candidate before it can replace current state. `--expected-version HASH` rejects
+a stale edit under the canonical writer lock. Optional `--content FILE --out DIR` renders
+real content after saving; `--out` alone builds the ordinary specimen. If rendering fails,
+the revision remains saved: the receipt retains its version and reports `rendered.built:false`
+with an error, and the CLI exits 1. A statically invalid content document likewise reports
+`rendered.validated:false` and exits 1 without undoing the saved revision.
+
+Revision receipts include `changed`, `previous`, `version`, `ref`, and `revision` (the ordered
+sequence, or null for a no-op). Every canonical saved-language write preserves before/after
+presentation snapshots in the existing immutable `versions/` store and appends a small ordered
+`revisions.json` entry when presentation changes. Reasons and times are history metadata,
+never live presentation inputs. **History** is an explicit workbench route; rendering reads
+only current `working.json`, never a previous version or a replay of past choices. Restoring
+a selected hash makes that presentation current and records the transition; restoring the
+already-current presentation is a no-op. Older snapshots without ordered records are listed
+separately with no claimed iteration order. Initial **Generate** exploration starts a language;
+`build-preview` and `render-page` regenerate an existing current language without exploration.
+
+Preview receipts and the existing content-bundle marker record `render_inputs`: `language`,
+`vocabulary`, and `samples` are SHA-256 identities (RFC 8785 canonical JSON for structured
+inputs); `content` identifies the normalized compiled page composition, or is null for the
+ordinary specimen. `assets` maps packaged asset names to actual byte hashes. `renderer`
+contains the existing builder `name` and `version`, plus `code`: SHA-256 over sorted installed
+package-relative UTF-8 POSIX `.py`, `.css`, and `.html` paths, each followed by NUL and its raw
+32-byte file SHA-256. These identities come from the captured inputs used for that render;
+they include no source paths, timestamps, or history. Keeping these inputs, browser, fonts,
+and viewport fixed gives deterministic regeneration. A language hash alone does not claim
+that changed content, vocabulary, assets, or renderer code will produce the same page.
+`render_inputs` records input identity; it does not certify a rendered check for that full
+input tuple. Existing `rendered_check` and `accepted` status still use the latest check cached
+for the language version, so they do not establish that changed content, vocabulary, assets,
+or renderer code was checked.
 
 ## Team setup and live Figma snapshots
 

@@ -1,4 +1,4 @@
-<section class="panel"><h2>Feedback</h2>
+<section class="panel"><h2>Comments</h2><p>Comments record feedback without changing the language. Use Update language to apply exact visual changes.</p>
 <form method="post" action="/languages/{{ language.id }}/feedback">
 <label>Author <input name="author" required maxlength="200"></label>
 <label>Page or construct <select name="target">{% for file in pages %}<option>{{ file }}</option>{% endfor %}{% for construct in constructs %}<option>{{ construct }}</option>{% endfor %}</select></label>

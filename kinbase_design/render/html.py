@@ -24,6 +24,24 @@ def element(tag, attrs, content=''):
     return start if tag in {'img', 'input'} else start + content + '</' + tag + '>'
 
 
+def structured_fragments(fragments):
+    """Rebuild bounded semantic groups from escaped captured text, never HTML."""
+    root=[];paths={}
+    for fragment in fragments:
+        children=root
+        for entry in fragment.get('structure',[]):
+            key=entry['selector']
+            if key not in paths:
+                branch={'tag':entry['tag'],'children':[]};paths[key]=branch
+                children.append(branch)
+            children=paths[key]['children']
+        href=captured_href(fragment.get('href'))
+        children.append(element('a' if href else 'span',{'href':href,'style':declaration(fragment.get('resolved_properties',{})) or None},escape(fragment['text'])))
+    def render(children):
+        return ''.join(element(child['tag'],{},render(child['children'])) if isinstance(child,dict) else child for child in children)
+    return render(root)
+
+
 def definition_fragments(fragments,pair_style=None):
     """Keep captured definition fields and inline runs, without inventing copy."""
     def inline(fragment):
@@ -78,7 +96,7 @@ class SampleRenderer:
         attrs = {'data-kd-slot':construct + '.' + name, 'data-kd-role':role, 'data-kd-emphasis':emphasis}
         if definition.get('focusable'):
             attrs.update(tabindex='0', **{'aria-label':definition['accessible-name']})
-        if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
+        if treatment is not None:attrs['style']='all:revert;box-sizing:border-box;'+declaration(resolve(treatment,self.vocabulary,construct+'.'+name)['properties'])
         if accessible_name:attrs['aria-label']=accessible_name
         binding = self.document.get('components', {}).get(construct, {}).get('assets', {}).get(name)
         if binding:
@@ -98,6 +116,8 @@ class SampleRenderer:
                 detail = self.document['assets'][asset]['variants'][variant]
                 image = element('img', {'src':f'assets/{asset}-{variant}.{detail["format"]}', 'alt':self.context['copy']['media'] if definition.get('asset_kind') != 'logo' else 'Home', 'loading':'lazy'})
             if not image:
+                if state is None and not missing_image and media is None and not definition['required'] and self.samples.get('omit-unbound-optional-media'):
+                    return ''
                 image = element('span', {'class':'kd-placeholder', 'role':'img', 'aria-label':self.context['image-missing']}, escape(self.context['image-missing']))
             if tag == 'a':
                 attrs['href'] = definition['href']
@@ -140,6 +160,12 @@ class SampleRenderer:
         if fragments and any(f.get('preformatted') for f in fragments):
             if tag=='p':tag='div'
             content=element('pre',{},element('code',{},''.join(escape(f['text']) for f in fragments)))
+        elif fragments and any(f.get('structure') for f in fragments):
+            tag='div';attrs['class']='kd-captured-prose'
+            # Scrolling belongs to this semantic group, regardless of the
+            # source's visible overflow or the surrounding captured reset.
+            attrs['style']=attrs.get('style','')+';display:block;max-width:100%;min-width:0;overflow-x:auto'
+            content=structured_fragments(fragments)
         elif fragments and any(f.get('definition') for f in fragments):
             tag='div'
             pair_style=declaration(resolve(treatment,self.vocabulary,construct+'~pair')['properties']) if treatment is not None else None
@@ -184,7 +210,9 @@ class SampleRenderer:
             attrs = {'data-kd-construct':construct,'id':content_id}
         if captured:attrs['data-kd-captured']='true'
         if flow:attrs['data-kd-flow']='true'
-        if treatment is not None:attrs['style']=declaration(resolve(treatment,self.vocabulary,construct)['properties'])
+        # A captured context owns omitted properties too. Otherwise reusable
+        # section/card CSS leaks paint and spacing into every synthetic wrapper.
+        if treatment is not None:attrs['style']='all:revert;box-sizing:border-box;'+declaration(resolve(treatment,self.vocabulary,construct)['properties'])
         if geometry:
             attrs['style']=attrs.get('style','')+';'+geometry_style(geometry)
         backdrop=''
@@ -235,7 +263,7 @@ class SampleRenderer:
                 return element('div',{'class':'kd-captured-children','data-kd-group':item['selector'],'style':style},children)
             if children:
                 columns=max(1,min(INGEST_MAX_COLUMNS,int(item.get('columns',1))))
-                children=element('div',{'class':'kd-captured-children','style':f'--kd-columns:{columns}'},children)
+                children=element('div',{'class':'kd-captured-children','style':'display:block' if item.get('flow') else f'--kd-columns:{columns}'},children)
             return self.construct(item['construct'],state=item.get('state'),values=item.get('values'),media=item.get('media'),captured=page.get('captured',False),treatment=item.get('resolved_context'),children=children,background=item.get('background'),box=item.get('box'),geometry=item.get('geometry'),hrefs=item.get('hrefs'),action_icons=item.get('action_icons'),accessible_names=item.get('accessible_names'),fragments=item.get('fragments'),flow=item.get('flow',False),heading_levels=item.get('heading_levels'),provided_only=page.get('provided_only',False),action_items=item.get('action_items'))
         content=''.join(render(item) for item in page['instances'])
         if page.get('content_document'):
@@ -271,6 +299,7 @@ class SampleRenderer:
     def page(self, filename):
         self.sequence = 0
         ordinary_title=' '.join([self.context['long-title']]*2)
+        ordinary_stress=self.vocabulary.get('composition_rules') and self.samples.get('ordinary-stress-content',True)
         navigation = self.construct('nav')
         if filename == 'states.html':
             content = '' if self.vocabulary.get('composition_rules') else element('h1', {'class':'kd-context-heading'}, escape(self.context['state-gallery-title']))
@@ -285,9 +314,7 @@ class SampleRenderer:
             content = ''
             for construct in self.samples['pages'][filename]:
                 if construct == 'listing-card':
-                    # Ordinary pages also exercise the declared title preview;
-                    # its complete copy is already published on listing.html.
-                    content += self.collection_group(''.join(self.construct(construct,values={'title':ordinary_title} if index==0 and self.vocabulary.get('composition_rules') else None) for index in range(self.samples['collection-size'])))
+                    content += self.collection_group(''.join(self.construct(construct,values={'title':ordinary_title} if index==0 and ordinary_stress else None) for index in range(self.samples['collection-size'])))
                 else:
                     content += self.construct(construct)
             if 'page-shell' in self.samples['pages'][filename]:
@@ -295,10 +322,10 @@ class SampleRenderer:
                 shell_end = content.index('</main>')
                 content = content[:shell_end] + content[shell_end + len('</main>'):] + '</main>'
             else:
-                content = element('main', {'data-kd-construct':'page-shell'} if filename=='listing.html' and self.vocabulary.get('composition_rules') else {}, content)
+                content = element('main', {'data-kd-construct':'page-shell'} if self.samples.get('page-shell-hook') or filename=='listing.html' and self.vocabulary.get('composition_rules') else {}, content)
         if filename == 'listing.html':
             texts = [self.context['construct-copy']['listing-card']['title']] + [self.context[s['context']] for s in self.samples['stress'] if s.get('construct') == 'listing-card' and s.get('slot') == 'title']
-            if self.vocabulary.get('composition_rules'):texts.append(ordinary_title)
+            if ordinary_stress:texts.append(ordinary_title)
             if self.vocabulary.get('composition_rules'):
                 # Full copies share the main column and its prose cap, without
                 # adding the inset of a second construct around each paragraph.

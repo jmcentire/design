@@ -95,14 +95,14 @@ def card_slots(nodes,by):
         key=node['selector'];copy=visible_text(node)
         if title_group and (key==title_group or key.startswith(title_group+' > ')):slot='title'
         elif control(node):slot='action'
+        elif order[key]<title_index and len(copy)<=100:slot='eyebrow'
         elif chroma(node)>.12 and len(copy)<=120:slot='highlight'
         else:
             fg=foreground(node)
             muted=bool(fg and title_fg and luminance(fg)>luminance(title_fg)+.04)
             small=size(node)<size(title)-.5 or node['tag'] in {'small','figcaption'}
             short=len(copy)<=100
-            if order[key]<title_index and short:slot='eyebrow'
-            elif short and (small or muted or weight(node)<weight(title)):slot='meta'
+            if short and (small or muted or weight(node)<weight(title)):slot='meta'
             elif short and weight(node)>weight(title):slot='highlight'
             else:slot='body'
         result[key]=slot

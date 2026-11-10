@@ -5,3 +5,9 @@
 :where([data-kd-slot$=".action"],[data-kd-slot$=".secondary-action"]){align-self:start;justify-self:start}
 :where([data-kd-content]) figcaption{padding-inline:8px}
 :where(.kd-placeholder){padding:8px;overflow-wrap:anywhere}
+.kd-captured-prose{overflow-x:auto}
+.kd-captured-prose :where(table){border-collapse:collapse;width:100%}
+.kd-captured-prose :where(th,td){text-align:start;padding:.5em;border-bottom:1px solid #8886}
+.kd-captured-prose :where(ul,ol){padding-inline-start:1.5em}
+.kd-captured-prose :where(dt){font-weight:600}
+.kd-captured-prose :where(dd){margin-inline-start:0;margin-block-end:.75em}

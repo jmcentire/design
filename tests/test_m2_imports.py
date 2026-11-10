@@ -17,6 +17,7 @@ from tests.test_m2_capture import tree_hashes
 from tests.test_versions_assets import expected_hash, make_font
 from tests.test_composition_binding_gutter import heading_gaps
 from tests.test_composition_shipped import composition_report
+from tests.test_m2_fidelity_content import assert_title_prominence
 
 
 @pytest.mark.parametrize("kind", ["image", "mock", "wireframe", "asset", "brief", "dtcg"])
@@ -177,3 +178,34 @@ def test_token_only_draft_defaults_bind_headings_and_inset_card_text(library, tm
                for m in measurements for i in m["insets"]), measurements
     assert not [f for f in report["findings"] if f["rule"] in {"heading-binding", "text-inset"}
                 and f["type"] in {"violation", "missing"}], report["findings"]
+
+
+@pytest.mark.browser
+@pytest.mark.browser_timeout(240)
+def test_sparse_token_inspiration_has_hierarchy_fallback_and_honest_coverage(library, tmp_path, ingest_config, page):
+    expected = read_json(FIXTURES / "ingest-tokens.json")
+    del expected["size"]["title"]  # No source heading mapping: hierarchy must be inferred.
+    expected["type"]["family"]["$value"] = ["Unavailable Fixture Typeface"]
+    source = tmp_path / "sparse-tokens.json"
+    source.write_text(json.dumps(expected))
+    artifact = library.json("import-artifact", "--file", source, "--kind", "dtcg")["artifact"]
+    root, document, summary = draft(library, [artifact], "sparse-inspiration")
+    assert_source_tokens(library, document, read_json(root / "provenance.json"), expected)
+    assert any(f["type"] == "coverage" and f["rule"] in {"ingest-assets", "ingest-media"}
+               for f in summary["findings"]), summary
+    fidelity = library.json("fidelity", document["id"], cwd=library.project)
+    assert fidelity["pairs"] == [] and any(f["type"] == "coverage" for f in fidelity["findings"])
+    library.cli("save-draft", document["id"], cwd=library.project)
+    assert library.read(document["id"]) == document
+    assert not any(asset["kind"] == "font" for asset in document["assets"].values())
+    site = library.build(tmp_path / "sparse-preview", document["id"])
+    for width in (375, 1280):
+        page.set_viewport_size({"width": width, "height": 900})
+        page.goto((site / "index.html").as_uri())
+        page.evaluate("document.fonts.ready")
+        title, body = (page.locator(f'[data-kd-slot="hero.{slot}"]') for slot in ("title", "body"))
+        assert_title_prominence(title, body)
+        family = body.evaluate("e=>getComputedStyle(e).fontFamily").split(",")[-1].strip().strip('"').lower()
+        assert family in {"serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
+                          "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded"}, family
+        assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")

@@ -5,21 +5,21 @@ from pathlib import Path
 from ..assets import package_notices, inspect_format
 from ..builder import current_builder, builder_label
 from ..language import validate
-from ..language.versions import mint, digest
+from ..language.versions import digest
 from ..render import preview_files
 from ..storage import inside, load_language, read_json, write_json
 from ..findings import Finding, pointer
-from ..vocabulary import load, hook_contract
+from ..vocabulary import load, samples, hook_contract
 from .composition import compile_page
 from .validation import validate_content
 
 MARKER = '.kinbase-content-bundle.json'
 
 
-def page_files(library, language_id, content):
+def page_files(library, language_id, content, document=None):
     """Return a report and a portable file map; invalid input never yields a bundle."""
     content = Path(content).resolve()
-    document = load_language(library, language_id)
+    document = load_language(library, language_id) if document is None else document
     from ..checks import rendered_status
     status=rendered_status(library,language_id,digest(document))
     try:
@@ -31,12 +31,14 @@ def page_files(library, language_id, content):
     result, normalized, images = validate_content(source, content)
     result.update(language=language_id,validated=False,rendered_check=status)
     if not result['accepted']:return result, {}
-    checked = validate(library, language_id, document)
+    try:vocabulary=load(library,document.get('vocabulary'))
+    except (OSError,ValueError,TypeError,AttributeError):vocabulary=None
+    checked = validate(library, language_id, document,vocabulary=vocabulary)
     result['findings'].extend(checked['findings'])
     result.update(accepted=checked['accepted'],version=digest(document) if checked['accepted'] else None)
     if not checked['accepted']:return result, {}
+    sample_set=samples(library,document['vocabulary'])
     version = document['vocabulary']
-    vocabulary = load(library, version)
     if not vocabulary.get('content_pages'):
         result['findings'].append(Finding('violation','content-vocabulary',f'languages/{language_id}/working.json',
             '/vocabulary',version,'a vocabulary defining content-page hooks',
@@ -58,7 +60,7 @@ def page_files(library, language_id, content):
                     pointer('components',name,'variant'),variant,'vocabulary-owned content markup',
                     f'{name}: variant markup is not used on content pages; review CSS treatment against the fixed vocabulary wrappers.').to_dict())
     builder = current_builder()
-    files = preview_files(library, language_id, {'index.html':composition}, vocabulary_version=version, builder=builder)
+    files = preview_files(library, language_id, {'index.html':composition}, vocabulary_version=version, builder=builder, document=document,vocabulary=vocabulary,sample_set=sample_set)
     # Language assets are approved, but a portable offline bundle still cannot
     # contain an image that executes code or fetches a remote subresource.
     for asset, entry in document.get('assets',{}).items():
@@ -69,7 +71,9 @@ def page_files(library, language_id, content):
     files['hooks.json'] = (json.dumps(hook_contract(vocabulary),ensure_ascii=False,indent=2)+'\n').encode()
     notices = normalized.get('footer',{}).get('notices',[]) + package_notices(library,language_id,document)
     files['ATTRIBUTION.txt'] = (builder_label(builder)+'\n\n'+'\n\n'.join(notices)+'\n').encode()
-    result.update(builder=builder,vocabulary=version,validated=True,rendered_check=status,accepted=status=='accepted')
+    from ..render.identity import inputs
+    result.update(builder=builder,vocabulary=version,validated=True,rendered_check=status,accepted=status=='accepted',
+                  render_inputs=inputs(document,vocabulary,sample_set,{'index.html':composition},files,builder))
     return result, files
 
 
@@ -92,13 +96,15 @@ def bundle_destination(out, library, content):
     return root
 
 
-def render_page(library, language_id, content, out):
+def render_page(library, language_id, content, out, document=None):
     root = bundle_destination(out, library, content)
-    result, files = page_files(library, language_id, content)
+    document = load_language(library, language_id) if document is None else document
+    result, files = page_files(library, language_id, content, document=document)
     result['out'] = str(root)
     if not result['validated']:return result
-    minted = mint(library,language_id)
-    if 'ref' not in minted:return {**result,**minted,'accepted':False,'validated':False}
+    # page_files validated this exact snapshot against its captured vocabulary.
+    from ..language.versions import archive
+    archive(library,language_id,document)
     root.mkdir(parents=True,exist_ok=True)
     for name, data in sorted(files.items()):
         path = inside(root,name)
@@ -108,6 +114,6 @@ def render_page(library, language_id, content, out):
     for name in set(old)-files.keys():
         path = inside(root,name)
         if path.is_file():path.unlink()
-    write_json(root/MARKER, {'schema':'kinbase-content-bundle/1','builder':result['builder'],'files':sorted(files)})
+    write_json(root/MARKER, {'schema':'kinbase-content-bundle/1','builder':result['builder'],'files':sorted(files),'render_inputs':result['render_inputs']})
     logging.getLogger(__name__).info('render_page language=%s files=%d',language_id,len(files))
     return {**result,'files':sorted(files)}

@@ -1,0 +1,8 @@
+<section class="panel"><h2>Describe a design change</h2>
+<p>Describe what should change. Clear requests update the current language before the preview is rendered. If the target or treatment is unclear, you will be asked to clarify.</p>
+<form method="post" action="/languages/{{ language.id }}/feedback-language">
+<input type="hidden" name="expected_version" value="{{ current_version }}">
+<label>Design feedback<textarea name="feedback" rows="4" maxlength="4000" required placeholder="Give the hero title 0.5px letter spacing, leaving other text unchanged">{{ feedback_text|default('') }}</textarea></label>
+<label>Context (optional)<select name="scope"><option value="">Use the targets named in my feedback</option>{% for value,label in edit_scopes %}<option value="{{ value }}"{% if feedback_scope|default('') == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+<button>Update language from feedback</button>
+</form><p class="muted">Requires the configured interpretation command. Comments below remain notes only. Rendering the saved language does not call the interpreter.</p></section>

@@ -113,6 +113,13 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
     facts['type_base_px']=base_size
     family=body_style.get('font-family') or (facts['font_families'][0] if facts['font_families'] else 'system-ui')
     family=[f.strip().strip('\"\'') for f in family.split(',')]
+    inferred={'kind':'inferred','method':'Reusable specimen defaults without measured DOM composition',
+              'inputs':list(dict.fromkeys(a['artifact'] for a in sources['tokens']))}
+    if not mappings and vocabulary.get('composition_rules'):
+        base_size=max(16,base_size)
+        # Imported named faces remain first; an uninstalled font must not turn
+        # a sans-serif token specimen into the browser's default serif page.
+        if not any(f in {'serif','sans-serif','system-ui','monospace'} for f in family):family+=['system-ui','sans-serif']
     base={'color':color_token(foreground) or color_token('#222222'),'surface':color_token(surface) or color_token('#ffffff'),'font-family':token('fontFamily',family),
           'font-size':token('dimension',f'{base_size:g}px'),'font-weight':token('fontWeight',400),'line-height':token('number',1.5)}
     base={k:v for k,v in base.items() if v is not None}
@@ -191,7 +198,7 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
         for prop,ordinary in [('position',{'static','relative'})]:
             if prop in style and style[prop] not in ordinary:
                 notes.append({'rule':'ingest-layout','message':f'{node["selector"]}: {prop}={style[prop]} is outside the closed property set; compare the captured layout'})
-        if root and hex_color(style.get('background-color')) in {None,'#00000000'}:
+        if root and node.get('backgrounds') and hex_color(style.get('background-color')) in {None,'#00000000'}:
             painted=effective_background(node.get('backgrounds',[]))
             if painted:
                 result['background-color']=color_token('#'+''.join(f'{round(c*255):02x}' for c in painted[:3]),origin(view,node,'backgrounds'))
@@ -251,6 +258,11 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                     role_surfaces.setdefault(role,{}).setdefault(value,origin(view,node,'effective background'))
     for role in vocabulary['roles']:
         treatment=deepcopy(base)
+        if not mappings and vocabulary.get('composition_rules'):
+            ratio={'title':2.25,'subtitle':1.5,'subtext':.875,'caption':.875,'label':.875}.get(role,1)
+            treatment['font-size']=token('dimension',f'{base_size*ratio:g}px',inferred)
+            if role in {'title','subtitle','label','action'}:treatment['font-weight']=token('fontWeight',600,inferred)
+            if role in {'title','subtitle'}:treatment['line-height']=token('number',1.2,inferred)
         if role in role_nodes:
             view,node=role_nodes[role]
             treatment.update({k:v for k,v in properties(view,node).items() if k in {'color','font-family','font-size','font-weight','font-style','line-height','letter-spacing'}})
@@ -284,6 +296,35 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
             questions.append({'pointer':pointer('style',group,name,'$value'),'construct':construct,'state':'default','values':choices,
                               'role':role,'property':'surface','reason':'Captured surfaces vary or need a different foreground; retain the legible reusable page pair while component paint stays paired' if observed else 'No captured surface establishes this role pairing'})
     document['components']['page-shell']={'properties':{'background-color':base['surface']}}
+    if not mappings and vocabulary.get('composition_rules'):
+        space=space_token(max(16,facts['spacing_base']*2),inferred)
+        large=space_token(max(32,facts['spacing_base']*4),inferred)
+        zero=space_token(0,inferred)
+        document['components']['page-shell']['properties'].update({'max-width':token('dimension','72rem',inferred),'margin-inline':'auto','padding-inline':space})
+        for construct,spec in vocabulary['constructs'].items():
+            component=document['components'].setdefault(construct,{})
+            root=component.setdefault('properties',{})
+            if construct in {'nav','footer','hero','content-section','collection','form','search-bar','gallery'}:
+                root.update({'padding-block':large if construct in {'hero','content-section','collection'} else space,'gap':space})
+            if construct in {'nav','footer'}:root['padding-inline']=space
+            if spec['root']=='article':
+                root.update({'border-style':'solid','border-width':token('dimension','1px',inferred),
+                             'border-color':token('color','#d8d8d8',inferred),'padding':zero})
+            for part in spec.get('parts',{}):
+                if part in {'content','heading','actions'}:
+                    component.setdefault('parts',{}).setdefault(part,{})['gap']=space
+            if spec['root']=='article' and 'content' in spec.get('parts',{}):
+                component['parts']['content'].update({'padding-inline':space,'padding-block':space})
+            for slot in spec['slots']:
+                if re.fullmatch('h[1-6]',slot['element']):
+                    heading_scale={level:token('dimension',f'{base_size*ratio:g}px',inferred)
+                           for level,ratio in enumerate((2.25,1.5,1.25,1.125,1,1),1)}
+                    component.setdefault('slots',{}).setdefault(slot['id'],{}).setdefault('properties',{})['font-size']=heading_scale[int(slot['element'][1])]
+                    for level,ref in heading_scale.items():
+                        document['overrides'].append({'scope':construct+'.'+slot['id']+'.h'+str(level),
+                            'properties':{'font-size':ref},'reason':'Inferred heading scale for the rendered semantic level without DOM evidence'})
+                if slot['kind']=='text' and slot['element']=='p':
+                    component.setdefault('slots',{}).setdefault(slot['id'],{}).setdefault('properties',{})['max-width']=token('dimension','40rem',inferred)
     treatments={}
     # Select a representative repeated collection from the widest capture of
     # each page. Keep that group's identity at phone widths, where every group
@@ -360,8 +401,23 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                         # its wrapper was unsampled or narrower than the page.
                         props['max-width']=token('dimension',f'{box[2]:g}px',origin(view,node,'measured media width'))
                 elif definition['kind']!='media':paint_pair(view,node,props)
+                captured_center=False
+                if item.get('flow') and definition['kind']=='text' and node.get('box') and node['tag'] in {'p','h1','h2','h3','h4','h5','h6'}:
+                    props.setdefault('max-width',token('dimension',f'{node["box"][2]:g}px',origin(view,node,'captured text measure')))
+                    # A measured centered column owns this cap's alignment.
+                    # Its children need auto margins when synthetic flow roots
+                    # replace the original column wrapper.
+                    by_selector={n['selector']:n for n in view.get('structure',view['nodes'])}
+                    ancestor=by_selector.get(node.get('parent'))
+                    while ancestor:
+                        bounds=ancestor.get('box')
+                        if bounds and (view['page'],ancestor['selector']) in centres and abs(node['box'][0]+node['box'][2]/2-bounds[0]-bounds[2]/2)<=2:
+                            captured_center=True;break
+                        ancestor=by_selector.get(ancestor.get('parent'))
                 if slot=='links':props={k:v for k,v in props.items() if k in CONTROL_TEXT_PROPERTIES}
-                item['treatment']['slots'][slot]={'properties':props}
+                # Compensation for a removed source wrapper belongs only to
+                # reconstruction; portable_centering owns reusable alignment.
+                item['treatment']['slots'][slot]={'properties':{**props,**({'margin-inline':'auto'} if captured_center else {})}}
                 if not literal_node(node):
                     portable=portable_centering(view,node,deepcopy(props),centres,notes)
                     if definition['kind']=='action':portable.pop('width',None)

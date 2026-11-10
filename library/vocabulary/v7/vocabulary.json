@@ -91,7 +91,7 @@
           "role": "media",
           "emphasis": "neutral",
           "element": "a",
-          "required": true,
+          "required": false,
           "interaction": "navigate",
           "href": "index.html",
           "asset_kind": "logo",
@@ -251,7 +251,7 @@
           "role": "media",
           "emphasis": "neutral",
           "element": "img",
-          "required": true,
+          "required": false,
           "asset_kind": "image",
           "kind": "media",
           "content-element": "figure"
@@ -1203,14 +1203,14 @@
       "states.html": "States"
     },
     "copy": {
-      "title": "Lorem ipsum, a new perspective",
-      "subtitle": "Dolor sit amet",
-      "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-      "subtext": "Additional information",
+      "title": "A collection of useful ideas",
+      "subtitle": "Resources for your next project",
+      "body": "Explore practical guides, thoughtful examples, and fresh perspectives. Choose a resource to learn more and find a useful next step.",
+      "subtext": "Updated regularly",
       "label": "Featured",
-      "caption": "Notes from the collection",
+      "caption": "Selected resources",
       "action": "Explore the collection",
-      "control": "Lorem ipsum",
+      "control": "Search resources",
       "media": "Abstract shapes in a sample illustration"
     },
     "image-missing": "Image unavailable",
@@ -1221,46 +1221,47 @@
       "Popular",
       "Featured"
     ],
-    "field-placeholder": "Lorem ipsum",
+    "field-placeholder": "Find a resource",
     "search-submit": "Search collection",
     "form-submit": "Send message",
     "state-gallery-title": "States and stress content",
     "construct-copy": {
       "empty-state": {
         "title": "No results found",
-        "body": "Lorem ipsum dolor sit amet. Try another search.",
+        "body": "Try a broader search or browse the collection to find something useful.",
         "action": "Browse the collection"
       },
       "error-state": {
         "title": "Something needs attention",
-        "body": "Lorem ipsum dolor sit amet. Please try again.",
+        "body": "Your request could not be completed. Review the details and try again.",
         "action": "Return to the form"
       },
       "listing-card": {
-        "title": "Lorem ipsum collection",
-        "action": "View details"
+        "title": "A practical guide to moving from a first idea to a working project",
+        "action": "View resource"
       },
       "hero": {
-        "eyebrow": "A fresh perspective",
-        "title": "Make room for something new.",
+        "eyebrow": "The resource collection",
+        "title": "Ideas worth putting into practice.",
         "action": "Explore the collection",
-        "secondary-action": "Get in touch"
+        "secondary-action": "Get in touch",
+        "body": "Browse guides and examples that turn a good idea into a useful next step."
       },
       "detail-header": {
-        "title": "Lorem ipsum collection",
+        "title": "A practical starting point",
         "action": "Learn more"
       },
       "footer": {
-        "body": "Lorem ipsum · A sample collection"
+        "body": "The resource collection · Ideas for everyday work"
       },
       "filter-group": {
         "title": "Refine the collection"
       },
       "card": {
         "eyebrow": "From the collection",
-        "title": "Lorem ipsum",
-        "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
-        "meta": "Additional details",
+        "title": "Build on a good idea",
+        "body": "A concise guide with examples you can adapt to your next project.",
+        "meta": "Guide · 5 minute read",
         "highlight": "Featured",
         "action": "Read more"
       }

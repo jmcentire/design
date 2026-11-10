@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 from ..artifacts.capture import public_url
 from ..vocabulary import slot_map
 from .arrangement import groups
-from .flow import long_form,split_flow,block,inline_role,level
+from .flow import long_form,split_flow,block,inline_role,level,structure
 from .presentation import visible_text,chroma,repeated_candidate,card_slots,clipped_media,heading
 
 
@@ -145,6 +145,8 @@ def map_view(view,vocabulary,suggestions=()):
         else:item['values'][slot]=(item['values'].get(slot,'')+' '+text).strip()
         text_block=by.get(block(node,by),node)
         representative=text_block if slot in {'body','title','meta'} and text_block['tag'] in {'p','pre','blockquote','h1','h2','h3','h4','h5','h6'} else node
+        structured=structure(node,by) if item.get('flow') else []
+        if structured:representative=by[structured[0]['selector']]
         item['nodes'].setdefault(slot,representative)
         if slot in {'highlight','eyebrow','action'} and chroma(node)>chroma(item['nodes'][slot]):item['nodes'][slot]=node
         if slot_map(vocabulary['constructs'][item['construct']])[slot]['kind']=='action' and slot!='links':
@@ -163,6 +165,7 @@ def map_view(view,vocabulary,suggestions=()):
             segments=node.get('text_segments') or [{'text':text,'order':order[node['selector']]}]
             for segment in segments:
                 fragment={**segment,'block':block(node,by),'href':href_for(node),'node':node,'preformatted':node.get('preformatted',False)}
+                if structured:fragment['structure']=structured
                 if item['construct']=='card' and (field:=definition(node)):fragment['definition']=field
                 item.setdefault('fragments',{}).setdefault(slot,[]).append(fragment)
         spec=slot_map(vocabulary['constructs'][item['construct']])[slot]
@@ -237,7 +240,7 @@ def map_view(view,vocabulary,suggestions=()):
         else:
             if role in {'title','subtitle'} and 'title' in slots:slot='title'
             elif role=='action' and 'links' in slots:slot='links'
-            elif role in {'body','caption'} and 'body' in slots:slot='body'
+            elif (role in {'body','caption'} or tag in {'li','dt','dd','th','td','caption'}) and 'body' in slots:slot='body'
             else:slot=next((s for s,d in slots.items() if d['role']==role),None)
         proposal=proposals.get(node['selector'])
         if proposal:
@@ -260,6 +263,8 @@ def map_view(view,vocabulary,suggestions=()):
             for segment in node.get('text_segments',[]):
                 if segment['text'].isspace():
                     fragment={**segment,'block':parent_block,'href':None,'node':node}
+                    if item.get('flow'):
+                        if grouped:=structure(node,by):fragment['structure']=grouped
                     if item['construct']=='card' and (field:=definition(node)):fragment['definition']=field
                     matches[0].append(fragment)
     ordered=[]

@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block content %}
+<p><a href="/languages/{{ language.id }}">Back to {{ language.name }}</a></p><h1>Language history</h1>
+<p>Only the current language is used to render designs. Restoring an earlier version makes it current again and records a new revision.</p>
+<p>Current version: <code>{{ history.current }}</code></p>
+{% for revision in history.revisions|reverse %}<section class="panel"><h2>Revision {{ revision.sequence }}</h2><p>{{ revision.reason or 'Language saved' }} · {{ revision.created }}</p><code>{{ revision.after }}</code>
+<form method="post" action="/languages/{{ language.id }}/restore"><input type="hidden" name="version" value="{{ revision.after }}"><input type="hidden" name="expected_version" value="{{ history.current }}"><label>Reason <input name="reason" maxlength="4000"></label><button>Restore this version</button></form></section>{% endfor %}
+{% if history.legacy_versions %}<h2>Earlier saved versions</h2><p>These versions predate ordered revision history; no iteration order is implied.</p>{% for version in history.legacy_versions %}<form method="post" action="/languages/{{ language.id }}/restore"><code>{{ version }}</code><input type="hidden" name="version" value="{{ version }}"><input type="hidden" name="expected_version" value="{{ history.current }}"><button>Restore this version</button></form>{% endfor %}{% endif %}
+{% endblock %}

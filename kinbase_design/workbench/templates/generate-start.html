@@ -1,6 +1,7 @@
 {% extends 'base.html' %}{% block content %}
-<h1>Find your language</h1><p class="lede">Start with a feeling, an audience or a place. Compare rendered directions, keep what you like, and derive a reusable design language.</p>
+<h1>Explore a new language</h1><p class="lede">Start with a feeling, an audience or a place. Compare rendered directions, keep what you like, and derive a reusable design language.</p>
 <p>Current standards: unknown. Kinbase is not connected. Suggestions use local heuristics; no model or network service is required.</p>
+<p>Already have a language? <a href="/">Open it in the library</a> to update its current treatment and preview it, or use <a href="/content">Content pages</a> to render a page from it.</p>
 <form class="panel" method="post" action="/generate/start" enctype="multipart/form-data">
 <label>Your brief<textarea name="brief" rows="4" maxlength="16000" required placeholder="A casual site for young families; relaxing but engaging beach vacation; blues, greens and turquoise; whimsical flair"></textarea></label>
 <label>Optional logo, font, palette, image or brief<input type="file" name="file"></label>

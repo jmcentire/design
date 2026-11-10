@@ -111,6 +111,10 @@ def create_app(library: str | Path, workspace: str | Path):
             elif segments[0] == 'generate':
                 from .generate import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif len(segments)==3 and segments[0]=='languages' and segments[2] in {'revise','restore','history','feedback-language'}:
+                from .revisions import handle
+                language_id=identifier(segments[1])
+                code,body,content_type,headers=handle(library,language_id,segments[2],environ,html)
             elif method == 'GET' and path == '/workbench.css':
                 content_type = 'text/css; charset=utf-8'
                 body = Path(__file__).with_name('workbench.css').read_bytes()
@@ -176,7 +180,9 @@ def create_app(library: str | Path, workspace: str | Path):
                 receipt=None
                 if query.get('receipt'):
                     receipt=read_json(inside(workspace,'kinbase-receipts',identifier(query['receipt'][0])+'.json'))
+                from .revisions import scopes, PROPERTIES
                 body = html('viewer.html', kinbase=kinbase_snapshot, receipt=receipt, direction_scopes=direction_scopes,
+                            edit_scopes=scopes(doc,load_vocabulary(library,doc['vocabulary'])) if result['accepted'] else [],edit_properties=PROPERTIES,current_version=digest(doc) if result['accepted'] else None,
                             constructs=load_vocabulary(library,doc['vocabulary'])['constructs'], provenance_entries=provenance_entries, latest=latest, groups=groups, stale=bool(latest and result['accepted'] and latest.get('version')!=digest(load_language(library,language_id))), title=doc['name'], language=doc, report=result, gaps=gaps,
                             pages=pages, page=page, width=width, widths=VIEWPORTS,
                             annotations=query.get('annotations',['0'])[0]=='1', upload_mb=MAX_UPLOAD_BYTES//(1024*1024))

@@ -68,6 +68,17 @@ def parser():
         if name == 'serve':
             sub.add_argument('--host', choices=['127.0.0.1'], default='127.0.0.1')
             sub.add_argument('--port', type=int, default=8765)
+    for name in ('revise-language','restore-language','language-history'):
+        sub=commands.add_parser(name,parents=[common]);sub.add_argument('language_id')
+        if name=='language-history':continue
+        if name=='revise-language':sub.add_argument('--changes',required=True)
+        else:sub.add_argument('version')
+        sub.add_argument('--reason',default='');sub.add_argument('--expected-version')
+        sub.add_argument('--out');sub.add_argument('--content')
+    feedback=commands.add_parser('feedback-language',parents=[common])
+    feedback.add_argument('language_id');feedback.add_argument('--feedback',required=True)
+    feedback.add_argument('--scope');feedback.add_argument('--expected-version')
+    feedback.add_argument('--out');feedback.add_argument('--content')
     figma = commands.add_parser('figma', parents=[common])
     figma.add_argument('action', choices=['identity', 'pull'])
     figma.add_argument('--file-key')
@@ -123,7 +134,19 @@ def main(argv=None):
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s %(message)s')
     try:
         library, workspace = roots(getattr(args, 'library', None), getattr(args, 'workspace', None))
-        if args.command == 'factory-task':
+        if args.command in {'revise-language','restore-language','language-history','feedback-language'}:
+            from .language.revisions import revise,restore,history
+            if args.command=='feedback-language':
+                from .language.feedback import feedback
+                result=feedback(library,args.language_id,args.feedback,scope=args.scope,expected_version=args.expected_version,out=args.out,content=args.content)
+            elif args.command=='language-history':result=history(library,args.language_id)
+            else:
+                operation=revise if args.command=='revise-language' else restore
+                value=json.loads(args.changes) if args.command=='revise-language' else args.version
+                result=operation(library,args.language_id,value,reason=args.reason,expected_version=args.expected_version,out=args.out,content=args.content)
+            output(result)
+            return 1 if result.get('accepted') is False or result.get('rendered',{}).get('built') is False or result.get('rendered',{}).get('validated') is False else 0
+        elif args.command == 'factory-task':
             from .export.factory import submit
             result = submit(library,workspace,args.handoff_id,args.run,args.factory,args.runs,args.budget,args.dry_run)
             output(result)
@@ -170,17 +193,18 @@ def main(argv=None):
             output(result)
             return 0 if result['accepted'] else 1
         elif args.command in {'resolve', 'build-preview'}:
-            result = validate(library, args.language_id)
+            document = load_language(library,args.language_id)
+            result = validate(library, args.language_id,document)
             if not result['accepted']:
                 output(result)
                 return 1
-            document = load_language(library, args.language_id)
             if args.command == 'resolve':
                 output(resolve(document, vocabulary.load(library, document['vocabulary']), args.scope, args.state, args.breakpoint))
             else:
                 from .render import build_preview
-                build_preview(library, args.language_id, args.out)
-                output({'language': args.language_id, 'built': True})
+                identity={}
+                build_preview(library, args.language_id, args.out,document=document,render_inputs=identity)
+                output({'language': args.language_id, 'built': True,'render_inputs':identity})
         elif args.command == 'apply':
             from .export.handoff import apply
             output(apply(library,workspace,args.language_id,args.site,args.adapter,args.target_dir,args.page_url,args.branch))
