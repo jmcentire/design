@@ -115,6 +115,18 @@ def test_transport_never_discloses_token_in_failure(monkeypatch):
     with pytest.raises(ValueError) as error: c.get('me')
     assert '403' in str(error.value) and 'secret-example' not in str(error.value)
 
+def test_oauth_token_is_sent_as_bearer():
+    seen = []
+    class Opener:
+        def open(self, request, timeout):
+            seen.append((request.get_header('Authorization'), request.get_header('X-figma-token')))
+            raise OSError
+    for token in ('figu_oauth-example', 'figd_personal-example'):
+        c = Client(token)
+        c.opener = Opener()
+        with pytest.raises(ValueError): c.get('me')
+    assert seen == [('Bearer figu_oauth-example', None), (None, 'figd_personal-example')]
+
 def test_redirect_does_not_forward_credential():
     from kinbase_design.figma import NoRedirect
     assert NoRedirect().redirect_request(None, None, 302, '', {}, 'https://other.example') is None
