@@ -246,7 +246,9 @@ its value and descendants, and the nearest ancestor record wins. Token values an
 leaves require coverage; descriptive metadata, token metadata and reason text do not. Palette clustering uses CIEDE2000; type and spacing tolerances
 live in `config.py`. Source DTCG values remain unchanged. Semantic mapping is deterministic and
 reported as **heuristic**. Missing and ambiguous treatments get rendered alternatives; choosing
-an alternative records its provenance. Repeated source groups map to the generic `card`
+an alternative records its provenance. Token/image imports without measured DOM geometry receive
+inferred content insets and heading spacing under the same composition rules; these defaults are
+not source measurements. Repeated source groups map to the generic `card`
 construct using sibling structure, media, headings and typographic hierarchy. Text is data:
 currency, ratings and domain words do not select constructs or slots. Small text becomes
 metadata or an eyebrow by position; short accent text becomes a highlight. Specialised

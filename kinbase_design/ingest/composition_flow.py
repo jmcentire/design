@@ -6,6 +6,11 @@ from .quantize import px
 from .presentation import visible_text
 
 
+def binding_start(before_gap,after_gap,spacing_base):
+    """Nearest spacing step that makes the leading gap strictly larger."""
+    return (math.floor(max(0,after_gap-before_gap)/spacing_base)+1)*spacing_base
+
+
 def transfer(document,vocabulary,view,treatments,token,space_token,origin,questions,spacing_base,corrections,primary_item=None):
     nodes=view.get('structure',view['nodes']);width=view['width'];by={n['selector']:n for n in nodes}
     def props(scope):return treatments.setdefault((scope,width),{})
@@ -52,10 +57,9 @@ def transfer(document,vocabulary,view,treatments,token,space_token,origin,questi
         after_gap=number(props(group).get('row-gap',props(group).get('gap'))) or 0
         before_group=construct+'~heading' if 'heading' in vocabulary['constructs'][construct].get('parts',{}) else group
         before_gap=number(props(before_group).get('row-gap',props(before_group).get('gap'))) or 0
-        required=max(0,after_gap-before_gap)
         if binding and before_gap+start<=after_gap:
             from .composition import correction
-            chosen=(math.floor(required/spacing_base)+1)*spacing_base
+            chosen=binding_start(before_gap,after_gap,spacing_base)
             ref=dimension('binding-'+construct,chosen,construct,f'{before:g}px','Heading must be closer to following content than preceding content',spacing=True)
             questions[-1]['values'].append(f'{chosen+spacing_base:g}px')
             correction(corrections,questions[-1],'heading-binding',title.get('selector'),f'{measured_before:g}px' if measured_before is not None else None,f'{chosen:g}px')

@@ -627,6 +627,39 @@ def derive(language_id,vocabulary,sources,suggestions=(),settings=None):
                     adjustments.update({'display':'flex','flex-direction':'row' if part=='actions' else 'column'})
                     if part=='actions':adjustments.update({'flex-wrap':'wrap','align-items':'center'})
                     put_treatment(scope,bp,adjustments,'Measured group flow with minimum control separation')
+                if not mappings and vocabulary.get('composition_rules'):
+                    parts=spec.get('parts',{});slots=slot_map(spec)
+                    if spec['root']=='article' and 'media' in slots and 'content' in parts:
+                        # The renderer can supply a border even when no root
+                        # paint was imported. Keep one inset on the text group;
+                        # unmeasured media remains free to span the item.
+                        inner=effective(construct+'~content',bp)
+                        item_root=effective(construct,bp)
+                        outer=px(item_root.get('padding-inline',item_root.get('padding'))) or 0
+                        if outer<8:
+                            put_treatment(construct+'~content',bp,composition_minimum(construct+'~content',bp,'padding-inline',8-outer,inner),
+                                          'Unmeasured item content inset, including renderer-default borders')
+                    if 'heading-binding' in vocabulary.get('composition_rules',[]) and 'title' in slots and ('content' in parts or 'heading' in parts):
+                        from .composition import pixels
+                        from .composition_flow import binding_start
+                        group_scope=construct+'~content' if 'content' in parts else construct
+                        group_props=effective(group_scope,bp)
+                        after_gap=pixels(group_props.get('row-gap',group_props.get('gap'))) or 0
+                        before_gap=after_gap if 'eyebrow' in slots else pixels(root.get('row-gap',root.get('gap'))) or 0
+                        inputs=list(dict.fromkeys(a['artifact'] for a in sources['tokens']))
+                        if 'heading' in parts:
+                            gap=space_token(after_gap,{'kind':'inferred','method':'Unmeasured heading group rhythm','inputs':inputs})
+                            put_treatment(construct+'~heading',bp,{'display':'flex','flex-direction':'column','gap':gap},'Unmeasured heading group rhythm')
+                        chosen=binding_start(before_gap,after_gap,facts['spacing_base'])
+                        name='flow-binding-'+construct+'-'+(bp or 'base')
+                        spaces=document['style'].setdefault('space',{})
+                        while name in spaces:name+='-derived'
+                        spaces[name]={'$type':'dimension','$value':f'{chosen:g}px'}
+                        provenance[pointer('style','space',name,'$value')]={'kind':'inferred','method':'Heading binding without measured DOM geometry','inputs':inputs}
+                        put_treatment(construct+'.title',bp,{'margin-block-start':'{space.'+name+'}'},'Unmeasured heading binding')
+                        questions.append({'pointer':pointer('style','space',name,'$value'),'construct':construct,'state':'default',
+                                          'values':[f'{chosen:g}px',f'{chosen+facts["spacing_base"]:g}px'],
+                                          'reason':'No DOM geometry establishes heading spacing; keep the heading closer to following content'})
                 if 'links' in slot_map(spec):
                     scope=construct+'.links';props=effective(scope,bp)
                     put_treatment(scope,bp,{'display':'flex','flex-wrap':'wrap',**composition_minimum(scope,bp,'gap',4,props)},'Separated navigation targets')
