@@ -98,7 +98,8 @@ def css_tokens(text):
             return
         if VAR.fullmatch(match[2]) and VAR.fullmatch(match[2])[1] == match[1]:
             return  # A theme layer re-exporting the property under its own name.
-        scope = rules[0].lower()
+        # The theme may be named by the rule or by a prefers-color-scheme query around it.
+        scope = ' '.join([rules[0]] + [prelude for prelude in stack if prelude.startswith('@media')]).lower()
         found.append((match[1], match[2], 'dark' if 'dark' in scope else 'light' if 'light' in scope else BASE, start))
     for char in text:
         if char == '\n':

@@ -88,6 +88,7 @@ def test_only_root_and_theme_scopes_define_tokens(library, tmp_path):
         "@layer base{:root,[data-theme=light]{--color-bg-base:#fff;--color-text-red:#d00}"
         "@supports (color:lab(0% 0 0)){:root,[data-theme=light]{--color-text-red:lab(45% 70 50)}}"
         "[data-theme=dark]{--color-bg-base:#121110}}"
+        "@media (prefers-color-scheme:dark){:root{--spacing:.5rem}}"
         "@layer utilities{.\\[--color-bg-base\\:\\#000\\]{--color-bg-base:#000}.card{--tw-shadow:0 0 #0000}}")
     artifact = library.json("import-artifact", "--file", sheet, "--kind", "css")["artifact"]
     result = meaning(library, "discover", "--corpus", "compiled", "--from", artifact)
@@ -102,6 +103,9 @@ def test_only_root_and_theme_scopes_define_tokens(library, tmp_path):
     # The source's own sRGB fallback is kept; the wide-gamut override is on record.
     assert red["contexts"]["light"] == {"value": "#dd0000", "overridden_by": "lab(45% 70 50)"}
     assert red["standing"] == "gap" and red["gap"]["reason"] == "vocabulary"  # a hue is not an emphasis
+    # A root rule inside a dark colour-scheme query is the dark context, not a new base value.
+    spacing = meaning(library, "define", "css.spacing", "--corpus", "compiled")
+    assert spacing["contexts"] == {"base": {"value": ".25rem"}, "dark": {"value": ".5rem"}}
     filtered = meaning(library, "discover", "--corpus", "colours-only", "--from", artifact, "--only", "color-")
     assert set(by_subject(filtered)) == {"css.color-bg-base", "css.color-text-red"}
 
