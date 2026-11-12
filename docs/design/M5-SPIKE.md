@@ -15,9 +15,9 @@ precision notes are one read by the builder, not Jeremy's hand review, which P1 
 | Colour documentation | `palermo.tryprofound.com/docs/colors` | printed Light and Dark values per token |
 | Shipped stylesheet | the docs site's main compiled stylesheet (one file, 277 kB) | CSS custom properties, the corpus |
 
-Palermo's component code is not published. The docs site is the only source, and it turned out to
-publish two sets of values that disagree (below). Component pages were not captured; no component
-treatment was reconstructed.
+The proposal's premise is that Palermo's component code is not published; this run read only the
+docs site. That site turned out to publish two sets of values that disagree (below). Component
+pages were not captured, and no component treatment was reconstructed.
 
 ## What discovery produced
 
