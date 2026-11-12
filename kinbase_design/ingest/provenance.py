@@ -80,11 +80,14 @@ def shared(provenance):
         elif location.startswith(('selector:','page:')):
             value=location.split(':',1)[1]
             if not any(s in value for s in ('://','\\','/')):item['location']=value
+        # A meaning mapping keeps its token path and standing; reviewers' names stay private.
+        if entry.get('standing') in {'certified','chosen','candidate'} and re.fullmatch(r'[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*',str(entry.get('mapping',''))):
+            item.update(mapping=entry['mapping'],standing=entry['standing'])
         if entry['kind']=='source':item.setdefault('location','')  # The artifact root, when a private location is redacted.
         if entry['kind']=='inferred':item['method']='Derived from design evidence and Vocabulary defaults'
         if entry['kind']=='chosen':
             choices=entry.get('choices') or [entry.get('choice','')]
-            item['method']='Visual choice '+', '.join(re.sub('[^a-zA-Z0-9_-]','',choice) for choice in choices)
+            item['method']=('Meaning mapping reviewed locally, ' if 'mapping' in item else 'Visual choice ')+', '.join(re.sub('[^a-zA-Z0-9_-]','',choice.removeprefix('meaning/')) for choice in choices)
         result[path]=item
     return result
 

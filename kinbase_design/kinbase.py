@@ -64,9 +64,18 @@ def machine_statement(statement):
     except ValueError:return None
     if not isinstance(value,dict) or set(value)!={'kinbase-design'}:return None
     design=value['kinbase-design']
-    if not isinstance(design,dict) or set(design)-{'values','dimensions'}:return None
+    if not isinstance(design,dict) or set(design)-{'values','dimensions','mappings'}:return None
     values=design.get('values',{})
     if not isinstance(values,dict):return None
+    # Meaning mappings: corpus id → token path → Vocabulary-grounded meaning. Shape only;
+    # the meaning layer grounds each one against the Vocabulary before it certifies anything.
+    mappings=design.get('mappings',{})
+    if not isinstance(mappings,dict):return None
+    for corpus,subjects in mappings.items():
+        if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',corpus) or not isinstance(subjects,dict):return None
+        for subject,meaning in subjects.items():
+            if not re.fullmatch(r'[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*',subject) or not isinstance(meaning,dict):return None
+            if set(meaning)-{'property','emphasis','role','state'} or any(not isinstance(v,str) for v in meaning.values()):return None
     from .generate.dimensions import validate_values
     try:dimensions=validate_values(design.get('dimensions',{}))
     except ValueError:return None
@@ -74,7 +83,7 @@ def machine_statement(statement):
         if not pointer.startswith('/') or re.search(r'~(?![01])',pointer):return None
         # Identity is owned by the language package, not a presentation standard.
         if pointer.split('/')[1] not in {'style','roles','layout','components','overrides','behaviors','assets'}:return None
-    return {'values':deepcopy(values),'dimensions':dimensions}
+    return {'values':deepcopy(values),'dimensions':dimensions,'mappings':deepcopy(mappings)}
 
 
 def machine_values(statement):
@@ -91,7 +100,7 @@ def explain(settings,repo,scope,key,kind):
     current=receipt.get('current')
     entry={'kind':kind,'scope':scope,'key':key,'state':receipt['state'],'current':current,
            'trusted':receipt.get('trusted'),'unknowns':receipt.get('unknowns',[]),'receipt':receipt,
-           'fixed':False,'values':{},'dimensions':{},'application':'Unknown'}
+           'fixed':False,'values':{},'dimensions':{},'mappings':{},'application':'Unknown'}
     if receipt['state']=='conflict':entry['application']='Conflict — no value applied'
     elif receipt['state']=='current' and isinstance(current,dict):
         authoritative=current.get('standing')=='authoritative'

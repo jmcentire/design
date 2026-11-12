@@ -433,3 +433,88 @@ naming its version and configured scope; **received** never implies **current**.
 from explain can be explicitly routed with `kinbase questions ask <id>`. No feedback action
 changes fixed inputs, validation outcomes or current direction on its own. There are no pushes,
 merges, deployments or automatic authority promotions.
+
+## Meaning layer (M5)
+
+Ingest held the structure of a source and left its meaning to hand-mapping: which token is a
+surface, which is an emphasis, what moves when a value changes. The meaning layer drafts that
+mapping with its evidence, restricts it to Vocabulary enums, and labels every mapping with its
+standing. Open **Meaning** in the workbench (`/meaning`), or use the CLI:
+
+```sh
+python -m kinbase_design import-artifact --file ./tokens.css --kind css
+python -m kinbase_design import-artifact --file ./usage.md --kind doc
+python -m kinbase_design meaning discover --corpus my-system --from artifact-HASH --from artifact-HASH
+python -m kinbase_design meaning show my-system
+python -m kinbase_design meaning choose my-system css.text-secondary --author "Name" --accept
+python -m kinbase_design meaning choose my-system css.text-primary --author "Name" --property color --emphasis neutral
+python -m kinbase_design meaning choose my-system css.node-trigger --author "Name" --gap "No Vocabulary role"
+python -m kinbase_design meaning sync my-system
+python -m kinbase_design meaning propose my-system --author "Name"
+python -m kinbase_design meaning draft my-system --language my-language --context base
+python -m kinbase_design meaning apply my-system my-language
+python -m kinbase_design meaning check my-language --corpus my-system
+python -m kinbase_design meaning impact color.primary --language harbor
+python -m kinbase_design meaning define listing-card.price
+```
+
+**Discover.** A corpus is read from immutable private artifacts: CSS custom properties
+(`--kind css`), DTCG JSON, and prose (`--kind doc` or a brief). Stylesheet tokens are named
+`css.<property-name>`; a selector that names `dark` or `light` supplies that context, everything
+else is `base`. Hex, `rgb()`, `hsl()`, `oklch()`, `oklab()` and `color(srgb …)` become sRGB hex, and
+a converted value is recorded as converted. Candidate mappings come from deterministic name
+heuristics and are reported as **heuristic**, with the name words they rest on and their doubts
+(`ordinal-scale`, `collision`, `no-family`, `default-emphasis`, `scale-step-without-role`). No
+model is called. Every token is either mapped or a recorded gap: `vocabulary` (the name asks for
+meaning the Vocabulary lacks, such as elevation, inverse pairings or workflow colours),
+`unsupported-value`, or `unmapped`. Importing never widens the Vocabulary.
+
+**Ground.** A meaning is `{property, emphasis?, role?, state?}`. The property comes from the closed
+property set for the token's type (`space` and `breakpoint` stand for the R4 groups); emphasis,
+role and state are Vocabulary ids. Anything else is refused, whoever proposes it.
+
+**Standing.** `certified` outranks `chosen`, which outranks `candidate`; recency only orders local
+choices among themselves. A local choice records its author and supersedes the previous one in an
+append-only log. It is a choice, like a visual-question answer, and never a certification.
+Certification comes only from Kinbase: `meaning sync` reads the configured standard keys and
+certifies a mapping when an authoritative, trusted, in-scope current fact states it. The snapshot
+is replaced on every sync, so Kinbase unavailable means certification is unknown and nothing is
+certified. Facts that disagree certify nothing for that token. `meaning propose` sends local
+choices (never raw candidates) through `kin kinbase submit --type decision` with agent
+provenance; **received** never means certified.
+
+**Proposed convention, awaiting confirmation with the Kinbase owner (G2):** the statement
+convention above gains a third optional member, keyed by corpus id and token path:
+
+```json
+{"kinbase-design":{"mappings":{"my-system":{"css.text-secondary":{"property":"color","emphasis":"muted"}}}}}
+```
+
+**Draft and apply.** `meaning draft` goes through the ordinary ingest draft path (same validator,
+resolver, provenance map and `save-draft`) and then places role treatments from the current
+mappings: text colour per emphasis, one default surface, role-specific type size and family, and
+control box colours. Each placed value records its mapping and standing; a certified one carries
+`kinbase:<fact_id>`. `meaning apply` re-places from the current mappings, starting from the ingest
+treatment so a withdrawn mapping leaves nothing behind. Unplaced tokens, colliding mappings, gaps
+and unexpressed contexts are coverage findings on the draft. A language holds one context; a
+second context is a second language. Reviewers' names, notes and source locations stay in the
+private workspace.
+
+**Check.** `meaning check` compares every token reference in a library language with the corpus
+mappings of that token and of anything it aliases. A broken **certified** contract is a
+`violation` naming the fact and scope; a broken local choice or candidate is advisory `coverage`,
+labelled with its standing. The check is explicit and is not part of `validate` or `mint`, because
+a corpus lives in the private workspace and library validation must work without one.
+
+**Ask.** `meaning impact` answers, from the library alone: which tokens alias this one, which role,
+component and override members name it, which resolved treatments move with it (computed by the
+resolver), which contrast pairs to re-check, and which minted versions hold it. `meaning define`
+answers for a role, emphasis, state, construct, slot or corpus token. Every part of an answer
+carries the file and JSON pointer it rests on, and a corpus mapping carries its standing.
+
+Not built, and not claimed: a run over a real published design system (this environment's network
+policy blocks the intended one), an MCP server (the CLI and the workbench are the surfaces),
+grounding of component names or variants, and reconstruction of foreign component treatments
+beyond what the existing ingest capture already does. Behaviour does not import: a language is
+identity over shared semantic HTML.
+

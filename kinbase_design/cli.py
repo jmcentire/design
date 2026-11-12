@@ -43,7 +43,7 @@ def parser():
             sub.add_argument('--widths')
         if name == 'import-artifact':
             sub.add_argument('--file', required=True)
-            sub.add_argument('--kind', choices=['image','mock','wireframe','figma-export','dtcg','asset','brief'])
+            sub.add_argument('--kind', choices=['image','mock','wireframe','figma-export','dtcg','asset','brief','css','doc'])
         if name == 'capture':
             sub.add_argument('--url', action='append', required=True)
             sub.add_argument('--widths')
@@ -81,6 +81,30 @@ def parser():
             sub.add_argument('pair');sub.add_argument('choice', choices=['A','B','neither'])
             sub.add_argument('--comment', default='');sub.add_argument('--supersedes')
         if name == 'derive':sub.add_argument('--language', required=True)
+    meaning = commands.add_parser('meaning', parents=[common])
+    actions = meaning.add_subparsers(dest='meaning_action', required=True)
+    for name in ('discover','show','choose','sync','propose','draft','apply','check','impact','define'):
+        sub = actions.add_parser(name, parents=[common])
+        if name == 'discover':
+            sub.add_argument('--corpus', required=True)
+            sub.add_argument('--from', dest='artifacts', action='append', required=True)
+        elif name == 'check':
+            sub.add_argument('language_id');sub.add_argument('--corpus', required=True)
+        elif name == 'impact':
+            sub.add_argument('token');sub.add_argument('--language');sub.add_argument('--corpus')
+        elif name == 'define':
+            sub.add_argument('term');sub.add_argument('--corpus')
+        else:sub.add_argument('corpus')
+        if name == 'choose':
+            sub.add_argument('subject');sub.add_argument('--author', required=True)
+            sub.add_argument('--accept', action='store_true');sub.add_argument('--gap')
+            for member in ('property','emphasis','role','state'):sub.add_argument('--'+member)
+            sub.add_argument('--note', default='')
+        if name == 'propose':
+            sub.add_argument('--author', required=True);sub.add_argument('--subject', action='append', default=[])
+        if name == 'draft':
+            sub.add_argument('--language', required=True);sub.add_argument('--context')
+        if name == 'apply':sub.add_argument('draft_id')
     return p
 
 
@@ -103,6 +127,23 @@ def main(argv=None):
             elif action=='choose':result=generate.choose(workspace,args.session,args.pair,args.choice,args.comment,args.supersedes)
             elif action=='settled':result=generate.settled(workspace,args.session)
             else:result=generate.derive(library,workspace,args.session,args.language)
+            output(result)
+            if isinstance(result,dict) and result.get('accepted') is False:return 1
+        elif args.command == 'meaning':
+            from . import meaning
+            action=args.meaning_action
+            if action=='discover':result=meaning.discover(library,workspace,args.corpus,args.artifacts)
+            elif action=='show':result=meaning.show(library,workspace,args.corpus)
+            elif action=='choose':
+                chosen={m:getattr(args,m) for m in ('property','emphasis','role','state') if getattr(args,m)}
+                result=meaning.choose(library,workspace,args.corpus,args.subject,args.author,chosen or None,args.gap,args.accept,args.note)
+            elif action=='sync':result=meaning.sync(library,workspace,args.corpus)
+            elif action=='propose':result=meaning.propose(library,workspace,args.corpus,args.author,args.subject)
+            elif action=='draft':result=meaning.draft(library,workspace,args.corpus,args.language,args.context)
+            elif action=='apply':result=meaning.apply(library,workspace,args.corpus,args.draft_id)
+            elif action=='check':result=meaning.check(library,workspace,args.language_id,args.corpus)
+            elif action=='impact':result=meaning.impact(library,args.token,args.language,workspace,args.corpus)
+            else:result=meaning.define(library,args.term,workspace,args.corpus)
             output(result)
             if isinstance(result,dict) and result.get('accepted') is False:return 1
         elif args.command == 'vocabulary':

@@ -140,6 +140,12 @@ def generate_config(path=None):
     if unknown:raise ValueError('Unknown generate settings: '+', '.join(sorted(unknown)))
     return GenerateConfig(**values)
 
+# Meaning-layer bounds: one corpus, its prose evidence, and one impact answer.
+MEANING_MAX_TOKENS = 5000
+MEANING_MAX_USAGE = 500
+MEANING_USAGE_TEXT = 300
+MEANING_MAX_NOTE = 2000
+
 # Apply subprocess bounds. Browser work shares the capture worker's total bound.
 APPLY_GIT_TIMEOUT_SECONDS = 30
 APPLY_DEFAULT_TARGET_DIR = 'kinbase-design'

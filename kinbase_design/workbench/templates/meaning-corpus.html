@@ -1,0 +1,27 @@
+{% extends "base.html" %}{% block content %}
+<h1>{{ corpus.corpus }}</h1><p class="lede">{{ corpus.tokens }} tokens · contexts: {{ corpus.contexts|join(', ') }} · Vocabulary {{ corpus.vocabulary }}. Every token is mapped or recorded as a gap.</p>
+<p><span class="badge">{{ corpus.counts.certified }} certified</span> <span class="badge">{{ corpus.counts.chosen }} local choices</span> <span class="badge">{{ corpus.counts.candidate }} heuristic candidates</span> <span class="badge">{{ corpus.counts.gap }} gaps</span></p>
+<section class="panel"><h2>Certification</h2><p>Kinbase certification: <strong>{{ corpus.certification }}</strong>. Only an authoritative, in-scope, current Kinbase fact certifies a mapping; local choices and candidates stay proposals.</p>
+{% if not kinbase.connected %}<p>Kinbase is not connected ({{ kinbase.reason }}). Nothing is certified and nothing is sent.</p>{% endif %}
+{% for item in corpus.rejected %}<p class="error">Kinbase fact {{ item.fact_id }} names <code>{{ item.subject }}</code>: {{ item.message }}. Not applied.</p>{% endfor %}
+{% if corpus.conflicts %}<p class="error">Authoritative facts disagree; nothing certified for: {{ corpus.conflicts|join(', ') }}</p>{% endif %}
+{% if receipt %}<p>Proposal: <strong>{{ receipt.status }}</strong>{% if receipt.reason %} · {{ receipt.reason }}{% endif %}. Received never means certified.</p>{% endif %}
+<div class="actions"><form method="post" action="/meaning/{{ corpus.corpus }}/sync"><button>Read current certification</button></form>
+<form method="post" action="/meaning/{{ corpus.corpus }}/propose"><label>Reviewer<input name="author" required></label><button>Propose local choices to Kinbase</button></form></div></section>
+<section class="panel"><h2>Draft a language</h2><div class="actions"><form method="post" action="/meaning/{{ corpus.corpus }}/draft"><label>New language id<input name="language" pattern="[a-z0-9]+(-[a-z0-9]+)*" required></label><label>Context<select name="context">{% for name in corpus.contexts %}<option>{{ name }}</option>{% endfor %}</select></label><button>Draft from current mappings</button></form>
+<form method="post" action="/meaning/{{ corpus.corpus }}/apply"><label>Existing draft id<input name="draft" pattern="[a-z0-9]+(-[a-z0-9]+)*" required></label><button>Re-apply mappings to a draft</button></form></div><p>The draft uses the ordinary ingest path. Each placed value records its mapping and standing.</p></section>
+<section class="panel"><h2>Mappings</h2><table><thead><tr><th>Token</th><th>Meaning</th><th>Standing</th><th>Evidence</th><th>Review</th></tr></thead><tbody>
+{% for item in corpus.mappings %}<tr><td><code>{{ item.subject }}</code><br><span class="muted">{{ item.type or 'untyped' }}</span></td>
+<td>{% if item.meaning %}{% for key, value in item.meaning.items() %}{{ key }}: <strong>{{ value }}</strong>{% if not loop.last %}<br>{% endif %}{% endfor %}{% else %}<span class="muted">{{ item.gap.reason }}: {{ item.gap.message }}</span>{% endif %}</td>
+<td><span class="badge">{{ item.status }}</span>{% if item.status == 'certified' %}<br><code>{{ item.authority }}</code> · scope {{ item.scope }}{% elif item.status == 'chosen' %}<br>local choice by {{ item.author }}, not certified{% elif item.status == 'candidate' %}<br>heuristic, not certified{% elif item.author %}<br>reviewed by {{ item.author }}{% endif %}</td>
+<td>{% if item.candidate %}name words: {{ item.candidate.basis|join(', ') }}{% if item.candidate.flags %}<br>doubts: {{ item.candidate.flags|join(', ') }}{% endif %}{% if item.candidate.collides %}<br>same meaning as {{ item.candidate.collides|join(', ') }}{% endif %}{% endif %}{% if item.decisions %}<br>{{ item.decisions|length }} local decision{{ 's' if item.decisions|length != 1 }}{% endif %}</td>
+<td><details><summary>Decide</summary><form method="post" action="/meaning/{{ corpus.corpus }}/choose"><input type="hidden" name="subject" value="{{ item.subject }}"><label>Reviewer<input name="author" required></label>
+<label>Decision<select name="decision">{% if item.candidate %}<option value="accept">Accept the candidate</option>{% endif %}<option value="correct">Correct the meaning</option><option value="gap">Record as a gap</option></select></label>
+<label>Property<select name="property"><option value=""></option>{% for name in properties %}<option>{{ name }}</option>{% endfor %}</select></label>
+<label>Emphasis<select name="emphasis"><option value=""></option>{% for name in vocabulary.emphasis %}<option>{{ name }}</option>{% endfor %}</select></label>
+<label>Role<select name="role"><option value=""></option>{% for name in vocabulary.roles %}<option>{{ name }}</option>{% endfor %}</select></label>
+<label>State<select name="state"><option value=""></option>{% for name in vocabulary.states %}<option>{{ name }}</option>{% endfor %}</select></label>
+<label>Gap reason<input name="gap"></label><button>Record decision</button></form></details></td></tr>{% endfor %}</tbody></table></section>
+{% if corpus.usage %}<section class="panel"><h2>Usage evidence</h2><p>Prose that names a token. It is evidence with a source, not a rule, and nothing in it is executed.</p><ul>{% for item in corpus.usage %}<li>{{ item.text }} <span class="muted">· {{ item.location }} · {{ item.tokens|join(', ') }}</span></li>{% endfor %}</ul></section>{% endif %}
+{% if corpus.problems %}<section class="panel"><h2>Source problems</h2><ul>{% for item in corpus.problems %}<li>{{ item.message }}</li>{% endfor %}</ul></section>{% endif %}
+{% endblock %}

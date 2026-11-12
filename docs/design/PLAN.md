@@ -113,6 +113,24 @@ Any new Kinbase source adapter is Kinbase work, with its own access decisions, a
 plan. Until one is confirmed, those sources enter through committed exports and workbench
 feedback. M4 builds only what the answers support.
 
+### M5 — Meaning layer (SPEC §12)
+Mechanizes the M2 mapping step and makes the role clarification operational for mappings.
+
+- **P1 Discovery over one corpus.** Built: CSS custom property, DTCG and prose sources; candidate
+  mappings with provenance; the mapped-or-gap invariant. Not run on a real published system: the
+  intended corpus is a public documentation site that this environment's network policy blocks.
+  P1's hand review of mapping precision on a sample is therefore still open.
+- **P2 A language from mappings.** Built: draft, apply and save through the ingest path, with the
+  standing of each placed value on record. Foundations only; component treatments still come from
+  the existing capture and fidelity review.
+- **P3 Certification workflow.** Built: local choice, correction and supersession with author and
+  history; certification read from Kinbase's scoped authority; proposals sent as evidence.
+  Certification throughput is unmeasured, and depends on G1, G2 and G6.
+- **P4 Exposure.** Built over the CLI and workbench: impact and definition answers with sources,
+  uncertified mappings labelled. No MCP server.
+
+Exit: B18–B21 pass.
+
 ## Factory briefs (per milestone)
 
 - **Builder** receives: the milestone's SPEC sections, R1–R5, the pinned vocabulary and
