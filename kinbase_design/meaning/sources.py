@@ -178,20 +178,36 @@ def read_css(table, problems, artifact, text, only=()):
             break
 
 
+MODES = ('light', 'dark')
+
+
 def read_dtcg(table, problems, artifact, data):
     tree = json.loads(data)
     if not isinstance(tree, dict):
         raise ValueError('DTCG import must be an object')
     tokens = Tokens(tree)
+    # A group whose only members are tokens named light and dark is one themed token.
+    members = {}
+    for path in tokens.nodes:
+        members.setdefault(path.rpartition('.')[0], set()).add(path.rpartition('.')[2])
+    themed = {group for group, names in members.items() if group and names <= set(MODES)
+              and not any(other.startswith(group + '.') and other.count('.') > group.count('.') + 1 for other in tokens.nodes)}
+    def unthemed(value):
+        alias = ALIAS.fullmatch(value) if isinstance(value, str) else None
+        if alias and alias[1].rpartition('.')[0] in themed:
+            return '{' + alias[1].rpartition('.')[0] + '}'
+        return value
     for path, node in tokens.nodes.items():
-        entry = token(table, path, artifact)
-        record = {'location': 'json:' + pointer(*path.split('.'), '$value'), 'value': node['$value']}
+        group, _, leaf = path.rpartition('.')
+        folded = group in themed
+        entry = token(table, group if folded else path, artifact)
+        record = {'location': 'json:' + pointer(*path.split('.'), '$value'), 'value': unthemed(node['$value'])}
         try:
             entry['type'], _ = tokens.evaluate(path)
         except (ValueError, KeyError) as exc:
-            entry['type'] = node.get('$type') if isinstance(node.get('$type'), str) else None
+            entry['type'] = entry['type'] or (node.get('$type') if isinstance(node.get('$type'), str) else None)
             record['unsupported'] = str(exc)
-        entry['contexts'][BASE] = record
+        entry['contexts'][leaf if folded else BASE] = record
 
 
 def usage(table, artifact, text):
@@ -242,6 +258,11 @@ def read(workspace, artifact_ids, only=()):
     return table, evidence, problems
 
 
+def holdable(path):
+    """Whether the language schema can name this token (R4 constrains breakpoint ids)."""
+    return not path.startswith('breakpoint.') or bool(re.fullmatch(r'breakpoint\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*', path))
+
+
 def context_value(entry, context):
     """The record a context resolves to; a named context falls back to the base one."""
     return entry['contexts'].get(context) or entry['contexts'].get(BASE)
@@ -252,7 +273,7 @@ def tree(table, context):
     nodes = {}
     for path, entry in table.items():
         record = context_value(entry, context)
-        if not record or 'value' not in record or entry['type'] is None:
+        if not record or 'value' not in record or entry['type'] is None or not holdable(path):
             continue
         value = record['value']
         try:

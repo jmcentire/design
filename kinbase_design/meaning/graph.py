@@ -14,7 +14,7 @@ from ..findings import pointer
 from ..ingest.documents import read_document, write_document
 from ..storage import identifier, inside, write_json
 from .lexicon import ground, pressure, propose as propose_meaning, segments, MEMBERS
-from .sources import read, BASE
+from .sources import read, holdable, BASE
 
 STANDING = ('certified', 'chosen', 'candidate', 'gap')
 
@@ -60,6 +60,9 @@ def discover(workspace, vocabulary, corpus, artifact_ids, only=()):
         if entry['type'] is None or len(unsupported) == len(entry['contexts']):
             # Vocabulary pressure is the more useful record when both apply (a shadow, say).
             gaps[path] = pressure(path) or {'reason': 'unsupported-value', 'message': unsupported[0] if unsupported else 'The token has no supported type'}
+            continue
+        if not holdable(path):
+            gaps[path] = {'reason': 'unsupported-value', 'message': 'The language schema cannot name this breakpoint'}
             continue
         siblings = [other for other in groups[family(path)] if other != path]
         candidate, gap = propose_meaning(path, entry['type'], siblings)

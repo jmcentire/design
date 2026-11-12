@@ -14,6 +14,7 @@ COLOR_FAMILIES = (
     ('border-color', {'stroke', 'border', 'outline', 'divider', 'separator', 'ring', 'line'}),
 )
 CONTROL_WORDS = {'control', 'input', 'field'}
+ACTION_WORDS = {'button', 'btn', 'cta'}
 EMPHASIS_WORDS = {
     'neutral': {'default', 'base', 'neutral', 'strong', 'body', 'main', 'normal'},
     'primary': {'brand', 'accent', 'link', 'interactive', 'info', 'action'},
@@ -54,6 +55,7 @@ PRESSURE = {
     'inverse': 'inverse pairing', 'inverted': 'inverse pairing', 'on': 'on-surface pairing',
     'contrast': 'inverse pairing', 'chart': 'data visualisation', 'graph': 'data visualisation',
     'node': 'workflow or node', 'workflow': 'workflow or node', 'syntax': 'code syntax',
+    'success': 'a success status', 'positive': 'a success status',
 }
 NAMESPACES = {'css', 'color', 'colors', 'colour', 'palette', 'semantic', 'theme', 'token', 'tokens', 'kd'}
 
@@ -141,16 +143,20 @@ def propose(path, token_type, siblings=()):
         return {'meaning': meaning, 'basis': [suffix] + ([word] if word else []), 'flags': []}, None
     if token_type == 'color' and hue(words):
         return None, hue(words)
+    if token_type == 'color' and any(word.isdigit() for word in words):
+        # "neutral.900" is a step on a ramp. Roles alias it; it is not itself a role.
+        return None, {'reason': 'unmapped', 'message': 'A numbered palette step is a primitive value, not a role'}
     state, word = first(words, STATE_WORDS)
     if state:
         meaning['state'] = state
         basis.append(word)
     if token_type == 'color':
-        control = next((w for w in words if w in CONTROL_WORDS), None)
+        control = next((w for w in words if w in CONTROL_WORDS | ACTION_WORDS), None)
         family, word = first(words, COLOR_FAMILIES)
         if control:
-            # A control's own fill is a box property; its page surface is not.
-            meaning.update(role='control', property='background-color' if family in {None, 'surface'} else family)
+            # A control's or a button's own fill is a box property; its page surface is not.
+            meaning.update(role='action' if control in ACTION_WORDS else 'control',
+                           property='background-color' if family in {None, 'surface'} else family)
             basis.extend(w for w in (control, word) if w)
         elif family:
             meaning['property'] = family
@@ -162,7 +168,8 @@ def propose(path, token_type, siblings=()):
         elif ordinal:
             # "primary" beside "secondary" is a rank, not the brand emphasis.
             ranked = any(set(segments(other)) & set(ORDINALS[1:]) for other in siblings)
-            if ordinal == 'primary' and not ranked:
+            # A primary button or control is the primary action, whatever ranks beside it.
+            if ordinal == 'primary' and (not ranked or control):
                 emphasis = 'primary'
             else:
                 emphasis = 'neutral' if ordinal == 'primary' else 'muted'
@@ -180,6 +187,10 @@ def propose(path, token_type, siblings=()):
             flags.append('default-emphasis')
     elif token_type in {'dimension', 'number'}:
         family, word = first(words, DIMENSION_FAMILIES)
+        # "lineHeight.display" and "letterSpacing.tight" name their property in two words.
+        for prop in ('line-height', 'letter-spacing'):
+            if set(prop.split('-')) <= set(words):
+                family, word = prop, prop
         if family == 'border-radius' or family is None and {'border', 'stroke'} & set(words) and 'width' in words:
             family = family or 'border-width'
         if family is None or family not in PROPERTIES[token_type]:

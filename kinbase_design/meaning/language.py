@@ -48,20 +48,18 @@ def draft(library, workspace, corpus, language_id, context=None):
     context = context or next(name for name in ('light', BASE, *document['contexts']) if name in document['contexts'])
     if context not in document['contexts']:
         raise ValueError('Unknown context; this corpus has: ' + ', '.join(document['contexts']))
-    styles = {path: entry for path, entry in document['tokens'].items() if path.startswith('css.')}
-    artifacts = list(dict.fromkeys(entry['artifact'] for path, entry in document['tokens'].items() if path not in styles))
-    if styles:
-        derived = tree(styles, context)
-        if derived:
-            data = (json.dumps(derived, sort_keys=True, indent=2) + '\n').encode()
-            artifacts.append(import_bytes(workspace, data, f'{corpus}-{context}.tokens.json', 'dtcg'))
-    if not artifacts:
+    # The draft's Style is transcribed from the corpus, not from the source files: a themed
+    # token becomes its value in this context, and what the schema cannot hold stays a gap.
+    derived = tree(document['tokens'], context)
+    if not derived:
         raise ValueError('This context has no token the language schema can hold')
+    data = (json.dumps(derived, sort_keys=True, indent=2) + '\n').encode()
+    artifacts = [import_bytes(workspace, data, f'{corpus}-{context}.tokens.json', 'dtcg')]
     ingest_draft(library, workspace, artifacts, language_id)
     root = draft_folder(workspace, language_id)
     working = load_draft(workspace, language_id)
     provenance = read_document(inside(root, 'provenance.json'))
-    for path, entry in styles.items():
+    for path, entry in document['tokens'].items():
         target = pointer('style', *path.split('.'), '$value')
         if location(working, target)[0] != target:
             continue
@@ -69,7 +67,7 @@ def draft(library, workspace, corpus, language_id, context=None):
         origin = source(entry['artifact'], record['location'])
         for child in [key for key in provenance if key == target or key.startswith(target + '/')]:
             del provenance[child]
-        # The derived token file is a transcription; the stylesheet stays the source.
+        # The transcription is not the source; the original artifact is.
         provenance[target] = ({'kind': 'inferred', 'method': 'CSS colour converted to sRGB hex', 'inputs': [origin]}
                               if record.get('converted') else origin)
     write_document(inside(root, 'provenance.json'), complete(working, provenance, artifacts))
@@ -106,7 +104,7 @@ def placements(mappings, tokens, vocabulary):
     families = [item for item in usable if item['meaning']['property'] == 'font-family']
     for role in vocabulary['roles']:
         for emphasis in vocabulary['emphasis']:
-            for prop in TEXT_PROPERTIES + (CONTROL_PROPERTIES if role == 'control' else ()):
+            for prop in TEXT_PROPERTIES + (CONTROL_PROPERTIES if role in {'control', 'action'} else ()):
                 if prop == 'color':
                     found = pick(prop, role, (emphasis,))
                 elif prop == 'surface':

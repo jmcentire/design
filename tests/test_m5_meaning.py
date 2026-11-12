@@ -110,6 +110,37 @@ def test_only_root_and_theme_scopes_define_tokens(library, tmp_path):
     assert set(by_subject(filtered)) == {"css.color-bg-base", "css.color-text-red"}
 
 
+def test_light_and_dark_leaves_are_one_themed_token(library):
+    artifact = library.json("import-artifact", "--file", SOURCE / "themed.tokens.json", "--kind", "dtcg")["artifact"]
+    result = meaning(library, "discover", "--corpus", "themed", "--from", artifact)
+    mappings = by_subject(result)
+    assert result["contexts"] == ["base", "dark", "light"]
+    assert "text.primary" in mappings and "text.primary.light" not in mappings
+    # With the theme folded away, "primary" beside "secondary" reads as a rank again.
+    assert mappings["text.primary"]["meaning"] == {"property": "color", "emphasis": "neutral"}
+    assert mappings["text.primary"]["candidate"]["flags"] == ["ordinal-scale"]
+    # A button's fill and the text on it both belong to the action role.
+    assert mappings["button.primary"]["meaning"] == {"role": "action", "property": "background-color", "emphasis": "primary"}
+    assert mappings["text.buttonPrimary"]["meaning"] == {"role": "action", "property": "color", "emphasis": "primary"}
+    assert mappings["semantic.success"]["gap"]["reason"] == "vocabulary"
+    assert mappings["ease.out"]["gap"]["reason"] == "unsupported-value"
+    defined = meaning(library, "define", "text.primary", "--corpus", "themed")
+    assert defined["contexts"] == {"light": {"value": "{color.ink.900}"}, "dark": {"value": "{color.ink.50}"}}
+    for context, ink, fill in (("light", "#101418", "#0a6c74"), ("dark", "#f4f6f8", "#7fd1d8")):
+        language = "themed-" + context
+        drafted = meaning(library, "draft", "themed", "--language", language, "--context", context, timeout=120)
+        assert drafted["accepted"], drafted["findings"]
+        library.json("save-draft", language, cwd=library.project)
+        document = json.loads((library.library / "languages" / language / "working.json").read_text())
+        # A reference to a themed leaf follows the fold, and unsupported tokens stay out.
+        assert pointer_value(document, "/style/text/link/$value") == "{text.primary}" and "ease" not in document["style"]
+        assert pointer_value(document, "/roles/action/primary/background-color") == "{button.primary}"
+        assert pointer_value(document, "/roles/action/primary/color") == "{text.buttonPrimary}"
+        text = library.json("resolve", language, "page-shell.body")["properties"]["color"]["value"]
+        action = library.json("resolve", language, "form.action")["properties"]["background-color"]["value"]
+        assert (text, action) == (ink, fill)
+
+
 def test_gaps_separate_vocabulary_pressure_from_unreadable_values(corpus):
     mappings = by_subject(corpus)
     for subject in ("css.shadow-raised", "css.node-trigger", "css.text-on-brand"):
