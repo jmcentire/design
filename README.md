@@ -445,6 +445,7 @@ standing. Open **Meaning** in the workbench (`/meaning`), or use the CLI:
 python -m kinbase_design import-artifact --file ./tokens.css --kind css
 python -m kinbase_design import-artifact --file ./usage.md --kind doc
 python -m kinbase_design meaning discover --corpus my-system --from artifact-HASH --from artifact-HASH
+python -m kinbase_design meaning discover --corpus colours --from artifact-HASH --only color-
 python -m kinbase_design meaning show my-system
 python -m kinbase_design meaning choose my-system css.text-secondary --author "Name" --accept
 python -m kinbase_design meaning choose my-system css.text-primary --author "Name" --property color --emphasis neutral
@@ -460,14 +461,20 @@ python -m kinbase_design meaning define listing-card.price
 
 **Discover.** A corpus is read from immutable private artifacts: CSS custom properties
 (`--kind css`), DTCG JSON, and prose (`--kind doc` or a brief). Stylesheet tokens are named
-`css.<property-name>`; a selector that names `dark` or `light` supplies that context, everything
-else is `base`. Hex, `rgb()`, `hsl()`, `oklch()`, `oklab()` and `color(srgb …)` become sRGB hex, and
-a converted value is recorded as converted. Candidate mappings come from deterministic name
-heuristics and are reported as **heuristic**, with the name words they rest on and their doubts
-(`ordinal-scale`, `collision`, `no-family`, `default-emphasis`, `scale-step-without-role`). No
-model is called. Every token is either mapped or a recorded gap: `vocabulary` (the name asks for
-meaning the Vocabulary lacks, such as elevation, inverse pairings or workflow colours),
-`unsupported-value`, or `unmapped`. Importing never widens the Vocabulary.
+`css.<property-name>`. Only a document root (`:root`, `:host`, `html`, `body`, `@theme`) or a bare
+theme switch (`.dark`, `[data-theme=dark]`) defines a token; a utility class or component that
+sets a custom property is an override and is counted, not read. A scope that names `dark` or
+`light` supplies that context, everything else is `base`. `--only PREFIX` keeps the custom
+properties whose names start with a prefix. Hex, `rgb()`, `hsl()`, `oklch()`, `oklab()` and
+`color(srgb …)` become sRGB hex, and a converted value is recorded as converted. When a later
+declaration cannot be held exactly (a `lab()` or `color-mix()` under `@supports`), the source's own
+earlier value is kept and the override is recorded beside it. Candidate mappings come from
+deterministic name heuristics and are reported as **heuristic**, with the name words they rest on
+and their doubts (`ordinal-scale`, `collision`, `unread-words`, `no-family`, `default-emphasis`,
+`scale-step-without-role`). No model is called. Every token is either mapped or a recorded gap:
+`vocabulary` (the name asks for meaning the Vocabulary lacks, such as a hue, elevation, an inverse
+pairing or a workflow colour), `unsupported-value`, or `unmapped`. Importing never widens the
+Vocabulary.
 
 **Ground.** A meaning is `{property, emphasis?, role?, state?}`. The property comes from the closed
 property set for the token's type (`space` and `breakpoint` stand for the R4 groups); emphasis,
@@ -492,13 +499,16 @@ convention above gains a third optional member, keyed by corpus id and token pat
 
 **Draft and apply.** `meaning draft` goes through the ordinary ingest draft path (same validator,
 resolver, provenance map and `save-draft`) and then places role treatments from the current
-mappings: text colour per emphasis, one default surface, role-specific type size and family, and
-control box colours. Each placed value records its mapping and standing; a certified one carries
-`kinbase:<fact_id>`. `meaning apply` re-places from the current mappings, starting from the ingest
-treatment so a withdrawn mapping leaves nothing behind. Unplaced tokens, colliding mappings, gaps
-and unexpressed contexts are coverage findings on the draft. A language holds one context; a
-second context is a second language. Reviewers' names, notes and source locations stay in the
-private workspace.
+mappings: text colour per emphasis, one default surface (also the page background), role-specific
+type size and family, and control box colours. Equals are not guessed between: when several tokens
+tie for one treatment none is placed, and a candidate with an unread qualifier in its name is not
+placed either. Where an emphasis has no text colour of its own, the neutral colour stands in. Each
+placed value records its mapping and standing; a certified one carries `kinbase:<fact_id>`.
+`meaning apply` re-places from the current mappings, starting from the ingest treatment so a
+withdrawn mapping leaves nothing behind. Unplaced tokens, ties, gaps and unexpressed contexts are
+coverage findings on the draft. A language holds one context; a second context is a second
+language. The default context is `light` when the source has one. Reviewers' names, notes and
+source locations stay in the private workspace.
 
 **Check.** `meaning check` compares every token reference in a library language with the corpus
 mappings of that token and of anything it aliases. A broken **certified** contract is a
@@ -512,9 +522,13 @@ resolver), which contrast pairs to re-check, and which minted versions hold it. 
 answers for a role, emphasis, state, construct, slot or corpus token. Every part of an answer
 carries the file and JSON pointer it rests on, and a corpus mapping carries its standing.
 
-Not built, and not claimed: a run over a real published design system (this environment's network
-policy blocks the intended one), an MCP server (the CLI and the workbench are the surfaces),
-grounding of component names or variants, and reconstruction of foreign component treatments
-beyond what the existing ingest capture already does. Behaviour does not import: a language is
-identity over shared semantic HTML.
+One run over a real published system is recorded in
+[docs/design/M5-SPIKE.md](docs/design/M5-SPIKE.md): what discovery found, where the Vocabulary is
+under pressure, and why the resulting drafts do not yet pass the rendered checks. Nothing from that
+system is in this repository.
+
+Not built, and not claimed: certified mappings for any real system, an MCP server (the CLI and the
+workbench are the surfaces), grounding of component names or variants, and reconstruction of
+foreign component treatments beyond what the existing ingest capture already does. Behaviour does
+not import: a language is identity over shared semantic HTML.
 

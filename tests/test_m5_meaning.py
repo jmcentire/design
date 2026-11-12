@@ -81,6 +81,31 @@ def test_candidates_read_the_naming_scheme_and_record_their_doubts(corpus):
     assert mappings["css.text-tertiary"]["candidate"]["collides"] == ["css.text-secondary"]
 
 
+def test_only_root_and_theme_scopes_define_tokens(library, tmp_path):
+    sheet = tmp_path / "compiled.css"
+    sheet.write_text(
+        "@layer theme{:root,:host{--color-bg-base:var(--color-bg-base);--spacing:.25rem}}"
+        "@layer base{:root,[data-theme=light]{--color-bg-base:#fff;--color-text-red:#d00}"
+        "@supports (color:lab(0% 0 0)){:root,[data-theme=light]{--color-text-red:lab(45% 70 50)}}"
+        "[data-theme=dark]{--color-bg-base:#121110}}"
+        "@layer utilities{.\\[--color-bg-base\\:\\#000\\]{--color-bg-base:#000}.card{--tw-shadow:0 0 #0000}}")
+    artifact = library.json("import-artifact", "--file", sheet, "--kind", "css")["artifact"]
+    result = meaning(library, "discover", "--corpus", "compiled", "--from", artifact)
+    mappings = by_subject(result)
+    # The utility override and the component variable are not token definitions.
+    assert set(mappings) == {"css.color-bg-base", "css.color-text-red", "css.spacing"}
+    assert "2 custom property declarations outside a root or theme scope" in result["problems"][0]["message"]
+    base = meaning(library, "define", "css.color-bg-base", "--corpus", "compiled")
+    # The theme layer's self-reference is not a value; light and dark are.
+    assert base["contexts"] == {"light": {"value": "#ffffff"}, "dark": {"value": "#121110"}}
+    red = meaning(library, "define", "css.color-text-red", "--corpus", "compiled")
+    # The source's own sRGB fallback is kept; the wide-gamut override is on record.
+    assert red["contexts"]["light"] == {"value": "#dd0000", "overridden_by": "lab(45% 70 50)"}
+    assert red["standing"] == "gap" and red["gap"]["reason"] == "vocabulary"  # a hue is not an emphasis
+    filtered = meaning(library, "discover", "--corpus", "colours-only", "--from", artifact, "--only", "color-")
+    assert set(by_subject(filtered)) == {"css.color-bg-base", "css.color-text-red"}
+
+
 def test_gaps_separate_vocabulary_pressure_from_unreadable_values(corpus):
     mappings = by_subject(corpus)
     for subject in ("css.shadow-raised", "css.node-trigger", "css.text-on-brand"):
@@ -153,6 +178,10 @@ def test_draft_places_mapped_tokens_and_labels_every_placement(library, corpus):
     assert result["meaning"]["counts"]["certified"] == 0
     rules = {finding["rule"] for finding in result["findings"]}
     assert {"meaning-mapping", "meaning-collision", "meaning-gap", "meaning-context"} <= rules
+    # Two tokens tie for muted text. Neither is guessed; the neutral colour stands in.
+    assert pointer_value(document, "/roles/body/muted/color") == "{css.text-primary}"
+    collision = next(f for f in result["findings"] if f["rule"] == "meaning-collision")
+    assert "css.text-secondary" in collision["message"] and "css.text-tertiary" in collision["message"]
     assert all(f["type"] == "coverage" for f in result["findings"] if f["rule"].startswith("meaning-"))
     resolved = library.json("resolve", "fixture-light", "listing-card.price")["properties"]["color"]
     assert resolved == {"value": "#0550ae", "source": "role:label.primary"}
@@ -183,8 +212,8 @@ def test_a_correction_changes_resolution_and_its_provenance_is_retrievable(libra
     record = provenance["/roles/label/primary/color"]
     assert record["kind"] == "chosen" and record["standing"] == "chosen" and record["mapping"] == "css.text-danger"
     assert chosen["decision"] in record["method"]
-    # The withdrawn mapping leaves nothing behind: attention falls back to the ingest default.
-    assert pointer_value(document, "/roles/label/attention/color") != "{css.text-danger}"
+    # The withdrawn mapping leaves nothing behind: attention falls back to the neutral colour.
+    assert pointer_value(document, "/roles/label/attention/color") == "{css.text-primary}"
     assert "{css.text-brand}" not in json.dumps(document["roles"])
     history = meaning(library, "define", "css.text-danger", "--corpus", CORPUS)
     assert history["decisions"][0]["author"] == "Reviewer One" and history["candidate"]["meaning"]["emphasis"] == "attention"

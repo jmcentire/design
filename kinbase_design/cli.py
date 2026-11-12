@@ -88,6 +88,7 @@ def parser():
         if name == 'discover':
             sub.add_argument('--corpus', required=True)
             sub.add_argument('--from', dest='artifacts', action='append', required=True)
+            sub.add_argument('--only', action='append', default=[])
         elif name == 'check':
             sub.add_argument('language_id');sub.add_argument('--corpus', required=True)
         elif name == 'impact':
@@ -132,7 +133,7 @@ def main(argv=None):
         elif args.command == 'meaning':
             from . import meaning
             action=args.meaning_action
-            if action=='discover':result=meaning.discover(library,workspace,args.corpus,args.artifacts)
+            if action=='discover':result=meaning.discover(library,workspace,args.corpus,args.artifacts,args.only)
             elif action=='show':result=meaning.show(library,workspace,args.corpus)
             elif action=='choose':
                 chosen={m:getattr(args,m) for m in ('property','emphasis','role','state') if getattr(args,m)}

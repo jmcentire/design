@@ -44,7 +44,8 @@ def css_value(name, value):
         return 'alias', alias[1], False
     color = css_color(text)
     if color:
-        return 'color', color, text.lower() != color
+        # Hex shorthand and letter case are notation; any other syntax is a conversion.
+        return 'color', color, not re.fullmatch(r'#[0-9a-fA-F]{3,8}', text)
     if re.fullmatch(NUMBER + r'(px|rem)', text):
         return 'dimension', text, False
     words = set(re.split(r'[-_]+', name.lower()))
@@ -60,18 +61,45 @@ def css_value(name, value):
     return None, 'The value is outside the supported token types', False
 
 
+THEME_SCOPE = re.compile(r'[.\[][\w="\'-]*(?:dark|light|theme)[\w="\'-]*\]?')
+
+
+def token_scope(selectors):
+    """Whether a rule declares tokens: a document root, or a bare theme switch.
+
+    A utility class or a component that sets a custom property is an override in its
+    own scope, not a definition of the token.
+    """
+    for selector in selectors.split(','):
+        selector = selector.strip()
+        if selector in {':root', ':host', 'html', 'body'} or THEME_SCOPE.fullmatch(selector):
+            return True
+    return selectors.strip().startswith('@theme')
+
+
 def css_tokens(text):
-    """Custom properties by context. A selector naming dark or light chooses the context."""
+    """Custom property declarations in cascade order: (name, value, context, line).
+
+    A scope naming dark or light supplies that context. Returns the declarations
+    and how many were set outside a token scope and therefore not read.
+    """
     def spaces(match):
         return '\n' * match[0].count('\n')
     text = re.sub(r'/\*.*?\*/', spaces, text, flags=re.S)
-    found, stack, buffer, line, start = [], [], '', 1, 1
+    found, ignored, stack, buffer, line, start = [], 0, [], '', 1, 1
     def flush():
+        nonlocal ignored
         match = re.fullmatch(r'\s*--([A-Za-z0-9_-]+)\s*:\s*(.+?)\s*', buffer, flags=re.S)
-        if match and stack:
-            scope = ' '.join(stack).lower()
-            context = 'dark' if 'dark' in scope else 'light' if 'light' in scope else BASE
-            found.append((match[1], match[2], context, start))
+        if not match or not stack:
+            return
+        rules = [prelude for prelude in stack if not prelude.startswith('@') or prelude.startswith('@theme')]
+        if len(rules) != 1 or not token_scope(rules[0]):
+            ignored += 1
+            return
+        if VAR.fullmatch(match[2]) and VAR.fullmatch(match[2])[1] == match[1]:
+            return  # A theme layer re-exporting the property under its own name.
+        scope = rules[0].lower()
+        found.append((match[1], match[2], 'dark' if 'dark' in scope else 'light' if 'light' in scope else BASE, start))
     for char in text:
         if char == '\n':
             line += 1
@@ -90,39 +118,51 @@ def css_tokens(text):
             if not buffer.strip():
                 start = line
             buffer += char
-    return found
+    return found, ignored
 
 
 def token(table, path, artifact):
     return table.setdefault(path, {'path': path, 'type': None, 'artifact': artifact, 'contexts': {}})
 
 
-def read_css(table, problems, artifact, text):
-    names = {name for name, *_ in css_tokens(text)}
-    for name, value, context, line in css_tokens(text):
-        path = 'css.' + name
-        entry = token(table, path, artifact)
+def read_css(table, problems, artifact, text, only=()):
+    declarations, ignored = css_tokens(text)
+    if only:
+        declarations = [item for item in declarations if item[0].startswith(tuple(only))]
+    if ignored:
+        problems.append({'artifact': artifact, 'message':
+                         f'{ignored} custom property declarations outside a root or theme scope were not read as tokens'})
+    names = {name for name, *_ in declarations}
+    for name, value, context, line in declarations:
+        entry = token(table, 'css.' + name, artifact)
         kind, parsed, converted = css_value(name, value)
+        if kind == 'alias' and parsed not in names:
+            kind, parsed = None, 'The referenced custom property is not declared in this source'
         record = {'location': f'css:--{name}@{context}; line {line}', 'raw': value}
-        if kind == 'alias':
-            if parsed not in names:
-                kind, parsed = None, 'The referenced custom property is not declared in this source'
-            else:
-                record['value'] = '{css.' + parsed + '}'
-        elif kind:
-            record['value'] = parsed
-            if converted:
-                record['converted'] = True
         if kind is None:
             record['unsupported'] = parsed
-        elif kind != 'alias':
-            if entry['type'] not in {None, kind}:
-                problems.append({'artifact': artifact, 'message': f'--{name} changes type between contexts'})
+        else:
+            record.update(value='{css.' + parsed + '}' if kind == 'alias' else parsed, kind=kind)
+            if converted:
+                record['converted'] = True
+        earlier = entry['contexts'].get(context)
+        # The cascade's last declaration wins. When the schema cannot hold it exactly,
+        # the source's own earlier value is kept and the override is recorded.
+        if earlier and 'value' in earlier and not earlier.get('converted') and (kind is None or converted):
+            earlier['overridden_by'] = value
+            continue
+        entry['contexts'][context] = record
+    for entry in table.values():
+        kinds = {record.get('kind') for record in entry['contexts'].values() if record.get('kind') not in {None, 'alias'}}
+        if len(kinds) > 1:
+            problems.append({'artifact': artifact, 'message': f'--{entry["path"].removeprefix("css.")} changes type between contexts'})
+            for record in entry['contexts'].values():
                 record['unsupported'] = 'The value changes token type between contexts'
                 record.pop('value', None)
-            else:
-                entry['type'] = kind
-        entry['contexts'][context] = record
+        elif kinds:
+            entry['type'] = kinds.pop()
+        for record in entry['contexts'].values():
+            record.pop('kind', None)
     # An alias takes its type from its target once every declaration is read.
     for _ in range(len(table)):
         changed = False
@@ -175,7 +215,7 @@ def usage(table, artifact, text):
     return found
 
 
-def read(workspace, artifact_ids):
+def read(workspace, artifact_ids, only=()):
     table, problems, documents = {}, [], []
     for artifact in artifact_ids:
         kind = metadata(workspace, artifact).get('kind', 'asset')
@@ -186,7 +226,7 @@ def read(workspace, artifact_ids):
         suffix = Path(meta['filename']).suffix.lower()
         try:
             if kind == 'css' or suffix == '.css':
-                read_css(table, problems, artifact, data.decode('utf-8'))
+                read_css(table, problems, artifact, data.decode('utf-8'), only)
             elif kind == 'dtcg' or suffix == '.json':
                 read_dtcg(table, problems, artifact, data)
             elif kind in {'doc', 'brief'} or suffix in {'.md', '.mdx', '.txt'}:

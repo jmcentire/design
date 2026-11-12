@@ -11,8 +11,8 @@ from .language import draft, apply, check
 from .query import impact, define
 
 
-def discover(library, workspace, corpus, artifact_ids):
-    return graph.discover(workspace, load_vocabulary(library), corpus, artifact_ids)
+def discover(library, workspace, corpus, artifact_ids, only=()):
+    return graph.discover(workspace, load_vocabulary(library), corpus, artifact_ids, only)
 
 
 def show(library, workspace, corpus):

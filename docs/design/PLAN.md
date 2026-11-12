@@ -117,12 +117,14 @@ feedback. M4 builds only what the answers support.
 Mechanizes the M2 mapping step and makes the role clarification operational for mappings.
 
 - **P1 Discovery over one corpus.** Built: CSS custom property, DTCG and prose sources; candidate
-  mappings with provenance; the mapped-or-gap invariant. Not run on a real published system: the
-  intended corpus is a public documentation site that this environment's network policy blocks.
-  P1's hand review of mapping precision on a sample is therefore still open.
+  mappings with provenance; the mapped-or-gap invariant. Run once over Palermo's published
+  stylesheet (M5-SPIKE.md): 283 tokens, every one mapped or a gap, nothing certified. Jeremy's hand
+  review of mapping precision on a sample is still open; the spike holds only the builder's read.
 - **P2 A language from mappings.** Built: draft, apply and save through the ingest path, with the
-  standing of each placed value on record. Foundations only; component treatments still come from
-  the existing capture and fidelity review.
+  standing of each placed value on record. Two private Palermo drafts pass R1–R5 and fail the
+  rendered checks, for causes the spike traces to unreviewed mappings and two Vocabulary gaps. The
+  exit is not met. Foundations only; component treatments still come from the existing capture and
+  fidelity review.
 - **P3 Certification workflow.** Built: local choice, correction and supersession with author and
   history; certification read from Kinbase's scoped authority; proposals sent as evidence.
   Certification throughput is unmeasured, and depends on G1, G2 and G6.

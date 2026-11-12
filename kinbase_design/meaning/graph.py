@@ -6,13 +6,14 @@ which outranks a heuristic candidate. Recency only orders choices among themselv
 from datetime import datetime, timezone
 import fcntl
 import json
+import re
 from uuid import uuid4
 from .. import kinbase
 from ..config import MEANING_MAX_NOTE, KINBASE_FEEDBACK_LENGTH
 from ..findings import pointer
 from ..ingest.documents import read_document, write_document
 from ..storage import identifier, inside, write_json
-from .lexicon import ground, pressure, propose as propose_meaning, MEMBERS
+from .lexicon import ground, pressure, propose as propose_meaning, segments, MEMBERS
 from .sources import read, BASE
 
 STANDING = ('certified', 'chosen', 'candidate', 'gap')
@@ -35,20 +36,22 @@ def corpora(workspace):
                   if item.is_dir() and (item / 'corpus.json').exists())
 
 
-def discover(workspace, vocabulary, corpus, artifact_ids):
+def discover(workspace, vocabulary, corpus, artifact_ids, only=()):
     """Draft candidate mappings for every token; whatever is not mapped is a recorded gap."""
     root = folder(workspace, corpus)
     if root.exists():
         raise ValueError('Corpus already exists; choose a new corpus id')
     if not artifact_ids:
         raise ValueError('At least one source artifact is required')
-    table, evidence, problems = read(workspace, artifact_ids)
+    if any(not isinstance(prefix, str) or not re.fullmatch(r'[A-Za-z0-9_-]+', prefix) for prefix in only):
+        raise ValueError('A name prefix is letters, digits, hyphens and underscores')
+    table, evidence, problems = read(workspace, artifact_ids, only)
     if not table:
         raise ValueError('No tokens were found in the source artifacts')
     candidates, gaps = {}, {}
     def family(path):
-        # Tokens that are named together: a DTCG group, or a stylesheet's first name word.
-        return table[path]['type'], path.split('-')[0] if path.startswith('css.') else path.rpartition('.')[0]
+        # Tokens that are named together: a DTCG group, or a stylesheet's leading family word.
+        return table[path]['type'], segments(path)[0] if path.startswith('css.') else path.rpartition('.')[0]
     groups = {}
     for path in table:
         groups.setdefault(family(path), []).append(path)
@@ -76,7 +79,7 @@ def discover(workspace, vocabulary, corpus, artifact_ids):
                 candidates[path]['flags'].append('collision')
                 candidates[path]['collides'] = [other for other in paths if other != path]
     contexts = sorted({context for entry in table.values() for context in entry['contexts']})
-    document = {'id': corpus, 'artifacts': list(artifact_ids), 'vocabulary': vocabulary['version'], 'contexts': contexts,
+    document = {'id': corpus, 'artifacts': list(artifact_ids), 'only': list(only), 'vocabulary': vocabulary['version'], 'contexts': contexts,
                 'tokens': table, 'candidates': candidates, 'gaps': gaps, 'usage': evidence, 'problems': problems}
     root.mkdir(parents=True)
     write_document(inside(root, 'corpus.json'), document)

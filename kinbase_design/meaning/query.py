@@ -177,7 +177,7 @@ def define(library, term, workspace=None, corpus=None):
         from .graph import load
         document = load(workspace, corpus)
         return {'term': term, 'kind': 'token', 'corpus': corpus, **mapping_view(mappings[term]),
-                'contexts': {name: {key: record[key] for key in ('value', 'unsupported', 'converted') if key in record}
+                'contexts': {name: {key: record[key] for key in ('value', 'unsupported', 'converted', 'overridden_by') if key in record}
                              for name, record in document['tokens'][term]['contexts'].items()},
                 'usage': [{**item, 'label': 'usage evidence — prose, not a rule'} for item in document['usage'] if term in item['tokens']]}
     raise ValueError('Unknown term: not a Vocabulary role, emphasis, state, construct or slot'

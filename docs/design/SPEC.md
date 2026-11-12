@@ -655,5 +655,8 @@ Boundaries:
   context; the unexpressed context is a coverage finding.
 - The mapping convention inside Kinbase statements (`mappings`, keyed by corpus and token path) is
   proposed and awaits the Kinbase owner, with the rest of G2.
-- No run over a real published design system is recorded yet, and no MCP server exists.
+- Equals are not guessed between. When several tokens tie for one treatment, none is placed and
+  the tie is a coverage finding for a reviewer.
+- One run over a real published system is recorded in M5-SPIKE.md. No mapping for it is certified,
+  and no MCP server exists.
 

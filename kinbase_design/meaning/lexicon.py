@@ -20,7 +20,11 @@ EMPHASIS_WORDS = {
     'attention': {'danger', 'error', 'critical', 'destructive', 'warning', 'alert', 'attention', 'negative', 'caution'},
     'muted': {'muted', 'subtle', 'weak', 'dim', 'placeholder', 'disabled', 'faint', 'soft'},
 }
-ORDINALS = ('primary', 'secondary', 'tertiary', 'quaternary')
+ORDINALS = ('primary', 'secondary', 'tertiary', 'quaternary', 'quinary')
+# A hue or an absolute colour says what a token looks like, not what it is for.
+HUES = {'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'teal', 'cyan', 'blue', 'indigo', 'violet',
+        'purple', 'pink', 'rose', 'white', 'black'}
+SUB_PROPERTIES = ('line-height', 'letter-spacing', 'font-weight')
 STATE_WORDS = {
     'hover': {'hover', 'hovered'}, 'active': {'active', 'pressed', 'press'},
     'focus-visible': {'focus', 'focused'}, 'disabled': {'disabled'},
@@ -102,10 +106,19 @@ def first(words, table):
 
 def pressure(path):
     """A gap when the name asks for meaning the Vocabulary does not have."""
-    for word in segments(path):
+    words = segments(path)
+    for word in words:
         if word in PRESSURE:
             return {'reason': 'vocabulary', 'message':
                     f'No Vocabulary role or closed-set property expresses {PRESSURE[word]} ("{word}")'}
+    return None
+
+
+def hue(words):
+    for word in words:
+        if word in HUES:
+            return {'reason': 'vocabulary', 'message':
+                    f'A hue-named token ("{word}") states an appearance; the Vocabulary has no emphasis for it'}
     return None
 
 
@@ -118,6 +131,16 @@ def propose(path, token_type, siblings=()):
     if token_type not in PROPERTIES:
         return None, {'reason': 'vocabulary', 'message': f'{token_type} tokens have no role treatment in the closed property set'}
     basis, flags, meaning = [], [], {}
+    # "--name--line-height": the suffix after a double hyphen names the property itself.
+    suffix = path.rpartition('--')[2] if '--' in path.split('.')[-1].lstrip('-') else None
+    if suffix in SUB_PROPERTIES:
+        if suffix not in PROPERTIES[token_type]:
+            return None, {'reason': 'unmapped', 'message': f'{suffix} cannot hold a {token_type} value in the closed property set'}
+        role, word = first(segments(path.rpartition('--')[0]), ROLE_WORDS)
+        meaning = {'property': suffix, **({'role': role} if role else {})}
+        return {'meaning': meaning, 'basis': [suffix] + ([word] if word else []), 'flags': []}, None
+    if token_type == 'color' and hue(words):
+        return None, hue(words)
     state, word = first(words, STATE_WORDS)
     if state:
         meaning['state'] = state
@@ -173,4 +196,8 @@ def propose(path, token_type, siblings=()):
             basis.append(word)
         elif meaning['property'] == 'font-size':
             flags.append('scale-step-without-role')
-    return {'meaning': meaning, 'basis': basis, 'flags': flags}, None
+    unread = [word for word in words if word not in basis and not word.isdigit()] if token_type == 'color' else []
+    if unread:
+        # A qualifier the heuristic did not understand ("sidebar", "tooltip") is a doubt.
+        flags.append('unread-words')
+    return {'meaning': meaning, 'basis': basis, 'flags': flags, **({'unread': unread} if unread else {})}, None

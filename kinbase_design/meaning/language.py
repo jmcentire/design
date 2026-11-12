@@ -44,7 +44,8 @@ def assign(document, path, value):
 
 def draft(library, workspace, corpus, language_id, context=None):
     document = load(workspace, corpus)
-    context = context or (BASE if BASE in document['contexts'] else document['contexts'][0])
+    # A themed source states its values under light and dark; base alone is then partial.
+    context = context or next(name for name in ('light', BASE, *document['contexts']) if name in document['contexts'])
     if context not in document['contexts']:
         raise ValueError('Unknown context; this corpus has: ' + ', '.join(document['contexts']))
     styles = {path: entry for path, entry in document['tokens'].items() if path.startswith('css.')}
@@ -79,22 +80,29 @@ def draft(library, workspace, corpus, language_id, context=None):
 
 
 def placements(mappings, tokens, vocabulary):
-    """Choose one token per role treatment: higher standing first, then fewer doubts."""
+    """Choose one token per role treatment: higher standing first, then fewer doubts.
+
+    Equals are not guessed between: when several tokens tie, none is placed and the
+    tie is reported for a reviewer to settle.
+    """
+    # A candidate whose name has a qualifier the heuristic did not read is not placed:
+    # what the token is for is unknown until a reviewer says.
     usable = [item for subject, item in mappings.items()
-              if item['meaning'] and 'state' not in item['meaning'] and subject in tokens.nodes]
+              if item['meaning'] and 'state' not in item['meaning'] and subject in tokens.nodes
+              and not (item['status'] == 'candidate' and 'unread-words' in item['candidate']['flags'])]
     def rank(item):
         flags = item['candidate']['flags'] if item['status'] == 'candidate' else []
-        return STANDING.index(item['status']), len(flags), item['subject']
+        return STANDING.index(item['status']), len(flags)
     def pick(prop, role, emphases):
         pool = [item for item in usable if item['meaning']['property'] == prop]
         for wanted in (role, None):
             for emphasis in emphases:
                 found = sorted((item for item in pool if item['meaning'].get('role') == wanted
-                                and item['meaning'].get('emphasis') == emphasis), key=rank)
+                                and item['meaning'].get('emphasis') == emphasis), key=lambda item: (rank(item), item['subject']))
                 if found:
-                    return found
+                    return [item for item in found if rank(item) == rank(found[0])]
         return []
-    placed, missing, collisions = {}, [], []
+    placed, missing, ties = {}, [], {}
     families = [item for item in usable if item['meaning']['property'] == 'font-family']
     for role in vocabulary['roles']:
         for emphasis in vocabulary['emphasis']:
@@ -104,18 +112,30 @@ def placements(mappings, tokens, vocabulary):
                 elif prop == 'surface':
                     # One default surface for every emphasis: a ranked background is a
                     # different surface, not the pairing for muted text.
-                    found = pick(prop, role, (None, 'neutral'))
+                    found = pick(prop, role, ('neutral', None))
                 elif prop == 'font-family':
                     found = [item for item in families if item['meaning'].get('role') == role] or (families if len(families) == 1 else [])
                 else:
                     found = [item for item in pick(prop, role, (emphasis, None)) if item['meaning'].get('role') == role]
-                if found:
+                if len(found) == 1:
                     placed[pointer('roles', role, emphasis, prop)] = found[0]
-                    if len(found) > 1 and prop in {'color', 'surface'}:
-                        collisions.append((found[0]['subject'], [item['subject'] for item in found[1:]]))
-                elif prop == 'color' and role not in {'media'}:
+                elif found:
+                    ties[tuple(item['subject'] for item in found)] = prop
+                if len(found) != 1 and prop == 'color' and role != 'media':
                     missing.append(emphasis)
-    return placed, sorted(set(missing), key=vocabulary['emphasis'].index), collisions
+    # The default surface is also the page's own background.
+    surface = pick('surface', None, ('neutral', None))
+    if len(surface) == 1 and 'page-shell' in vocabulary['constructs']:
+        placed[pointer('components', 'page-shell', 'properties', 'background-color')] = surface[0]
+    # The first Vocabulary emphasis is the base one. Where an emphasis has no text colour
+    # of its own, the base colour stands in, so no treatment is left on an unrelated default.
+    base = vocabulary['emphasis'][0]
+    for role in vocabulary['roles']:
+        fallback = placed.get(pointer('roles', role, base, 'color'))
+        for emphasis in vocabulary['emphasis'][1:]:
+            if fallback:
+                placed.setdefault(pointer('roles', role, emphasis, 'color'), fallback)
+    return placed, sorted(set(missing), key=vocabulary['emphasis'].index), ties
 
 
 def apply(library, workspace, corpus, draft_id):
@@ -139,7 +159,7 @@ def apply(library, workspace, corpus, draft_id):
         else:
             provenance[path] = deepcopy(before['provenance'])
     mappings = effective(workspace, vocabulary, corpus)
-    placed, missing, collisions = placements(mappings, Tokens(working['style']), vocabulary)
+    placed, missing, ties = placements(mappings, Tokens(working['style']), vocabulary)
     applied = []
     for path, item in placed.items():
         if (record_at(provenance, path) or {}).get('kind') == 'source':
@@ -169,15 +189,16 @@ def apply(library, workspace, corpus, draft_id):
                   f'{counts["chosen"]} locally chosen, {counts["candidate"]} heuristic candidates. '
                   'Uncertified mappings are proposals, not standards.'})
     if missing:
-        notes.append({'rule': 'meaning-gap', 'message': 'No mapping supplies a text colour for emphasis '
-                      + ', '.join(missing) + '; the ingest default is retained'})
-    for subject, others in list(dict.fromkeys((s, tuple(o)) for s, o in collisions))[:20]:
-        notes.append({'rule': 'meaning-collision', 'message': f'{subject} is placed; same meaning, not placed: {", ".join(others)}'})
+        notes.append({'rule': 'meaning-gap', 'message': 'No single mapping supplies a text colour for emphasis '
+                      + ', '.join(missing) + '; the ' + vocabulary['emphasis'][0] + ' colour stands in where one is mapped'})
+    for subjects, prop in list(ties.items())[:20]:
+        notes.append({'rule': 'meaning-collision', 'message':
+                      f'{len(subjects)} tokens share one {prop} meaning and none is placed until a reviewer chooses: ' + ', '.join(subjects[:8])})
     if unplaced:
         notes.append({'rule': 'meaning-unplaced', 'message': f'{len(unplaced)} mapped tokens are held in Style but not placed by role defaults'})
     if gaps:
         notes.append({'rule': 'meaning-gap', 'message': 'Tokens recorded as gaps: ' + ', '.join(f'{count} {reason}' for reason, count in sorted(gaps.items()))})
-    others = [name for name in load(workspace, corpus)['contexts'] if name != held['context']]
+    others = [name for name in load(workspace, corpus)['contexts'] if name not in {held['context'], BASE}]
     if others:
         notes.append({'rule': 'meaning-context', 'message': 'A language holds one context; not expressed here: ' + ', '.join(others)})
     state['notes'] = notes
@@ -244,7 +265,9 @@ def check(library, workspace, language_id, corpus):
             if not compatible(meaning, use['property']):
                 problems.append(f'is mapped as {meaning["property"]} and is used as {use["property"]}')
             for member in ('emphasis', 'role'):
-                if member in use and member in meaning and meaning[member] != use[member] and use['property'] != 'surface':
+                # A base-emphasis token may stand in where an emphasis has no token of its own.
+                stands_in = member == 'emphasis' and meaning.get(member) == vocabulary['emphasis'][0]
+                if member in use and member in meaning and meaning[member] != use[member] and use['property'] != 'surface' and not stands_in:
                     problems.append(f'is mapped to {member} {meaning[member]} and is used for {member} {use[member]}')
             by = (f'certified by {item["authority"]} for scope {item["scope"]}' if item['status'] == 'certified' else
                   'a local choice, not certified' if item['status'] == 'chosen' else 'a heuristic candidate, not certified')
