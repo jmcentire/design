@@ -19,7 +19,7 @@ def parser():
     common.add_argument('--workspace', default=argparse.SUPPRESS)
     p = argparse.ArgumentParser(prog='kinbase-design', parents=[common])
     commands = p.add_subparsers(dest='command', required=True)
-    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check','capture','draft','save-draft','fidelity','questions','answer','export','inventory-check','apply'):
+    for name in ('vocabulary','validate','resolve','build-preview','mint','import-artifact','promote','serve','check','capture','draft','save-draft','fidelity','questions','answer','export','inventory-check','apply','verify'):
         sub = commands.add_parser(name, parents=[common])
         if name in {'validate','resolve','build-preview','mint','promote','check','export','inventory-check','apply'}:
             sub.add_argument('language_id')
@@ -32,6 +32,13 @@ def parser():
             sub.add_argument('--target-dir')
             sub.add_argument('--page-url', action='append', default=[])
             sub.add_argument('--branch', action='store_true')
+            sub.add_argument('--request', help='the capability to build, verbatim, for the Factory task')
+            sub.add_argument('--verify-page', action='append', default=[], help='page the candidate must pass verify on')
+        if name == 'verify':
+            sub.add_argument('reference', help='language id, or id@hash for a minted version')
+            sub.add_argument('--page', action='append', required=True, help='http(s) address or local HTML file')
+            sub.add_argument('--widths');sub.add_argument('--out');sub.add_argument('--inventory')
+            sub.add_argument('--no-javascript', action='store_true')
         if name == 'inventory-check':
             sub.add_argument('--inventory', required=True)
         if name in {'export','apply'}:
@@ -167,7 +174,12 @@ def main(argv=None):
                 output({'language': args.language_id, 'built': True})
         elif args.command == 'apply':
             from .export.handoff import apply
-            output(apply(library,workspace,args.language_id,args.site,args.adapter,args.target_dir,args.page_url,args.branch))
+            output(apply(library,workspace,args.language_id,args.site,args.adapter,args.target_dir,args.page_url,args.branch,args.request,args.verify_page))
+        elif args.command == 'verify':
+            from .verify import verify
+            result=verify(library,workspace,args.reference,args.page,args.out,args.widths,args.inventory,not args.no_javascript)
+            output(result)
+            return 0 if result['accepted'] else 1
         elif args.command == 'inventory-check':
             from .inventory import inventory_check
             result=inventory_check(library,args.language_id,args.inventory)

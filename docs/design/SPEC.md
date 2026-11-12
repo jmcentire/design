@@ -595,6 +595,17 @@ local workspace (private)
   and scope, and a broken uncertified mapping as advisory `coverage`. Impact and definition answers
   name the file and JSON pointer behind each part, and label every uncertified mapping.
 
+- **B22**: verifying a page built from a hand-off's own markup and stylesheets accepts it. A page
+  with a value outside the language, a restyled slot, or a broken construct contract is rejected,
+  and each finding names the element, the observed value, and the language or Vocabulary member it
+  should have matched. A page that cannot be loaded is never accepted.
+- **B23**: a justified site exception covers a verification finding and the finding stays in the
+  report. Verification against `lang@hash` judges that minted version, whatever the working copy
+  has become.
+- **B24**: an Apply hand-off carries the request verbatim, the builder's contract and markup, the
+  tester's expected values computed by the resolver, the paths that keep the two inputs
+  independent, and the acceptance command. Without `--branch` it changes nothing in the site.
+
 ## 11. Open decisions and deferred assumptions
 
 - **D1**: the Kinbase learning loop in §7.2, and the gaps G1–G7. Above all:
@@ -659,4 +670,35 @@ Boundaries:
   the tie is a coverage finding for a reviewer.
 - One run over a real published system is recorded in M5-SPIKE.md. No mapping for it is certified,
   and no MCP server exists.
+
+## 13. Site verification and the Factory hand-off (EA)
+
+Sections 6.6 and 8 said a Factory task applies a language to a site and an independent Tester
+checks it. Two things were missing: a check that reads the site's real pages, and a hand-off that
+gives each role its own input.
+
+**Verification.** `verify` renders the site's own page and asks three questions with the existing
+resolver and rendered checks (§8):
+1. Where the page uses a construct, does its markup honour the semantic contract (§3), and do its
+   computed styles equal the resolved treatment (§4.1)?
+2. Everywhere else, is every colour, type, radius and spacing value in the language's closed set
+   (§4.2)? The language's own preview is the reference rendering for that set.
+3. Does the page pass the rendered checks a preview must pass?
+
+Acceptance is §6.7's rule unchanged. Exceptions are the site's, in its inventory. A page is judged
+against `lang@hash` when the task names one.
+
+**Hand-off.** Apply writes the builder's contract and each construct's markup, and separately the
+tester's expected values. Both come from the same renderer and resolver as the preview, so neither
+is a second description of the language. The task file states the request verbatim, which paths
+keep the Coder's and Tester's inputs independent, and the acceptance command. Kinbase Design still
+never merges or deploys, and starts no Factory run itself.
+
+Boundaries:
+- Factory is unchanged. The hand-off uses its existing task file, role-input paths and candidate
+  check command.
+- A page may contain markup no construct expresses. It is judged by the closed set only, and that
+  is reported as coverage. Adding a construct remains a Vocabulary decision.
+- Compliance is about values and construct contracts. Layout composition, margins and taste are
+  not judged.
 

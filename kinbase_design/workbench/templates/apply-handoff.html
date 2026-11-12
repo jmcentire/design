@@ -6,6 +6,7 @@
 <p><a href="/apply/handoffs/{{ record.id }}/TASK.md">Factory task</a> · <a href="/apply/handoffs/{{ record.id }}/findings.json">Findings report</a> · <a href="/apply/handoffs/{{ record.id }}/handoff.json">Bundle manifest</a></p>
 {% if record.adapter.startswith('dtcg-tailwind@') %}<p>Verification gap: Tailwind consumption of <code>@theme</code> is unverified. Verify it in the target design-system repository; browser inspection needs no compiler.</p>{% endif %}
 <h2>Export files</h2><ul>{% for file in record.export_files %}<li><a href="/apply/handoffs/{{ record.id }}/export/{{ file }}">{{ file }}</a></li>{% endfor %}</ul>
+<h2>Design contract</h2><p>For a Factory run: the builder's contract and markup, and the tester's expected values. The builder must not receive <code>expected.json</code>.</p><ul>{% for file in record.contract_files %}<li><a href="/apply/handoffs/{{ record.id }}/contract/{{ file.removeprefix('kinbase-design/') }}">{{ record.target_dir }}/{{ file }}</a></li>{% endfor %}</ul>
 <h2>Before / injected preview</h2>
 {% for pair in record.screenshots.pairs %}<section><h3>{{ pair.url }} · {{ pair.width }} px</h3><p>{{ pair.label }}</p>
 <div class="kd-comparison"><figure><figcaption>Before: page as served</figcaption><a href="/apply/handoffs/{{ record.id }}/{{ pair.before }}"><img style="max-width:100%" src="/apply/handoffs/{{ record.id }}/{{ pair.before }}" alt="Before at {{ pair.width }} pixels"></a></figure>

@@ -19,7 +19,8 @@ class BrowserUnavailable(RuntimeError):
 
 
 def prepare(page, file, timeout_ms=CHECK_TIMEOUT_MS):
-    page.goto(file.as_uri(),wait_until='load',timeout=timeout_ms)
+    # A preview file, or the address of a page a site already serves.
+    page.goto(file if isinstance(file,str) else file.as_uri(),wait_until='load',timeout=timeout_ms)
     # DevTools can inspect a no-JS document. Poll native readiness from Python,
     # rather than relying on page timers in the JavaScript-disabled context.
     page.evaluate("() => {for(const image of document.images) image.loading='eager';}")

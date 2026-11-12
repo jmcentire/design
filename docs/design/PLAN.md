@@ -133,6 +133,23 @@ Mechanizes the M2 mapping step and makes the role clarification operational for 
 
 Exit: B18–B21 pass.
 
+### M6 — Site verification and Factory hand-off (SPEC §13)
+Built: `verify` over a site's own pages (construct contracts, role conformance, closed-set
+membership, rendered checks, site exceptions, pinned versions), and an Apply hand-off that carries
+a builder's contract, construct markup, a tester's oracle and the acceptance command.
+
+Open:
+- No Factory run has gone through the hand-off. The first one should be a small page on a site
+  that already loads the export.
+- Vocabulary v1 cannot express a general form. `form` has fixed contact slots, so checkout fields
+  fall outside constructs. This is the first Vocabulary change the checkout example needs.
+- A Wander language. A private draft from the design-system token files validates and places text,
+  surface, button and input colours without review; it fails the rendered checks on target size
+  and control boundary, because component treatments are not in the token files. It needs
+  reviewer choices for type sizes, a capture of real pages for components, and certification.
+
+Exit: B22–B24 pass.
+
 ## Factory briefs (per milestone)
 
 - **Builder** receives: the milestone's SPEC sections, R1–R5, the pinned vocabulary and
