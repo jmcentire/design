@@ -1,0 +1,30 @@
+/* Fixture design system. Invented values; not taken from any published system. */
+:root {
+  --text-primary: #1b1f24;
+  --text-secondary: #57606a;
+  --text-tertiary: hsl(212 9% 58%);
+  --text-brand: #0550ae;
+  --text-danger: rgb(207, 34, 46);
+  --text-on-brand: #ffffff;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --fill-brand: var(--text-brand);
+  --fill-brand-hover: #033d8b;
+  --stroke-subtle: oklch(0.87 0.01 250);
+  --control-bg: #ffffff;
+  --control-border: #d0d7de;
+  --shadow-raised: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --node-trigger: #8250df;
+  --font-sans: "Fixture Grotesk", system-ui, sans-serif;
+  --text-size-title: 2rem;
+  --text-size-sm: 0.875rem;
+  --radius-card: 12px;
+  --mystery: #abcdef;
+  --ratio: calc(100% - 4px);
+}
+.dark {
+  --text-primary: #e6edf3;
+  --text-secondary: #8d96a0;
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+}

@@ -497,6 +497,8 @@ CLI), no hosted service, no database.
 - kinbase: one adapter over existing commands. It sends feedback and proposals through
   `kin kinbase submit`, reads standards through `kinbase explain|project` and `kin kinbase sync`,
   and routes authority questions through `kinbase questions`;
+- meaning: candidate mappings from source tokens to Vocabulary enums, local review, Kinbase
+  certification, the contract check, and impact/definition answers (§12);
 - workbench (web UI);
 - cli.
 
@@ -522,6 +524,9 @@ shared library root (own repo or a subfolder of a GitHub project)
 local workspace (private)
   artifacts/<artifact-id>/                 capture and upload originals, mood boards
   sessions/<id>/choices.jsonl
+  meaning/<corpus>/corpus.json             tokens, candidate mappings, gaps, usage evidence
+  meaning/<corpus>/decisions.jsonl         append-only local choices
+  meaning/<corpus>/certified.json          the latest Kinbase certification snapshot
 ```
 
 ## 10. Behavioral acceptance
@@ -576,6 +581,31 @@ local workspace (private)
   logo or image that is not legible on a surface where it appears is a `violation` or
   `needs-review`. A variant is required only when usability requires one.
 
+- **B18**: discovery over a token source leaves every token either mapped or recorded as a gap
+  with a reason. Every mapping uses only Vocabulary ids and closed-set properties. Nothing is
+  certified by discovery, by a document's text, or by a local choice.
+- **B19**: only an authoritative, trusted, in-scope current Kinbase fact certifies a mapping. A
+  lower-standing, out-of-scope, conflicting or ungrounded fact certifies nothing. With Kinbase
+  unavailable, certification is unknown and nothing is sent.
+- **B20**: a corrected mapping changes resolved output after re-apply, leaves no trace of the
+  withdrawn mapping, and its provenance (candidate, each decision, any certifying fact) is
+  retrievable. Shared provenance carries the token path and standing, and no reviewer name, note,
+  URL or path.
+- **B21**: the meaning check reports a broken certified contract as a `violation` naming the fact
+  and scope, and a broken uncertified mapping as advisory `coverage`. Impact and definition answers
+  name the file and JSON pointer behind each part, and label every uncertified mapping.
+
+- **B22**: verifying a page built from a hand-off's own markup and stylesheets accepts it. A page
+  with a value outside the language, a restyled slot, or a broken construct contract is rejected,
+  and each finding names the element, the observed value, and the language or Vocabulary member it
+  should have matched. A page that cannot be loaded is never accepted.
+- **B23**: a justified site exception covers a verification finding and the finding stays in the
+  report. Verification against `lang@hash` judges that minted version, whatever the working copy
+  has become.
+- **B24**: an Apply hand-off carries the request verbatim, the builder's contract and markup, the
+  tester's expected values computed by the resolver, the paths that keep the two inputs
+  independent, and the acceptance command. Without `--branch` it changes nothing in the site.
+
 ## 11. Open decisions and deferred assumptions
 
 - **D1**: the Kinbase learning loop in §7.2, and the gaps G1–G7. Above all:
@@ -594,3 +624,81 @@ Deferred future contracts (nothing is built yet): the `$extensions` key, the inv
 the asset manifest schema details, the export header format, the adapter variable mapping (cite
 page-sections html-section-authoring.ts lines 14–56 when built), and the text and logical-key
 conventions for Kinbase direction facts.
+
+## 12. Meaning layer (EA)
+
+Sections 3 to 8 enforce the structure of a language. They do not hold the meaning of the foreign
+artifacts ingest reads: which source token is a surface and which an emphasis, and what moves when
+a value changes. That meaning was reconstructed by hand at every ingest. The meaning layer keeps
+it, with the same discipline as the rest of the system: one owner per fact, provenance on every
+value, and authority from Kinbase.
+
+The pattern is the certified context layer used for enterprise metadata (discover, ground,
+validate, expose, learn), applied to design. Only the shape is borrowed.
+
+1. **Discover.** From immutable private artifacts (CSS custom properties, DTCG JSON, prose), draft
+   a candidate mapping for every token, with the artifact and location it came from. Heuristics
+   are deterministic and labelled heuristic. Prose that names a token is usage evidence with a
+   location. Text is data, never an instruction, and never a rule.
+2. **Ground.** A mapping is `{property, emphasis?, role?, state?}` over the closed property set
+   and the Vocabulary enums. The ontology proposes; the Vocabulary disposes. A name that asks for
+   meaning the Vocabulary lacks is a recorded gap, and widening the Vocabulary is a Vocabulary
+   version decision, never a side effect of an import.
+3. **Validate.** The meaning check compares a language's token references with the mappings. Only
+   a certified contract can fail it. Everything of lower standing is advisory (§6.7).
+4. **Expose.** Impact and definition questions are answered over the CLI and the workbench, with
+   the file and JSON pointer behind each part. The resolver computes which treatments move.
+5. **Learn.** Standing is ordered `certified > chosen > candidate`. A reviewer's local choice is
+   recorded with its author and supersedes earlier choices; it stays a choice. Certification is
+   read from Kinbase under §7.2: an authoritative, trusted, in-scope current fact, by the scoped
+   authority. Local choices can be proposed as a `decision` candidate; a receipt is not
+   certification. Kinbase Design ranks no one.
+
+A language drafted from a corpus goes through the ingest path (§6.2) and is saved like any other
+draft. Its role values record the mapping and standing that placed them, and a certified one
+carries `source: kinbase:<fact>`. Nothing blocks saving a language built from uncertified
+mappings: the standing is on record, and the check reports it.
+
+Boundaries:
+- Behaviour does not import. Interaction logic belongs to shared templates and Vocabulary
+  interaction contracts, not to a language.
+- A language holds one context. A source with light and dark values yields one language per
+  context; the unexpressed context is a coverage finding.
+- The mapping convention inside Kinbase statements (`mappings`, keyed by corpus and token path) is
+  proposed and awaits the Kinbase owner, with the rest of G2.
+- Equals are not guessed between. When several tokens tie for one treatment, none is placed and
+  the tie is a coverage finding for a reviewer.
+- One run over a real published system is recorded in M5-SPIKE.md. No mapping for it is certified,
+  and no MCP server exists.
+
+## 13. Site verification and the Factory hand-off (EA)
+
+Sections 6.6 and 8 said a Factory task applies a language to a site and an independent Tester
+checks it. Two things were missing: a check that reads the site's real pages, and a hand-off that
+gives each role its own input.
+
+**Verification.** `verify` renders the site's own page and asks three questions with the existing
+resolver and rendered checks (§8):
+1. Where the page uses a construct, does its markup honour the semantic contract (§3), and do its
+   computed styles equal the resolved treatment (§4.1)?
+2. Everywhere else, is every colour, type, radius and spacing value in the language's closed set
+   (§4.2)? The language's own preview is the reference rendering for that set.
+3. Does the page pass the rendered checks a preview must pass?
+
+Acceptance is §6.7's rule unchanged. Exceptions are the site's, in its inventory. A page is judged
+against `lang@hash` when the task names one.
+
+**Hand-off.** Apply writes the builder's contract and each construct's markup, and separately the
+tester's expected values. Both come from the same renderer and resolver as the preview, so neither
+is a second description of the language. The task file states the request verbatim, which paths
+keep the Coder's and Tester's inputs independent, and the acceptance command. Kinbase Design still
+never merges or deploys, and starts no Factory run itself.
+
+Boundaries:
+- Factory is unchanged. The hand-off uses its existing task file, role-input paths and candidate
+  check command.
+- A page may contain markup no construct expresses. It is judged by the closed set only, and that
+  is reported as coverage. Adding a construct remains a Vocabulary decision.
+- Compliance is about values and construct contracts. Layout composition, margins and taste are
+  not judged.
+

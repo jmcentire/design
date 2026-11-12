@@ -9,7 +9,7 @@ from ..storage import identifier, inside, read_json, write_json
 log = logging.getLogger(__name__)
 
 
-KINDS = {"image", "mock", "wireframe", "figma-export", "dtcg", "asset", "brief"}
+KINDS = {"image", "mock", "wireframe", "figma-export", "dtcg", "asset", "brief", "css", "doc"}
 
 
 def import_bytes(workspace, data, filename, kind=None):

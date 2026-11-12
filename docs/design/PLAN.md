@@ -113,6 +113,43 @@ Any new Kinbase source adapter is Kinbase work, with its own access decisions, a
 plan. Until one is confirmed, those sources enter through committed exports and workbench
 feedback. M4 builds only what the answers support.
 
+### M5 — Meaning layer (SPEC §12)
+Mechanizes the M2 mapping step and makes the role clarification operational for mappings.
+
+- **P1 Discovery over one corpus.** Built: CSS custom property, DTCG and prose sources; candidate
+  mappings with provenance; the mapped-or-gap invariant. Run once over Palermo's published
+  stylesheet (M5-SPIKE.md): 283 tokens, every one mapped or a gap, nothing certified. Jeremy's hand
+  review of mapping precision on a sample is still open; the spike holds only the builder's read.
+- **P2 A language from mappings.** Built: draft, apply and save through the ingest path, with the
+  standing of each placed value on record. Two private Palermo drafts pass R1–R5 and fail the
+  rendered checks, for causes the spike traces to unreviewed mappings and two Vocabulary gaps. The
+  exit is not met. Foundations only; component treatments still come from the existing capture and
+  fidelity review.
+- **P3 Certification workflow.** Built: local choice, correction and supersession with author and
+  history; certification read from Kinbase's scoped authority; proposals sent as evidence.
+  Certification throughput is unmeasured, and depends on G1, G2 and G6.
+- **P4 Exposure.** Built over the CLI and workbench: impact and definition answers with sources,
+  uncertified mappings labelled. No MCP server.
+
+Exit: B18–B21 pass.
+
+### M6 — Site verification and Factory hand-off (SPEC §13)
+Built: `verify` over a site's own pages (construct contracts, role conformance, closed-set
+membership, rendered checks, site exceptions, pinned versions), and an Apply hand-off that carries
+a builder's contract, construct markup, a tester's oracle and the acceptance command.
+
+Open:
+- No Factory run has gone through the hand-off. The first one should be a small page on a site
+  that already loads the export.
+- Vocabulary v1 cannot express a general form. `form` has fixed contact slots, so checkout fields
+  fall outside constructs. This is the first Vocabulary change the checkout example needs.
+- A Wander language. A private draft from the design-system token files validates and places text,
+  surface, button and input colours without review; it fails the rendered checks on target size
+  and control boundary, because component treatments are not in the token files. It needs
+  reviewer choices for type sizes, a capture of real pages for components, and certification.
+
+Exit: B22–B24 pass.
+
 ## Factory briefs (per milestone)
 
 - **Builder** receives: the milestone's SPEC sections, R1–R5, the pinned vocabulary and

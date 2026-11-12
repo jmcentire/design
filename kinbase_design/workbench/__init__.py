@@ -105,6 +105,9 @@ def create_app(library: str | Path, workspace: str | Path):
             elif segments[0] == 'apply':
                 from .apply import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
+            elif segments[0] == 'meaning':
+                from .meaning import handle
+                code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)
             elif segments[0] == 'generate':
                 from .generate import handle
                 code,body,content_type,headers=handle(library,workspace,environ,segments,query,html)

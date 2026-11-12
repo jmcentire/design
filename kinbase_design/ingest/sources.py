@@ -54,7 +54,10 @@ def collect(workspace, artifact_ids):
                             elif token_type=='fontFamily':result['source_facts']['font_families'].append(value)
                             elif token_type=='dimension':
                                 number=px(value) if value.endswith('px') else float(value[:-3])*16
-                                group='breakpoints' if name.startswith('breakpoint.') else 'spacing' if name.startswith('space.') else 'radii' if 'radius' in name or 'radii' in name else 'type_scale' if any(s in name.lower() for s in ('font','type','text')) else None
+                                # A type size is positive and is not a tracking or leading value that
+                                # happens to carry "text" in its name ("text-title--letter-spacing").
+                                sized=number>0 and not any(s in name.lower() for s in ('letter-spacing','tracking','line-height','leading'))
+                                group='breakpoints' if name.startswith('breakpoint.') else 'spacing' if name.startswith('space.') else 'radii' if 'radius' in name or 'radii' in name else 'type_scale' if sized and any(s in name.lower() for s in ('font','type','text')) else None
                                 if group:result['source_facts'][group].append(number)
                         except (ValueError,KeyError) as exc:result['problems'].append({'artifact':artifact,'message':f'{name}: {exc}'})
                 except (ValueError,UnicodeError) as exc:result['problems'].append({'artifact':artifact,'message':str(exc)})

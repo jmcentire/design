@@ -14,6 +14,11 @@
     return result;
   };
   const nativeControl = __NATIVE_CONTROL__;
+  // A short, stable description of where an element is, for a person reading a finding.
+  const path = e => {const parts=[];for(let p=e;p&&p!==document.body&&parts.length<4;p=p.parentElement){
+    const same=p.parentElement?[...p.parentElement.children].filter(c=>c.tagName===p.tagName):[];
+    parts.unshift(p.tagName.toLowerCase()+(p.id?'#'+p.id:same.length>1?':nth-of-type('+(same.indexOf(p)+1)+')':''));if(p.id)break;}
+    return parts.join(' > ');};
   const nodes=all.map((e,index) => {
     e.setAttribute('data-kd-check',String(index));
     const s=getComputedStyle(e),r=e.getBoundingClientRect(),root=e.closest('[data-kd-construct]');
@@ -55,7 +60,8 @@
       const style=getComputedStyle(control);
       return {css:Object.fromEntries(properties.map(p=>[p,style.getPropertyValue(p)])),fontSize:parseFloat(style.fontSize)};
     }):null;
-    return {index,target:target(e),slot:e.dataset.kdSlot||null,state:root?.dataset.kdState||'default',
+    return {index,target:target(e),slot:e.dataset.kdSlot||null,state:root?.dataset.kdState||'default',tag:e.tagName.toLowerCase(),path:path(e),
+      borderWidth:parseFloat(s.borderTopWidth)||0,
       text,directText,visible:visible(e),box:rect(e),scroll:[e.scrollWidth,e.scrollHeight],
       css:Object.fromEntries(properties.map(p=>[p,s.getPropertyValue(p)])),fontSize,fontWeight,controlStyles,
       backgrounds:background(e),overImage,disabled,clipped,lineClamp:parseInt(s.webkitLineClamp)||0,

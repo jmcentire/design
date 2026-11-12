@@ -22,11 +22,13 @@ def handle(library,workspace,environ,segments,query,html):
             data={k:v[0] for k,v in fields(environ).items()}
             if data.get('action','handoff')=='handoff':
                 result=apply(library,workspace,data['language'],data['site'],data['adapter'],
-                             data.get('target_dir'),data.get('page_urls','').split(),data.get('branch')=='yes')
+                             data.get('target_dir'),data.get('page_urls','').split(),data.get('branch')=='yes',
+                             data.get('request','').strip() or None,data.get('verify_pages','').split())
                 return redirect('/apply/handoffs/'+result['handoff'])
             if data['action']!='review':raise RequestError('Unknown Apply action')
             selection=prepare(library,workspace,data['language'],data['site'],data['adapter'],
-                              data.get('target_dir'),data.get('page_urls','').split(),data.get('branch')=='yes')
+                              data.get('target_dir'),data.get('page_urls','').split(),data.get('branch')=='yes',
+                              data.get('request','').strip() or None,data.get('verify_pages','').split())
             return redirect('/apply/reviews/'+selection['id'])
     if len(tail)>=2 and tail[0]=='reviews':
         selection_id=identifier(tail[1]);selection=read_selection(library,workspace,selection_id)
@@ -40,7 +42,8 @@ def handle(library,workspace,environ,segments,query,html):
                 return redirect(base)
             if tail[2]=='handoff':
                 result=apply(library,workspace,selection['language_id'],selection['site'],selection['adapter'],
-                             selection['target_dir'],selection['page_urls'],selection['branch'])
+                             selection['target_dir'],selection['page_urls'],selection['branch'],
+                             selection.get('request'),selection.get('verify_pages',()))
                 return redirect('/apply/handoffs/'+result['handoff'])
     if len(tail)>=2 and tail[0]=='handoffs' and method=='GET':
         handoff_id=identifier(tail[1]);record=read_handoff(workspace,handoff_id)

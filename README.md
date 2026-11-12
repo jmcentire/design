@@ -433,3 +433,179 @@ naming its version and configured scope; **received** never implies **current**.
 from explain can be explicitly routed with `kinbase questions ask <id>`. No feedback action
 changes fixed inputs, validation outcomes or current direction on its own. There are no pushes,
 merges, deployments or automatic authority promotions.
+
+## Meaning layer (M5)
+
+Ingest held the structure of a source and left its meaning to hand-mapping: which token is a
+surface, which is an emphasis, what moves when a value changes. The meaning layer drafts that
+mapping with its evidence, restricts it to Vocabulary enums, and labels every mapping with its
+standing. Open **Meaning** in the workbench (`/meaning`), or use the CLI:
+
+```sh
+python -m kinbase_design import-artifact --file ./tokens.css --kind css
+python -m kinbase_design import-artifact --file ./usage.md --kind doc
+python -m kinbase_design meaning discover --corpus my-system --from artifact-HASH --from artifact-HASH
+python -m kinbase_design meaning discover --corpus colours --from artifact-HASH --only color-
+python -m kinbase_design meaning show my-system
+python -m kinbase_design meaning choose my-system css.text-secondary --author "Name" --accept
+python -m kinbase_design meaning choose my-system css.text-primary --author "Name" --property color --emphasis neutral
+python -m kinbase_design meaning choose my-system css.node-trigger --author "Name" --gap "No Vocabulary role"
+python -m kinbase_design meaning sync my-system
+python -m kinbase_design meaning propose my-system --author "Name"
+python -m kinbase_design meaning draft my-system --language my-language --context base
+python -m kinbase_design meaning apply my-system my-language
+python -m kinbase_design meaning check my-language --corpus my-system
+python -m kinbase_design meaning impact color.primary --language harbor
+python -m kinbase_design meaning define listing-card.price
+```
+
+**Discover.** A corpus is read from immutable private artifacts: CSS custom properties
+(`--kind css`), DTCG JSON, and prose (`--kind doc` or a brief). Stylesheet tokens are named
+`css.<property-name>`. Only a document root (`:root`, `:host`, `html`, `body`, `@theme`) or a bare
+theme switch (`.dark`, `[data-theme=dark]`) defines a token; a utility class or component that
+sets a custom property is an override and is counted, not read. A scope that names `dark` or
+`light` supplies that context, everything else is `base`. In DTCG, a group whose only members are
+tokens named `light` and `dark` is one themed token with those contexts. `--only PREFIX` keeps the custom
+properties whose names start with a prefix. Hex, `rgb()`, `hsl()`, `oklch()`, `oklab()` and
+`color(srgb …)` become sRGB hex, and a converted value is recorded as converted. When a later
+declaration cannot be held exactly (a `lab()` or `color-mix()` under `@supports`), the source's own
+earlier value is kept and the override is recorded beside it. Candidate mappings come from
+deterministic name heuristics and are reported as **heuristic**, with the name words they rest on
+and their doubts (`ordinal-scale`, `collision`, `unread-words`, `no-family`, `default-emphasis`,
+`scale-step-without-role`). No model is called. Every token is either mapped or a recorded gap:
+`vocabulary` (the name asks for meaning the Vocabulary lacks, such as a hue, elevation, an inverse
+pairing or a workflow colour), `unsupported-value`, or `unmapped`. Importing never widens the
+Vocabulary.
+
+**Ground.** A meaning is `{property, emphasis?, role?, state?}`. The property comes from the closed
+property set for the token's type (`space` and `breakpoint` stand for the R4 groups); emphasis,
+role and state are Vocabulary ids. Anything else is refused, whoever proposes it.
+
+**Standing.** `certified` outranks `chosen`, which outranks `candidate`; recency only orders local
+choices among themselves. A local choice records its author and supersedes the previous one in an
+append-only log. It is a choice, like a visual-question answer, and never a certification.
+Certification comes only from Kinbase: `meaning sync` reads the configured standard keys and
+certifies a mapping when an authoritative, trusted, in-scope current fact states it. The snapshot
+is replaced on every sync, so Kinbase unavailable means certification is unknown and nothing is
+certified. Facts that disagree certify nothing for that token. `meaning propose` sends local
+choices (never raw candidates) through `kin kinbase submit --type decision` with agent
+provenance; **received** never means certified.
+
+**Proposed convention, awaiting confirmation with the Kinbase owner (G2):** the statement
+convention above gains a third optional member, keyed by corpus id and token path:
+
+```json
+{"kinbase-design":{"mappings":{"my-system":{"css.text-secondary":{"property":"color","emphasis":"muted"}}}}}
+```
+
+**Draft and apply.** `meaning draft` goes through the ordinary ingest draft path (same validator,
+resolver, provenance map and `save-draft`). The draft's Style is transcribed from the corpus for
+the chosen context, so a themed token holds that context's value and a token the schema cannot
+hold stays a gap; each value's provenance still names the original artifact. It then places role
+treatments from the current mappings: text colour per emphasis, one default surface (also the page
+background), role-specific type size and family, and box colours for the control and action roles
+(a `button.*` fill and the `text.button*` colour that sits on it). Equals are not guessed between: when several tokens
+tie for one treatment none is placed, and a candidate with an unread qualifier in its name is not
+placed either. Where an emphasis has no text colour of its own, the neutral colour stands in. Each
+placed value records its mapping and standing; a certified one carries `kinbase:<fact_id>`.
+`meaning apply` re-places from the current mappings, starting from the ingest treatment so a
+withdrawn mapping leaves nothing behind. Unplaced tokens, ties, gaps and unexpressed contexts are
+coverage findings on the draft. A language holds one context; a second context is a second
+language. The default context is `light` when the source has one. Reviewers' names, notes and
+source locations stay in the private workspace.
+
+**Check.** `meaning check` compares every token reference in a library language with the corpus
+mappings of that token and of anything it aliases. A broken **certified** contract is a
+`violation` naming the fact and scope; a broken local choice or candidate is advisory `coverage`,
+labelled with its standing. The check is explicit and is not part of `validate` or `mint`, because
+a corpus lives in the private workspace and library validation must work without one.
+
+**Ask.** `meaning impact` answers, from the library alone: which tokens alias this one, which role,
+component and override members name it, which resolved treatments move with it (computed by the
+resolver), which contrast pairs to re-check, and which minted versions hold it. `meaning define`
+answers for a role, emphasis, state, construct, slot or corpus token. Every part of an answer
+carries the file and JSON pointer it rests on, and a corpus mapping carries its standing.
+
+One run over a real published system is recorded in
+[docs/design/M5-SPIKE.md](docs/design/M5-SPIKE.md): what discovery found, where the Vocabulary is
+under pressure, and why the resulting drafts do not yet pass the rendered checks. Nothing from that
+system is in this repository.
+
+Not built, and not claimed: certified mappings for any real system, an MCP server (the CLI and the
+workbench are the surfaces), grounding of component names or variants, and reconstruction of
+foreign component treatments beyond what the existing ingest capture already does. Behaviour does
+not import: a language is identity over shared semantic HTML.
+
+## Verify a built page (M6)
+
+`check` judges a language on its own five sample pages. `verify` judges a site's own page against a
+language, using the same resolver and rendered checks:
+
+```sh
+python -m kinbase_design verify harbor --page http://localhost:3000/checkout
+python -m kinbase_design verify harbor@HASH --page ./dist/checkout.html --page ./dist/cart.html
+python -m kinbase_design verify harbor --page ./dist/checkout.html --inventory ./kinbase-design.inventory.json --out /tmp/verify
+```
+
+A page is an unauthenticated http(s) address, including localhost, or a built HTML file. Each is
+rendered in a fresh Chromium context at 320, 768 and 1280 CSS px (`--widths` to change), with no
+cookies or credentials. `id@HASH` judges against a minted version rather than the working copy, so
+a Factory candidate is checked against the version its task named. Exit 0 is compliant, 1 is not,
+and 2 means the check could not run, which is never a pass.
+
+Three things are judged:
+
+- **Constructs.** Where the page carries `data-kd-construct` and `data-kd-slot` hooks, the markup
+  must honour the Vocabulary contract (`site-construct`, `site-slot`, `site-state`,
+  `site-semantics`: known ids, required slots once each, contract elements, reading order), and
+  each slot's computed styles must equal the language's resolved treatment for its state and
+  width (`role-conformance`). Contract findings point into the Vocabulary file.
+- **The closed set.** Everywhere else, every rendered text colour, background, border colour,
+  font family, size and weight, radius, padding and gap must be a value the language holds
+  (`off-language-color`, `-type`, `-shape`, `-space`). Each finding names the element, the
+  observed value and the nearest token, and points at that token. The language's own preview is
+  rendered first as the reference, so values its shared base stylesheet produces count as its own.
+- **Rendered checks.** Contrast, clipping, reflow, target size, asset loading, keyboard order and
+  focus, exactly as for a preview. `--no-javascript` renders with scripts disabled.
+
+Text outside any slot is reported once as `site-hooks` coverage: it was judged by the closed set
+only. A justified exception is an entry `{"scope", "rule", "reason"}` in the site's inventory file,
+where the scope is the finding's target or its observed value. Covered findings stay in the
+report. Reports and `<page>@<width>.png` screenshots go to `--out`, or to the private workspace
+under `verify/`. Margins, widths, line height and letter spacing are not judged.
+
+### Hand-off to Factory
+
+`apply` now also writes what each Factory role needs. With `--branch`, these are committed beside
+the export so a run started from that branch can read them:
+
+```sh
+python -m kinbase_design apply harbor --site /path/to/site --adapter generic --target-dir design --branch \
+  --request "Build a page for our new checkout workflow" --verify-page http://localhost:3000/checkout
+```
+
+- `<target-dir>/kinbase-design/CONTRACT.md`: the builder's contract. How to load the language, the
+  five rules, every construct with its slots and states, and every value as a custom property.
+- `<target-dir>/kinbase-design/markup/<construct>.html`: each construct's exact markup, from the
+  same renderer as the preview.
+- `<target-dir>/kinbase-design/expected.json`: the tester's oracle. Resolved treatments per scope,
+  state and breakpoint, the closed set, and each construct's contract.
+- `TASK.md`, in the private bundle: the request verbatim, the pinned `id@hash`, which paths the
+  Coder must not receive and which the Tester receives, and the acceptance command.
+
+Factory needs no change. It already takes a task file, prepares separate Coder and Tester inputs
+from paths, and runs any command as the candidate check:
+
+```sh
+git -C /path/to/site switch kinbase-design/harbor-HASH8
+harness/factory.sh checkout /path/to/bundle/TASK.md --repo /path/to/site
+harness/endgame.sh checkout COMMIT --repo /candidate -- kinbase-design verify harbor@HASH --page ... --inventory kinbase-design.inventory.json
+```
+
+Limits, stated plainly. No Factory run has been made through this hand-off; the commands above
+follow Factory's documented interface and were not executed here. Vocabulary v1's `form` is a
+contact form with fixed `name`, `email` and `message` slots, so a checkout form's fields cannot be
+expressed as a construct yet: they would be built outside constructs and judged by the closed set
+only. Compliance means the page uses the language's values and constructs; it does not judge
+layout composition or taste.
+

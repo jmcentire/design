@@ -1,0 +1,14 @@
+{
+  "color": {"$type": "color", "ink": {"900": {"$value": "#101418"}, "50": {"$value": "#f4f6f8"}}, "sea": {"600": {"$value": "#0a6c74"}}},
+  "text": {
+    "$type": "color",
+    "primary": {"light": {"$value": "{color.ink.900}"}, "dark": {"$value": "{color.ink.50}"}},
+    "secondary": {"light": {"$value": "#4a5560"}, "dark": {"$value": "#aab4be"}},
+    "buttonPrimary": {"light": {"$value": "#ffffff"}, "dark": {"$value": "#101418"}},
+    "link": {"light": {"$value": "{text.primary.light}"}, "dark": {"$value": "{text.primary.dark}"}}
+  },
+  "background": {"$type": "color", "primary": {"light": {"$value": "#ffffff"}, "dark": {"$value": "#101418"}}},
+  "button": {"$type": "color", "primary": {"light": {"$value": "{color.sea.600}"}, "dark": {"$value": "#7fd1d8"}}},
+  "semantic": {"$type": "color", "success": {"light": {"$value": "#1a7f37"}, "dark": {"$value": "#3fb950"}}},
+  "ease": {"out": {"$type": "cubicBezier", "$value": [0, 0, 0.2, 1]}}
+}
